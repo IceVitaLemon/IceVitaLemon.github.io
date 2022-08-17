@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 6.2.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.2/css/all.min.css" integrity="sha256-xejo6yLi6vGtAjcMIsY8BHdKsLg7QynVlFMzdQgUuy8=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"example.com","root":"/","images":"/images","scheme":"Pisces","darkmode":false,"version":"8.12.3","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="python包安装方式 setup.py方式  pip方式（推荐）  easy_install方式     python常用的包管理器是pip和easy_install，他们会从PyPI源里面搜索模块并自动下载安装，通常pip在安装python时会一并安装，而easy_install会在安装setuptools之后安装好   PyPI是Python官方的第三方模块仓库，供所有开发者下载或上传代码">
+<meta property="og:type" content="article">
+<meta property="og:title" content="python包安装与卸载">
+<meta property="og:url" content="http://example.com/2022/08/17/python%E5%8C%85%E5%AE%89%E8%A3%85%E4%B8%8E%E5%8D%B8%E8%BD%BD/index.html">
+<meta property="og:site_name" content="IceVitalemon&#39;s Blog">
+<meta property="og:description" content="python包安装方式 setup.py方式  pip方式（推荐）  easy_install方式     python常用的包管理器是pip和easy_install，他们会从PyPI源里面搜索模块并自动下载安装，通常pip在安装python时会一并安装，而easy_install会在安装setuptools之后安装好   PyPI是Python官方的第三方模块仓库，供所有开发者下载或上传代码">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2022-08-17T11:20:32.000Z">
+<meta property="article:modified_time" content="2022-08-17T11:34:44.824Z">
+<meta property="article:author" content="Junhao Lin">
+<meta property="article:tag" content="python">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://example.com/2022/08/17/python%E5%8C%85%E5%AE%89%E8%A3%85%E4%B8%8E%E5%8D%B8%E8%BD%BD/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"http://example.com/2022/08/17/python%E5%8C%85%E5%AE%89%E8%A3%85%E4%B8%8E%E5%8D%B8%E8%BD%BD/","path":"2022/08/17/python包安装与卸载/","title":"python包安装与卸载"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>python包安装与卸载 | IceVitalemon's Blog</title>
+  
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">IceVitalemon's Blog</p>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#python%E5%8C%85%E5%AE%89%E8%A3%85%E6%96%B9%E5%BC%8F"><span class="nav-number">1.</span> <span class="nav-text">python包安装方式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-setup-py%E6%96%B9%E5%BC%8F"><span class="nav-number">2.</span> <span class="nav-text">1. setup.py方式</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-1-%E5%AE%89%E8%A3%85%E6%A8%A1%E5%9D%97"><span class="nav-number">2.1.</span> <span class="nav-text">1.1 安装模块</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#1-2-%E5%8D%B8%E8%BD%BD%E6%A8%A1%E5%9D%97"><span class="nav-number">2.2.</span> <span class="nav-text">1.2 卸载模块</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#1-3-%E6%89%93%E5%8C%85%E6%A8%A1%E5%9D%97"><span class="nav-number">2.3.</span> <span class="nav-text">1.3 打包模块</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-pip%E6%96%B9%E5%BC%8F"><span class="nav-number">3.</span> <span class="nav-text">2. pip方式</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#2-1-%E5%AE%89%E8%A3%85%E6%A8%A1%E5%9D%97"><span class="nav-number">3.1.</span> <span class="nav-text">2.1 安装模块</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-2-%E5%8D%B8%E8%BD%BD%E6%A8%A1%E5%9D%97"><span class="nav-number">3.2.</span> <span class="nav-text">2.2 卸载模块</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-3-%E9%95%9C%E5%83%8F%E6%BA%90"><span class="nav-number">3.3.</span> <span class="nav-text">2.3 镜像源</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-easy-install%E6%96%B9%E5%BC%8F"><span class="nav-number">4.</span> <span class="nav-text">3. easy_install方式</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#3-1-%E5%AE%89%E8%A3%85easy-install"><span class="nav-number">4.1.</span> <span class="nav-text">3.1 安装easy_install</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-2-%E5%AE%89%E8%A3%85%E6%A8%A1%E5%9D%97"><span class="nav-number">4.2.</span> <span class="nav-text">3.2 安装模块</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-3-%E5%8D%B8%E8%BD%BD%E6%A8%A1%E5%9D%97"><span class="nav-number">4.3.</span> <span class="nav-text">3.3 卸载模块</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Junhao Lin</p>
+  <div class="site-description" itemprop="description">时光小屋</div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">4</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">标签</span>
+      </div>
+  </nav>
+</div>
+
+
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/08/17/python%E5%8C%85%E5%AE%89%E8%A3%85%E4%B8%8E%E5%8D%B8%E8%BD%BD/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Junhao Lin">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="IceVitalemon's Blog">
+      <meta itemprop="description" content="时光小屋">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="python包安装与卸载 | IceVitalemon's Blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          python包安装与卸载
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2022-08-17 19:20:32 / 修改时间：19:34:44" itemprop="dateCreated datePublished" datetime="2022-08-17T19:20:32+08:00">2022-08-17</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <h3 id="python包安装方式"><a href="#python包安装方式" class="headerlink" title="python包安装方式"></a>python包安装方式</h3><ol>
+<li><p>setup.py方式</p>
+</li>
+<li><p>pip方式（推荐）</p>
+</li>
+<li><p>easy_install方式</p>
+</li>
+</ol>
+<blockquote>
+<p> python常用的包管理器是pip和easy_install，他们会从PyPI源里面搜索模块并自动下载安装，通常pip在安装python时会一并安装，而easy_install会在安装setuptools之后安装好</p>
+</blockquote>
+<blockquote>
+<p>PyPI是Python官方的第三方模块仓库，供所有开发者下载或上传代码</p>
+</blockquote>
+<blockquote>
+<p>事前约定：安装模块名是<code>module</code>，模块名可以到PyPI源里面寻找，<code>version</code>代指模块版本号</p>
+</blockquote>
+<h3 id="1-setup-py方式"><a href="#1-setup-py方式" class="headerlink" title="1. setup.py方式"></a>1. setup.py方式</h3><blockquote>
+<p>setup.py是源码安装，通常用于离线环境中，在PyPI上下载源码后解压，里面会有setup.py文件，编译构建通常需要setuptools和wheel模块。</p>
+</blockquote>
+<h4 id="1-1-安装模块"><a href="#1-1-安装模块" class="headerlink" title="1.1 安装模块"></a>1.1 安装模块</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">构建</span></span><br><span class="line">python setup.py build</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装, 不执行build直接执行install也行，因为install会先build再安装</span></span><br><span class="line">python setup.py install</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">记录安装文件路径</span></span><br><span class="line">python setup.py install --record=install.log</span><br></pre></td></tr></table></figure>
+
+<h4 id="1-2-卸载模块"><a href="#1-2-卸载模块" class="headerlink" title="1.2 卸载模块"></a>1.2 卸载模块</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">因为setup.py安装不像pip等包管理器管理，因此卸载的时候需要在安装的时候记录文件路径，卸载的时候直接删除文件</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">确保install.log文件中没有`/*`路径，不然问题贼大</span></span><br><span class="line">cat install.log | xargs rm -rf</span><br></pre></td></tr></table></figure>
+
+<h4 id="1-3-打包模块"><a href="#1-3-打包模块" class="headerlink" title="1.3 打包模块"></a>1.3 打包模块</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">打包的文件都在目录下的dist文件夹中</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">tar.gz格式，就是简单的将源文件打包，未编译构建</span></span><br><span class="line">python setup.py sdist</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">egg格式，也是将源文件打包，未编译构建，但是扩展名变成egg。这个格式由setuptools模块引入。</span></span><br><span class="line">python setup.py bdist_egg</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">whl格式(推荐)，wheel包，也是压缩文件，经过编译构建后，能够分发到各个平台。由wheel模块引入，需要先安装wheel模块。</span></span><br><span class="line">python setup.py bdist_wheel</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="2-pip方式"><a href="#2-pip方式" class="headerlink" title="2. pip方式"></a>2. pip方式</h3><blockquote>
+<p>pip也能以磁盘文件中安装模块，指定模块名时指定文件路径即可（whl或gee格式）</p>
+</blockquote>
+<blockquote>
+<p>pip命令还有pip3，pip3指的是python3的pip。不确定pip安装的是python2还是python3模块的时候，可以使用pip3指定为python3的模块，或者使用<code>python -m pip list</code>根据使用的python指定pip版本</p>
+</blockquote>
+<h4 id="2-1-安装模块"><a href="#2-1-安装模块" class="headerlink" title="2.1 安装模块"></a>2.1 安装模块</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">pip install module</span><br><span class="line">pip install module==version     # 安装指定版本</span><br><span class="line">python2 -m pip install module</span><br><span class="line">python3 -m pip isntall module</span><br></pre></td></tr></table></figure>
+
+<h4 id="2-2-卸载模块"><a href="#2-2-卸载模块" class="headerlink" title="2.2 卸载模块"></a>2.2 卸载模块</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">pip uninstall module</span><br><span class="line">python2 -m pip uninstall module</span><br><span class="line">python3 -m pip uninstall module</span><br></pre></td></tr></table></figure>
+
+<h4 id="2-3-镜像源"><a href="#2-3-镜像源" class="headerlink" title="2.3 镜像源"></a>2.3 镜像源</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">可以使用 &#x27;-i&#x27; 参数指定镜像源，加速下载，或在pip.conf文件中永久修改镜像源</span><br><span class="line">阿里云         https://mirrors.aliyun.com/pypi/simple/</span><br><span class="line">中国科技大学    https://pypi.mirrors.ustc.edu.cn/simple/</span><br><span class="line">豆瓣(douban)   http://pypi.douban.com/simple/</span><br><span class="line">清华大学        https://pypi.tuna.tsinghua.edu.cn/simple/</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-easy-install方式"><a href="#3-easy-install方式" class="headerlink" title="3. easy_install方式"></a>3. easy_install方式</h3><h4 id="3-1-安装easy-install"><a href="#3-1-安装easy-install" class="headerlink" title="3.1 安装easy_install"></a>3.1 安装easy_install</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">1. 通过引导程序ez_setup.py安装</span></span><br><span class="line">wget http://peak.telecommunity.com/dist/ez_setup.py</span><br><span class="line">python ez_setup.py</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">2. 安装setuptools后自动安装（pip或setup.py方法安装）</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="3-2-安装模块"><a href="#3-2-安装模块" class="headerlink" title="3.2 安装模块"></a>3.2 安装模块</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">easy_install module</span><br><span class="line">easy_install module==version   # 安装指定版本</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">指定镜像源安装</span></span><br><span class="line">esay_install -i `镜像源` module </span><br></pre></td></tr></table></figure>
+
+<h4 id="3-3-卸载模块"><a href="#3-3-卸载模块" class="headerlink" title="3.3 卸载模块"></a>3.3 卸载模块</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">easy_install -m module</span><br></pre></td></tr></table></figure>
+
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/python/" rel="tag"># python</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2022/08/17/hello-world/" rel="prev" title="Hello World">
+                  <i class="fa fa-chevron-left"></i> Hello World
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2022/08/17/Hexo%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2%E6%90%AD%E5%BB%BA/" rel="next" title="Hexo个人博客搭建">
+                  Hexo个人博客搭建 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+
+<div class="copyright">
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Junhao Lin</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/pisces/" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+</body>
+</html>
