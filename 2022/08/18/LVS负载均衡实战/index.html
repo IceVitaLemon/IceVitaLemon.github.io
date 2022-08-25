@@ -20,25 +20,32 @@
 
 <script class="next-config" data-name="main" type="application/json">{"hostname":"example.com","root":"/","images":"/images","scheme":"Pisces","darkmode":false,"version":"8.12.3","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
 
-    <meta name="description" content="时光小屋">
-<meta property="og:type" content="website">
-<meta property="og:title" content="IceVitalemon&#39;s Blog">
-<meta property="og:url" content="http://example.com/index.html">
+    <meta name="description" content="前言LVS的作用就是用作四层的负载均衡，四层是指TCP&#x2F;IP七层协议中的传输层。目的是请求按一定的调度策略把用户的请求分发到多台后端设备上。区别于nginx，nginx是七层的负载均衡，能够看到http协议，而LVS只能看到四层的协议，即TCP协议等，所以无法通过Http cookie处理session。 简介LVS（Linux Virtual Server）即Linux虚拟服务器，由章文嵩博士开">
+<meta property="og:type" content="article">
+<meta property="og:title" content="LVS负载均衡实战">
+<meta property="og:url" content="http://example.com/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/index.html">
 <meta property="og:site_name" content="IceVitalemon&#39;s Blog">
-<meta property="og:description" content="时光小屋">
+<meta property="og:description" content="前言LVS的作用就是用作四层的负载均衡，四层是指TCP&#x2F;IP七层协议中的传输层。目的是请求按一定的调度策略把用户的请求分发到多台后端设备上。区别于nginx，nginx是七层的负载均衡，能够看到http协议，而LVS只能看到四层的协议，即TCP协议等，所以无法通过Http cookie处理session。 简介LVS（Linux Virtual Server）即Linux虚拟服务器，由章文嵩博士开">
 <meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_NAT.png">
+<meta property="og:image" content="http://example.com/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_TUN.png">
+<meta property="og:image" content="http://example.com/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_DR.png">
+<meta property="article:published_time" content="2022-08-18T07:32:45.000Z">
+<meta property="article:modified_time" content="2022-08-25T08:08:48.547Z">
 <meta property="article:author" content="Junhao Lin">
+<meta property="article:tag" content="LVS">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_NAT.png">
 
 
-<link rel="canonical" href="http://example.com/">
+<link rel="canonical" href="http://example.com/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/">
 
 
 
-<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":true,"isPost":false,"lang":"zh-CN","comments":"","permalink":"","path":"index.html","title":""}</script>
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"http://example.com/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/","path":"2022/08/18/LVS负载均衡实战/","title":"LVS负载均衡实战"}</script>
 
 <script class="next-config" data-name="calendar" type="application/json">""</script>
-<title>IceVitalemon's Blog</title>
+<title>LVS负载均衡实战 | IceVitalemon's Blog</title>
   
 
 
@@ -65,7 +72,7 @@
 
     <a href="/" class="brand" rel="start">
       <i class="logo-line"></i>
-      <h1 class="site-title">IceVitalemon's Blog</h1>
+      <p class="site-title">IceVitalemon's Blog</p>
       <i class="logo-line"></i>
     </a>
   </div>
@@ -93,7 +100,7 @@
 
   <aside class="sidebar">
 
-    <div class="sidebar-inner sidebar-overview-active">
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
       <ul class="sidebar-nav">
         <li class="sidebar-nav-toc">
           文章目录
@@ -106,6 +113,7 @@
       <div class="sidebar-panel-container">
         <!--noindex-->
         <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%89%8D%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AE%80%E4%BB%8B"><span class="nav-number">2.</span> <span class="nav-text">简介</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#LVS%E7%9A%84%E7%BB%84%E6%88%90"><span class="nav-number">2.1.</span> <span class="nav-text">LVS的组成</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#LVS%E7%9A%84%E4%B8%89%E7%A7%8D%E5%B7%A5%E4%BD%9C%E6%A8%A1%E5%BC%8F"><span class="nav-number">2.2.</span> <span class="nav-text">LVS的三种工作模式</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E4%B8%89%E7%A7%8D%E6%A8%A1%E5%BC%8F%E7%9A%84%E4%B8%BB%E8%A6%81%E5%8C%BA%E5%88%AB"><span class="nav-number">2.2.1.</span> <span class="nav-text">三种模式的主要区别</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%B0%83%E5%BA%A6%E7%AE%97%E6%B3%95"><span class="nav-number">2.3.</span> <span class="nav-text">调度算法</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"><span class="nav-number">3.</span> <span class="nav-text">工作原理</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%88%AB%E7%A7%B0%E7%BA%A6%E5%AE%9A"><span class="nav-number">3.1.</span> <span class="nav-text">别称约定</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#LVS-x2F-NAT%E5%92%8CFULLNAT"><span class="nav-number">3.2.</span> <span class="nav-text">LVS&#x2F;NAT和FULLNAT</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#LVS-x2F-TUN"><span class="nav-number">3.3.</span> <span class="nav-text">LVS&#x2F;TUN</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#LVS-x2F-DR"><span class="nav-number">3.4.</span> <span class="nav-text">LVS&#x2F;DR</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%9E%E6%88%98"><span class="nav-number">4.</span> <span class="nav-text">实战</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%8E%AF%E5%A2%83%E4%BF%A1%E6%81%AF"><span class="nav-number">4.1.</span> <span class="nav-text">环境信息</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#LVS%E5%AE%89%E8%A3%85"><span class="nav-number">4.2.</span> <span class="nav-text">LVS安装</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Nginx%E5%AE%89%E8%A3%85"><span class="nav-number">4.3.</span> <span class="nav-text">Nginx安装</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%85%B3%E9%97%ADlinux%E9%98%B2%E7%81%AB%E5%A2%99"><span class="nav-number">4.4.</span> <span class="nav-text">关闭linux防火墙</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%85%8D%E7%BD%AELVS"><span class="nav-number">4.5.</span> <span class="nav-text">配置LVS</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%BB%93%E6%9E%9C"><span class="nav-number">4.6.</span> <span class="nav-text">结果</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%93%8D%E4%BD%9C%E8%BF%87%E7%A8%8B%E4%B8%AD%E7%9A%84%E4%B8%80%E4%BA%9B%E9%97%AE%E9%A2%98"><span class="nav-number">4.7.</span> <span class="nav-text">操作过程中的一些问题</span></a></li></ol></li></ol></div>
         </div>
         <!--/noindex-->
 
@@ -151,16 +159,17 @@
 </noscript>
 
 
-    <div class="main-inner index posts-expand">
+    <div class="main-inner post posts-expand">
 
-    
+
+  
 
 
 <div class="post-block">
   
   
 
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="http://example.com/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -174,13 +183,13 @@
     </span>
 
     <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
-      <meta itemprop="name" content="undefined | IceVitalemon's Blog">
+      <meta itemprop="name" content="LVS负载均衡实战 | IceVitalemon's Blog">
       <meta itemprop="description" content="">
     </span>
       <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/" class="post-title-link" itemprop="url">LVS负载均衡实战</a>
-        </h2>
+        <h1 class="post-title" itemprop="name headline">
+          LVS负载均衡实战
+        </h1>
 
         <div class="post-meta-container">
           <div class="post-meta">
@@ -210,7 +219,7 @@
     
     
     <div class="post-body" itemprop="articleBody">
-          <h3 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h3><p>LVS的作用就是用作<strong>四层</strong>的<strong>负载均衡</strong>，四层是指<code>TCP/IP</code>七层协议中的传输层。目的是请求按一定的<strong>调度策略</strong>把用户的请求分发到多台后端设备上。区别于nginx，nginx是七层的负载均衡，能够看到http协议，而LVS只能看到四层的协议，即TCP协议等，所以无法通过Http cookie处理session。</p>
+        <h3 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h3><p>LVS的作用就是用作<strong>四层</strong>的<strong>负载均衡</strong>，四层是指<code>TCP/IP</code>七层协议中的传输层。目的是请求按一定的<strong>调度策略</strong>把用户的请求分发到多台后端设备上。区别于nginx，nginx是七层的负载均衡，能够看到http协议，而LVS只能看到四层的协议，即TCP协议等，所以无法通过Http cookie处理session。</p>
 <h3 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h3><p><a target="_blank" rel="noopener" href="http://www.linuxvirtualserver.org/">LVS（Linux Virtual Server）</a>即Linux虚拟服务器，由章文嵩博士开发并已贡献给开源社区，用于构建高性能、高可用的Linux服务器集群，具有良好的可靠性、可扩展性和可操作性。</p>
 <blockquote>
 <p>LVS的高可用需要结合Keepalived，不然的话其实只有一个前端负载均衡节点负责着绑定到LVS上的IP流量，所以当这个前端负载均衡节点挂了之后，IP流量就无法分发到后端真实工作服务器上。Keepalived的作用就是保证前端负载均衡节点的高可用。</p>
@@ -460,7 +469,6 @@
 </ul>
 <p>在实际操作过程中，试着把ip_forward设置成0再curl，但是也能通，没啥问题，这是因为把VIP绑定在了网卡上，所以肯定是能接收到的。然后试着把VIP解绑，即不绑定在任何网卡上，但是这个时候网络就不通了，即使ip_forward设置成1也不行，不清楚原因。</p>
 
-      
     </div>
 
     
@@ -468,390 +476,25 @@
     
 
     <footer class="post-footer">
-        <div class="post-eof"></div>
-      
+          <div class="post-tags">
+              <a href="/tags/LVS/" rel="tag"># LVS</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2022/08/17/Hexo%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2%E6%90%AD%E5%BB%BA/" rel="prev" title="Hexo个人博客搭建">
+                  <i class="fa fa-chevron-left"></i> Hexo个人博客搭建
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
     </footer>
   </article>
 </div>
 
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/08/17/Hexo%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2%E6%90%AD%E5%BB%BA/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Junhao Lin">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="IceVitalemon's Blog">
-      <meta itemprop="description" content="时光小屋">
-    </span>
-
-    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
-      <meta itemprop="name" content="undefined | IceVitalemon's Blog">
-      <meta itemprop="description" content="">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2022/08/17/Hexo%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2%E6%90%AD%E5%BB%BA/" class="post-title-link" itemprop="url">Hexo个人博客搭建</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-      
-
-      <time title="创建时间：2022-08-17 19:51:36 / 修改时间：19:52:20" itemprop="dateCreated datePublished" datetime="2022-08-17T19:51:36+08:00">2022-08-17</time>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/08/17/python%E6%A8%A1%E5%9D%97%E5%8A%A0%E8%BD%BD%E9%A1%BA%E5%BA%8F/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Junhao Lin">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="IceVitalemon's Blog">
-      <meta itemprop="description" content="时光小屋">
-    </span>
-
-    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
-      <meta itemprop="name" content="undefined | IceVitalemon's Blog">
-      <meta itemprop="description" content="">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2022/08/17/python%E6%A8%A1%E5%9D%97%E5%8A%A0%E8%BD%BD%E9%A1%BA%E5%BA%8F/" class="post-title-link" itemprop="url">python模块加载顺序</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-
-      <time title="创建时间：2022-08-17 19:36:11" itemprop="dateCreated datePublished" datetime="2022-08-17T19:36:11+08:00">2022-08-17</time>
-    </span>
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar-check"></i>
-      </span>
-      <span class="post-meta-item-text">更新于</span>
-      <time title="修改时间：2022-08-19 10:53:02" itemprop="dateModified" datetime="2022-08-19T10:53:02+08:00">2022-08-19</time>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <blockquote>
-<p>结论：工程自定义包 -&gt; 工程py文件 -&gt; 系统路径 </p>
-<p>所以如果在工程中自己创建了跟系统&#x2F;第三方模块重名的模块时，则无法加载系统&#x2F;第三方模块</p>
-</blockquote>
-<p>python出于性能考虑，每个模块在每个解释器会话中只导入一遍，所以如果程序运行过程中，你修改了自定义模块，那么需要重启解释器（即重启程序）或者使用<code>reload(moduleName)</code>重新加载模块（不用重启）</p>
-<h3 id="查看模块加载路径"><a href="#查看模块加载路径" class="headerlink" title="查看模块加载路径"></a>查看模块加载路径</h3><blockquote>
-<p>python解析器会从脚本执行目录、所有已安装内置模块和第三方模块中寻找导入的模块，按照sys.path中的路径顺序进行查找</p>
-</blockquote>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 查看sys.path</span></span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">import</span> sys</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>sys.path</span><br><span class="line">[<span class="string">&#x27;&#x27;</span>, <span class="string">&#x27;/usr/lib64/python27.zip&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/plat-linux2&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-tk&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-old&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-dynload&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/site-packages&#x27;</span>, <span class="string">&#x27;/usr/lib/python2.7/site-packages&#x27;</span>]</span><br><span class="line"><span class="comment"># 这里的列表中的第一个&#x27;&#x27;代表着当前目录，如果是使用文件执行，则是显示的脚本所在目录</span></span><br><span class="line"><span class="comment"># 可以通过sys.path.append(&#x27;/Users/michael/my_py_scripts&#x27;)临时添加搜索目录</span></span><br><span class="line"><span class="comment"># 或将目录添加到shell环境变量PYTHONPATH中</span></span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="自定义模块加载"><a href="#自定义模块加载" class="headerlink" title="自定义模块加载"></a>自定义模块加载</h3><ol>
-<li>导入一个叫<code>spam</code>的模块时，解释器先在当前目录中搜索名为<code>spam.py</code>的文件，import语句导入<code>spam.py</code>文件时，顺序执行其中的语句</li>
-</ol>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">目录结构</span><br><span class="line">projects/</span><br><span class="line">    test.py   # 内容 import spam</span><br><span class="line">    spam.py   # 内容 print(&quot;this is spam.py&quot;)</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">#</span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam.py</span><br></pre></td></tr></table></figure>
-
-<ol start="2">
-<li><strong>目录下存在<code>spam</code>包时，则优先调用<code>spam</code>包，不加载<code>spam.py</code>。加载包内文件时，先执行<code>__init__.py</code>再加载包内文件内容</strong></li>
-</ol>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">目录结构</span><br><span class="line">projects/</span><br><span class="line">    test.py   # 内容 import spam</span><br><span class="line">    spam.py   # 内容 print(&quot;this is spam.py&quot;)</span><br><span class="line">    spam/ </span><br><span class="line">        __init__.py  # 内容 print(&quot;this is spam/__init__.py&quot;)</span><br><span class="line">        sub.py        # 内容 print(&quot;this is spam/sub.py&quot;)</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam/__init__.py</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">修改test.py</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">echo</span> <span class="string">&quot;import spam.sub&quot;</span> &gt; test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam/__init__.py</span><br><span class="line">this is spam/sub.py</span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="查看第三方模块的所在路径"><a href="#查看第三方模块的所在路径" class="headerlink" title="查看第三方模块的所在路径"></a>查看第三方模块的所在路径</h3><p>哪如果想知道导入的第三方模块具体文件在哪里咋办呢？</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">import</span> imp</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>imp.find_module(<span class="string">&quot;paramiko&quot;</span>)</span><br><span class="line">(<span class="literal">None</span>, <span class="string">&#x27;/usr/local/lib/python3.6/site-packages/paramiko&#x27;</span>, (<span class="string">&#x27;&#x27;</span>, <span class="string">&#x27;&#x27;</span>, <span class="number">5</span>))</span><br></pre></td></tr></table></figure>
-
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/08/17/python%E5%8C%85%E5%AE%89%E8%A3%85%E4%B8%8E%E5%8D%B8%E8%BD%BD/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Junhao Lin">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="IceVitalemon's Blog">
-      <meta itemprop="description" content="时光小屋">
-    </span>
-
-    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
-      <meta itemprop="name" content="undefined | IceVitalemon's Blog">
-      <meta itemprop="description" content="">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2022/08/17/python%E5%8C%85%E5%AE%89%E8%A3%85%E4%B8%8E%E5%8D%B8%E8%BD%BD/" class="post-title-link" itemprop="url">python包安装与卸载</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-
-      <time title="创建时间：2022-08-17 19:20:32" itemprop="dateCreated datePublished" datetime="2022-08-17T19:20:32+08:00">2022-08-17</time>
-    </span>
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar-check"></i>
-      </span>
-      <span class="post-meta-item-text">更新于</span>
-      <time title="修改时间：2022-08-19 10:53:40" itemprop="dateModified" datetime="2022-08-19T10:53:40+08:00">2022-08-19</time>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <h3 id="python包安装方式"><a href="#python包安装方式" class="headerlink" title="python包安装方式"></a>python包安装方式</h3><ol>
-<li><p>setup.py方式</p>
-</li>
-<li><p>pip方式（推荐）</p>
-</li>
-<li><p>easy_install方式</p>
-</li>
-</ol>
-<blockquote>
-<p> python常用的包管理器是pip和easy_install，他们会从PyPI源里面搜索模块并自动下载安装，通常pip在安装python时会一并安装，而easy_install会在安装setuptools之后安装好</p>
-</blockquote>
-<blockquote>
-<p>PyPI是Python官方的第三方模块仓库，供所有开发者下载或上传代码</p>
-</blockquote>
-<blockquote>
-<p>事前约定：安装模块名是<code>module</code>，模块名可以到PyPI源里面寻找，<code>version</code>代指模块版本号</p>
-</blockquote>
-<h3 id="setup-py方式"><a href="#setup-py方式" class="headerlink" title="setup.py方式"></a>setup.py方式</h3><blockquote>
-<p>setup.py是源码安装，通常用于离线环境中，在PyPI上下载源码后解压，里面会有setup.py文件，编译构建通常需要setuptools和wheel模块。</p>
-</blockquote>
-<h4 id="安装模块"><a href="#安装模块" class="headerlink" title="安装模块"></a>安装模块</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">构建</span></span><br><span class="line">python setup.py build</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装, 不执行build直接执行install也行，因为install会先build再安装</span></span><br><span class="line">python setup.py install</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">记录安装文件路径</span></span><br><span class="line">python setup.py install --record=install.log</span><br></pre></td></tr></table></figure>
-
-<h4 id="卸载模块"><a href="#卸载模块" class="headerlink" title="卸载模块"></a>卸载模块</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">因为setup.py安装不像pip等包管理器管理，因此卸载的时候需要在安装的时候记录文件路径，卸载的时候直接删除文件</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">确保install.log文件中没有`/*`路径，不然问题贼大</span></span><br><span class="line">cat install.log | xargs rm -rf</span><br></pre></td></tr></table></figure>
-
-<h4 id="打包模块"><a href="#打包模块" class="headerlink" title="打包模块"></a>打包模块</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">打包的文件都在目录下的dist文件夹中</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">tar.gz格式，就是简单的将源文件打包，未编译构建</span></span><br><span class="line">python setup.py sdist</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">egg格式，也是将源文件打包，未编译构建，但是扩展名变成egg。这个格式由setuptools模块引入。</span></span><br><span class="line">python setup.py bdist_egg</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">whl格式(推荐)，wheel包，也是压缩文件，经过编译构建后，能够分发到各个平台。由wheel模块引入，需要先安装wheel模块。</span></span><br><span class="line">python setup.py bdist_wheel</span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="pip方式"><a href="#pip方式" class="headerlink" title="pip方式"></a>pip方式</h3><blockquote>
-<p>pip也能以磁盘文件中安装模块，指定模块名时指定文件路径即可（whl或gee格式）</p>
-</blockquote>
-<blockquote>
-<p>pip命令还有pip3，pip3指的是python3的pip。不确定pip安装的是python2还是python3模块的时候，可以使用pip3指定为python3的模块，或者使用<code>python -m pip list</code>根据使用的python指定pip版本</p>
-</blockquote>
-<h4 id="安装模块-1"><a href="#安装模块-1" class="headerlink" title="安装模块"></a>安装模块</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">pip install module</span><br><span class="line">pip install module==version     # 安装指定版本</span><br><span class="line">python2 -m pip install module</span><br><span class="line">python3 -m pip isntall module</span><br></pre></td></tr></table></figure>
-
-<h4 id="卸载模块-1"><a href="#卸载模块-1" class="headerlink" title="卸载模块"></a>卸载模块</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">pip uninstall module</span><br><span class="line">python2 -m pip uninstall module</span><br><span class="line">python3 -m pip uninstall module</span><br></pre></td></tr></table></figure>
-
-<h4 id="镜像源"><a href="#镜像源" class="headerlink" title="镜像源"></a>镜像源</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">可以使用 &#x27;-i&#x27; 参数指定镜像源，加速下载，或在pip.conf文件中永久修改镜像源</span><br><span class="line">阿里云         https://mirrors.aliyun.com/pypi/simple/</span><br><span class="line">中国科技大学    https://pypi.mirrors.ustc.edu.cn/simple/</span><br><span class="line">豆瓣(douban)   http://pypi.douban.com/simple/</span><br><span class="line">清华大学        https://pypi.tuna.tsinghua.edu.cn/simple/</span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="easy-install方式"><a href="#easy-install方式" class="headerlink" title="easy_install方式"></a>easy_install方式</h3><h4 id="安装easy-install"><a href="#安装easy-install" class="headerlink" title="安装easy_install"></a>安装easy_install</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">1. 通过引导程序ez_setup.py安装</span></span><br><span class="line">wget http://peak.telecommunity.com/dist/ez_setup.py</span><br><span class="line">python ez_setup.py</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">2. 安装setuptools后自动安装（pip或setup.py方法安装）</span></span><br></pre></td></tr></table></figure>
-
-<h4 id="安装模块-2"><a href="#安装模块-2" class="headerlink" title="安装模块"></a>安装模块</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">easy_install module</span><br><span class="line">easy_install module==version   # 安装指定版本</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">指定镜像源安装</span></span><br><span class="line">esay_install -i `镜像源` module </span><br></pre></td></tr></table></figure>
-
-<h4 id="卸载模块-2"><a href="#卸载模块-2" class="headerlink" title="卸载模块"></a>卸载模块</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">easy_install -m module</span><br></pre></td></tr></table></figure>
-
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/08/17/hello-world/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Junhao Lin">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="IceVitalemon's Blog">
-      <meta itemprop="description" content="时光小屋">
-    </span>
-
-    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
-      <meta itemprop="name" content="undefined | IceVitalemon's Blog">
-      <meta itemprop="description" content="">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2022/08/17/hello-world/" class="post-title-link" itemprop="url">Hello World</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-
-      <time title="创建时间：2022-08-17 17:19:11" itemprop="dateCreated datePublished" datetime="2022-08-17T17:19:11+08:00">2022-08-17</time>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <p>Welcome to <a target="_blank" rel="noopener" href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a target="_blank" rel="noopener" href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a target="_blank" rel="noopener" href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a target="_blank" rel="noopener" href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/writing.html">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/server.html">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/generating.html">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
 
 
 
