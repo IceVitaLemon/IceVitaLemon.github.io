@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 6.2.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.2/css/all.min.css" integrity="sha256-xejo6yLi6vGtAjcMIsY8BHdKsLg7QynVlFMzdQgUuy8=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"example.com","root":"/","images":"/images","scheme":"Pisces","darkmode":false,"version":"8.12.3","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="JAVA基础知识集合HashMap ConcurrentHashMap JVM多线程线程状态 锁 AQS 线程池 网络编程epoll channel BIO NIO AIO 计算机基础计算机网络发起HTTP请求的流程 ARP（地址解析协议） DNS PING，ICMP TCP&#x2F;IP TCP -三次握手四次挥手 CLOSED WAIT TIME WAIT UDP 操作系统进程、线程、协程">
+<meta property="og:type" content="article">
+<meta property="og:title" content="基础知识回顾">
+<meta property="og:url" content="http://example.com/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/index.html">
+<meta property="og:site_name" content="IceVitalemon&#39;s Blog">
+<meta property="og:description" content="JAVA基础知识集合HashMap ConcurrentHashMap JVM多线程线程状态 锁 AQS 线程池 网络编程epoll channel BIO NIO AIO 计算机基础计算机网络发起HTTP请求的流程 ARP（地址解析协议） DNS PING，ICMP TCP&#x2F;IP TCP -三次握手四次挥手 CLOSED WAIT TIME WAIT UDP 操作系统进程、线程、协程">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE%5C%E9%97%B4%E9%9A%99%E9%94%81%E6%AD%BB%E9%94%81.png">
+<meta property="og:image" content="http://example.com/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE%5CMVCC.png">
+<meta property="og:image" content="http://example.com/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/blog/source_posts/基础知识回顾/MVCC水位.png">
+<meta property="og:image" content="http://example.com/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/blog/source_posts/基础知识回顾/主从复制流程.png">
+<meta property="og:image" content="http://example.com/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/blog/source_posts/基础知识回顾/主从切换.png">
+<meta property="og:image" content="http://example.com/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/blog/source_posts/基础知识回顾/join.png">
+<meta property="og:image" content="http://example.com/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/k8s组件.png">
+<meta property="og:image" content="http://example.com/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE%5Ck8s%E7%BD%91%E7%BB%9C.png">
+<meta property="og:image" content="http://example.com/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/ZXID.png">
+<meta property="og:image" content="http://example.com/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE%5C%E6%B6%88%E6%81%AF%E5%B9%BF%E6%92%AD1.png">
+<meta property="og:image" content="http://example.com/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE%5C%E6%B6%88%E6%81%AF%E5%B9%BF%E6%92%AD2.png">
+<meta property="article:published_time" content="2022-09-05T02:07:20.000Z">
+<meta property="article:modified_time" content="2022-09-08T08:35:50.931Z">
+<meta property="article:author" content="Junhao Lin">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE%5C%E9%97%B4%E9%9A%99%E9%94%81%E6%AD%BB%E9%94%81.png">
+
+
+<link rel="canonical" href="http://example.com/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"http://example.com/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/","path":"2022/09/05/基础知识回顾/","title":"基础知识回顾"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>基础知识回顾 | IceVitalemon's Blog</title>
+  
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">IceVitalemon's Blog</p>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#JAVA%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86"><span class="nav-number">1.</span> <span class="nav-text">JAVA基础知识</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%9B%86%E5%90%88"><span class="nav-number">1.1.</span> <span class="nav-text">集合</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#JVM"><span class="nav-number">1.2.</span> <span class="nav-text">JVM</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A4%9A%E7%BA%BF%E7%A8%8B"><span class="nav-number">1.3.</span> <span class="nav-text">多线程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B"><span class="nav-number">1.4.</span> <span class="nav-text">网络编程</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80"><span class="nav-number">2.</span> <span class="nav-text">计算机基础</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C"><span class="nav-number">2.1.</span> <span class="nav-text">计算机网络</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F"><span class="nav-number">2.2.</span> <span class="nav-text">操作系统</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#MySQL"><span class="nav-number">3.</span> <span class="nav-text">MySQL</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#MyISAM%E5%92%8CInnoDB%E7%9A%84%E5%8C%BA%E5%88%AB"><span class="nav-number">3.1.</span> <span class="nav-text">MyISAM和InnoDB的区别</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%B4%A2%E5%BC%95"><span class="nav-number">3.2.</span> <span class="nav-text">索引</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%B4%A2%E5%BC%95%E7%B1%BB%E5%9E%8B%EF%BC%88%E5%88%86%E7%B1%BB%E8%A7%92%E5%BA%A6%EF%BC%89"><span class="nav-number">3.2.1.</span> <span class="nav-text">索引类型（分类角度）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%81%9A%E7%B0%87%E7%B4%A2%E5%BC%95%E4%B8%8E%E9%9D%9E%E8%81%9A%E7%B0%87%E7%B4%A2%E5%BC%95%EF%BC%88%E7%89%A9%E7%90%86%E5%82%A8%E5%AD%98%E8%A7%92%E5%BA%A6%EF%BC%89"><span class="nav-number">3.2.2.</span> <span class="nav-text">聚簇索引与非聚簇索引（物理储存角度）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#B-%E6%A0%91%E7%B4%A2%E5%BC%95%E5%92%8C%E5%93%88%E5%B8%8C%E7%B4%A2%E5%BC%95%EF%BC%88%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E8%A7%92%E5%BA%A6%EF%BC%89"><span class="nav-number">3.2.3.</span> <span class="nav-text">B+树索引和哈希索引（数据结构角度）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%87%AA%E9%80%82%E5%BA%94%E5%93%88%E5%B8%8C%E7%B4%A2%E5%BC%95"><span class="nav-number">3.2.4.</span> <span class="nav-text">自适应哈希索引</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%B8%BB%E9%94%AE%E7%B4%A2%E5%BC%95%E5%B0%B1%E6%98%AF%E8%81%9A%E7%B0%87%E7%B4%A2%E5%BC%95%E5%90%97%EF%BC%9F"><span class="nav-number">3.2.5.</span> <span class="nav-text">主键索引就是聚簇索引吗？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BB%80%E4%B9%88%E6%98%AF%E8%81%94%E5%90%88%E7%B4%A2%E5%BC%95%E3%80%81%E8%A6%86%E7%9B%96%E7%B4%A2%E5%BC%95%E3%80%81%E7%B4%A2%E5%BC%95%E6%9C%80%E5%B7%A6%E5%8C%B9%E9%85%8D%E5%8E%9F%E5%88%99"><span class="nav-number">3.2.6.</span> <span class="nav-text">什么是联合索引、覆盖索引、索引最左匹配原则</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%AF%B4%E4%B8%80%E4%B8%8B%E7%B4%A2%E5%BC%95%E4%B8%8B%E6%8E%A8"><span class="nav-number">3.2.7.</span> <span class="nav-text">说一下索引下推</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BA%8B%E5%8A%A1"><span class="nav-number">3.3.</span> <span class="nav-text">事务</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BA%8B%E5%8A%A1%E7%9A%84%E5%9B%9B%E5%A4%A7%E7%89%B9%E6%80%A7%EF%BC%88ACID%EF%BC%89"><span class="nav-number">3.3.1.</span> <span class="nav-text">事务的四大特性（ACID）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8F%AF%E8%83%BD%E5%87%BA%E7%8E%B0%E7%9A%84%E9%97%AE%E9%A2%98"><span class="nav-number">3.3.2.</span> <span class="nav-text">可能出现的问题</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%9A%94%E7%A6%BB%E7%AD%89%E7%BA%A7"><span class="nav-number">3.3.3.</span> <span class="nav-text">隔离等级</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%94%81-%E3%80%81%E9%97%B4%E9%9A%99%E9%94%81%E3%80%81Next-Key-Lock"><span class="nav-number">3.4.</span> <span class="nav-text">锁 、间隙锁、Next-Key Lock</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A4%9A%E7%89%88%E6%9C%AC%E5%B9%B6%E5%8F%91%E6%8E%A7%E5%88%B6MVCC"><span class="nav-number">3.5.</span> <span class="nav-text">多版本并发控制MVCC</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%A0%87%E8%AF%86ID"><span class="nav-number">3.5.1.</span> <span class="nav-text">标识ID</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%AF%A6%E7%BB%86%E8%BF%87%E7%A8%8B"><span class="nav-number">3.5.2.</span> <span class="nav-text">详细过程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#ABA%E9%97%AE%E9%A2%98"><span class="nav-number">3.5.3.</span> <span class="nav-text">ABA问题</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#binlog%E3%80%81redolog"><span class="nav-number">3.6.</span> <span class="nav-text">binlog、redolog</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#binlog%EF%BC%88%E5%BD%92%E6%A1%A3%E6%97%A5%E5%BF%97%EF%BC%89"><span class="nav-number">3.6.1.</span> <span class="nav-text">binlog（归档日志）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#redo-log%EF%BC%88%E9%87%8D%E5%81%9A%E6%97%A5%E5%BF%97%EF%BC%89"><span class="nav-number">3.6.2.</span> <span class="nav-text">redo log（重做日志）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%BC%93%E5%86%B2%E7%BB%93%E6%9E%84"><span class="nav-number">3.6.3.</span> <span class="nav-text">缓冲结构</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%8F%90%E4%BA%A4"><span class="nav-number">3.6.4.</span> <span class="nav-text">二阶段提交</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%BB%E4%BB%8E%E6%A8%A1%E5%BC%8F"><span class="nav-number">3.7.</span> <span class="nav-text">主从模式</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%AF%A6%E7%BB%86%E6%B5%81%E7%A8%8B"><span class="nav-number">3.7.1.</span> <span class="nav-text">详细流程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%BE%AA%E7%8E%AF%E5%A4%8D%E5%88%B6%E9%97%AE%E9%A2%98"><span class="nav-number">3.7.2.</span> <span class="nav-text">循环复制问题</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#inner-join%E3%80%81left-join%E3%80%81right-join%E3%80%81full-join"><span class="nav-number">3.8.</span> <span class="nav-text">inner join、left join、right join、full join</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#on%E5%92%8Cwhere%E7%9A%84%E5%8C%BA%E5%88%AB"><span class="nav-number">3.8.1.</span> <span class="nav-text">on和where的区别</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B0%8F%E8%A1%A8%E9%A9%B1%E5%8A%A8%E5%A4%A7%E8%A1%A8"><span class="nav-number">3.9.</span> <span class="nav-text">小表驱动大表</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E5%BA%93%E4%BC%98%E5%8C%96"><span class="nav-number">3.10.</span> <span class="nav-text">数据库优化</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Spring"><span class="nav-number">4.</span> <span class="nav-text">Spring</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#DI-IOC-AOP"><span class="nav-number">4.1.</span> <span class="nav-text">DI IOC AOP</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Bean%E7%9A%84%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="nav-number">4.2.</span> <span class="nav-text">Bean的生命周期</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Spring-MVC%E7%9A%84%E5%B7%A5%E4%BD%9C%E6%B5%81%E7%A8%8B"><span class="nav-number">4.3.</span> <span class="nav-text">Spring MVC的工作流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Spring-MVC%E7%9A%84%E5%B8%B8%E7%94%A8%E6%B3%A8%E8%A7%A3"><span class="nav-number">4.4.</span> <span class="nav-text">Spring MVC的常用注解</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#k8s%EF%BC%88%E5%BE%85%E6%94%B6%E6%8B%BE%EF%BC%89"><span class="nav-number">5.</span> <span class="nav-text">k8s（待收拾）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#k8s%E7%9A%84%E6%93%8D%E4%BD%9C%E5%91%BD%E4%BB%A4"><span class="nav-number">5.1.</span> <span class="nav-text">k8s的操作命令</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#k8s%E7%9A%84%E7%BB%84%E4%BB%B6"><span class="nav-number">5.2.</span> <span class="nav-text">k8s的组件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%8E%A7%E5%88%B6%E5%99%A8%E7%B1%BB%E5%9E%8B"><span class="nav-number">5.3.</span> <span class="nav-text">控制器类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#K8S%E7%BD%91%E7%BB%9C"><span class="nav-number">5.4.</span> <span class="nav-text">K8S网络</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%B5%84%E6%BA%90%E7%B1%BB%E5%9E%8B"><span class="nav-number">5.5.</span> <span class="nav-text">资源类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Pod%E7%9A%84%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="nav-number">5.6.</span> <span class="nav-text">Pod的生命周期</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Service%E7%9A%84%E7%BD%91%E7%BB%9C%E6%B5%81%E5%90%91"><span class="nav-number">5.7.</span> <span class="nav-text">Service的网络流向</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ipvs%E5%AF%B9%E6%AF%94iptables"><span class="nav-number">5.8.</span> <span class="nav-text">ipvs对比iptables</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Headless-Service"><span class="nav-number">5.9.</span> <span class="nav-text">Headless Service</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BA%B2%E5%92%8C%E6%80%A7%EF%BC%8C%E5%8F%8D%E4%BA%B2%E5%92%8C%E6%80%A7%EF%BC%8C%E6%B1%A1%E7%82%B9%EF%BC%8C%E6%B1%A1%E7%82%B9%E5%AE%B9%E5%BF%8D"><span class="nav-number">5.10.</span> <span class="nav-text">亲和性，反亲和性，污点，污点容忍</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BA%B2%E5%92%8C%E6%80%A7%EF%BC%88pod%E7%9A%84%E7%AD%96%E7%95%A5%EF%BC%89"><span class="nav-number">5.10.1.</span> <span class="nav-text">亲和性（pod的策略）</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%B1%A1%E7%82%B9%EF%BC%88node%E7%9A%84%E7%AD%96%E7%95%A5%EF%BC%89"><span class="nav-number">5.11.</span> <span class="nav-text">污点（node的策略）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Prometheus-operator"><span class="nav-number">5.12.</span> <span class="nav-text">Prometheus-operator</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Zookeeper"><span class="nav-number">6.</span> <span class="nav-text">Zookeeper</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Zookeeper%E7%AE%80%E4%BB%8B"><span class="nav-number">6.1.</span> <span class="nav-text">Zookeeper简介</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Zookeeper%E7%9A%84%E4%BD%9C%E7%94%A8"><span class="nav-number">6.1.1.</span> <span class="nav-text">Zookeeper的作用</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#CAP%E7%90%86%E8%AE%BA"><span class="nav-number">6.1.2.</span> <span class="nav-text">CAP理论</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%B8%B8%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="nav-number">6.1.3.</span> <span class="nav-text">常用场景</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%B8%B8%E7%94%A8%E5%91%BD%E4%BB%A4"><span class="nav-number">6.1.4.</span> <span class="nav-text">常用命令</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%8A%82%E7%82%B9%E7%B1%BB%E5%9E%8B"><span class="nav-number">6.1.5.</span> <span class="nav-text">节点类型</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%9B%86%E7%BE%A4%E8%A7%92%E8%89%B2"><span class="nav-number">6.1.6.</span> <span class="nav-text">集群角色</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Watcher%E7%9B%91%E5%90%AC%E6%9C%BA%E5%88%B6"><span class="nav-number">6.2.</span> <span class="nav-text">Watcher监听机制</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Watcher%E7%B1%BB%E5%9E%8B"><span class="nav-number">6.2.1.</span> <span class="nav-text">Watcher类型</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Zookeeper%E5%8E%9F%E5%AD%90%E5%B9%BF%E6%92%AD%E5%8D%8F%E8%AE%AEZAB"><span class="nav-number">6.3.</span> <span class="nav-text">Zookeeper原子广播协议ZAB</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%B6%88%E6%81%AF%E5%B9%BF%E6%92%AD%EF%BC%9AZookeeper%E5%A6%82%E4%BD%95%E4%BF%9D%E8%AF%81%E4%BA%8B%E5%8A%A1%E7%9A%84%E9%A1%BA%E5%BA%8F%E4%B8%80%E8%87%B4%E6%80%A7%EF%BC%9F"><span class="nav-number">6.3.1.</span> <span class="nav-text">消息广播：Zookeeper如何保证事务的顺序一致性？</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E8%AF%A6%E7%BB%86%E8%BF%87%E7%A8%8B-1"><span class="nav-number">6.3.1.1.</span> <span class="nav-text">详细过程</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%B4%A9%E6%BA%83%E6%81%A2%E5%A4%8D"><span class="nav-number">6.3.2.</span> <span class="nav-text">崩溃恢复</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E8%AF%A6%E7%BB%86%E8%BF%87%E7%A8%8B-2"><span class="nav-number">6.3.2.1.</span> <span class="nav-text">详细过程</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%88%86%E5%B8%83%E5%BC%8F%E9%94%81%E7%9A%84%E5%AE%9E%E7%8E%B0"><span class="nav-number">6.4.</span> <span class="nav-text">分布式锁的实现</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%9D%9E%E5%85%AC%E5%B9%B3%E9%94%81"><span class="nav-number">6.4.1.</span> <span class="nav-text">非公平锁</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%85%AC%E5%B9%B3%E9%94%81"><span class="nav-number">6.4.2.</span> <span class="nav-text">公平锁</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Leader%E9%80%89%E4%B8%BE%E6%9C%BA%E5%88%B6"><span class="nav-number">6.5.</span> <span class="nav-text">Leader选举机制</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Chroot%E7%89%B9%E6%80%A7"><span class="nav-number">6.6.</span> <span class="nav-text">Chroot特性</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Junhao Lin</p>
+  <div class="site-description" itemprop="description">时光小屋</div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">8</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">标签</span>
+      </div>
+  </nav>
+</div>
+
+
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Junhao Lin">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="IceVitalemon's Blog">
+      <meta itemprop="description" content="时光小屋">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="基础知识回顾 | IceVitalemon's Blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          基础知识回顾
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2022-09-05 10:07:20" itemprop="dateCreated datePublished" datetime="2022-09-05T10:07:20+08:00">2022-09-05</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2022-09-08 16:35:50" itemprop="dateModified" datetime="2022-09-08T16:35:50+08:00">2022-09-08</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <h2 id="JAVA基础知识"><a href="#JAVA基础知识" class="headerlink" title="JAVA基础知识"></a>JAVA基础知识</h2><h3 id="集合"><a href="#集合" class="headerlink" title="集合"></a>集合</h3><p>HashMap</p>
+<p>ConcurrentHashMap</p>
+<h3 id="JVM"><a href="#JVM" class="headerlink" title="JVM"></a>JVM</h3><h3 id="多线程"><a href="#多线程" class="headerlink" title="多线程"></a>多线程</h3><p>线程状态</p>
+<p>锁</p>
+<p>AQS</p>
+<p>线程池</p>
+<h3 id="网络编程"><a href="#网络编程" class="headerlink" title="网络编程"></a>网络编程</h3><p>epoll channel</p>
+<p>BIO</p>
+<p>NIO</p>
+<p>AIO</p>
+<h2 id="计算机基础"><a href="#计算机基础" class="headerlink" title="计算机基础"></a>计算机基础</h2><h3 id="计算机网络"><a href="#计算机网络" class="headerlink" title="计算机网络"></a>计算机网络</h3><p>发起HTTP请求的流程</p>
+<p>ARP（地址解析协议）</p>
+<p>DNS</p>
+<p>PING，ICMP</p>
+<p>TCP&#x2F;IP</p>
+<p>TCP -三次握手四次挥手</p>
+<p>CLOSED WAIT</p>
+<p>TIME WAIT</p>
+<p>UDP</p>
+<h3 id="操作系统"><a href="#操作系统" class="headerlink" title="操作系统"></a>操作系统</h3><p>进程、线程、协程</p>
+<p>页式、段式、段页式</p>
+<p>虚拟内存（储存）</p>
+<p>虚拟硬盘</p>
+<p>CPU寻址、逻辑地址、物理地址</p>
+<p>磁盘</p>
+<h2 id="MySQL"><a href="#MySQL" class="headerlink" title="MySQL"></a>MySQL</h2><h3 id="MyISAM和InnoDB的区别"><a href="#MyISAM和InnoDB的区别" class="headerlink" title="MyISAM和InnoDB的区别"></a>MyISAM和InnoDB的区别</h3><ul>
+<li><p>MyISAM</p>
+<ul>
+<li>不支持事务、崩溃恢复</li>
+<li>不支持行锁，只支持表锁</li>
+<li>不支持外键</li>
+<li>主键索引中叶子节点储存的不是数据记录，而是记录的内存地址，因此MyISAM的数据文件分为索引文件和数据文件</li>
+</ul>
+</li>
+<li><p>InnoDB</p>
+<ul>
+<li>支持事务，崩溃恢复，有redo log</li>
+<li>支持表锁、行级锁，通过MVCC和Next-key Lock在可重复读的隔离级别下解决幻读的问题</li>
+<li>支持外键</li>
+<li>InnoDB的主键索引是聚簇索引，所以数据文件只有一个</li>
+</ul>
+</li>
+</ul>
+<h3 id="索引"><a href="#索引" class="headerlink" title="索引"></a>索引</h3><blockquote>
+<p>以 InnoDB 的一个整数字段索引为例，N叉B+树的N 差不多是 1200。这棵树高是 4 的时候，就可以存 1200 的 3 次方个值，这已经 17 亿了。考虑到树根的数据块总是在内存中的，一个 10 亿行的表上一个整数字段的索引，查找一个值最多只需要访问 3 次磁盘。其实，树的第二层也有很大概率在内存中，那么访问磁盘的平均次数就更少了。</p>
+</blockquote>
+<h4 id="索引类型（分类角度）"><a href="#索引类型（分类角度）" class="headerlink" title="索引类型（分类角度）"></a>索引类型（分类角度）</h4><ul>
+<li><p><strong>主键索引</strong>：一种<strong>特殊的唯一索引</strong>，一个表只能有一个主键，<strong>不允许有空值</strong>，主键索引的记录在物理存储上的方式跟数据库引擎的实现有关，MyISAM中主键索引B+树的叶子节点储存的是记录的物理地址（所以数据库的数据文件分为索引文件和数据文件），而InnoDB中主键索引B+树的叶子节点储存了记录的所有字段值。</p>
+</li>
+<li><p><strong>普通索引</strong>：就是普通的索引。</p>
+</li>
+<li><p><strong>唯一索引</strong>：字段唯一，能够<strong>允许NULL值</strong>，就是只要是NULL就认为是不一样的，在InnoDB中NULL值储存在B+树的最左边。</p>
+</li>
+<li><p><strong>前缀索引</strong>：指对字符类型字段的前几个字符或对二进制类型字段的前几个bytes建立的索引，而不是在整个字段上建索引。前缀索引可以建立在类型为char、varchar、binary、varbinary的列上，可以大大减少索引占用的存储空间，也能提升索引的查询效率。</p>
+</li>
+<li><p><strong>全文索引</strong>：与搜索引擎相关，都是需要分词，然后根据关键字中的词频和重要性进行排序。</p>
+</li>
+<li><p><strong>联合索引</strong>：由多个字段组合形成的索引。</p>
+</li>
+</ul>
+<h4 id="聚簇索引与非聚簇索引（物理储存角度）"><a href="#聚簇索引与非聚簇索引（物理储存角度）" class="headerlink" title="聚簇索引与非聚簇索引（物理储存角度）"></a>聚簇索引与非聚簇索引（物理储存角度）</h4><ul>
+<li><p><strong>聚簇索引</strong>：记录的物理储存顺序与列值（一般是主键的一列）的逻辑顺序相同，一个表中只有一个聚簇索引（因为聚簇索引的记录在物理储存上是有序的，所以当按照主键遍历的时候，相邻的主键都在同一块内存页中，能够减少缺页中断，提高查询效率）。</p>
+</li>
+<li><p><strong>非聚簇索引</strong>（二级索引、辅助索引）：与聚簇索引相反，如果记录的物理储存顺序与列值的逻辑顺序不一样，那么就是非聚簇索引，一个表中可以有多个非聚簇索引。</p>
+</li>
+</ul>
+<h4 id="B-树索引和哈希索引（数据结构角度）"><a href="#B-树索引和哈希索引（数据结构角度）" class="headerlink" title="B+树索引和哈希索引（数据结构角度）"></a>B+树索引和哈希索引（数据结构角度）</h4><ul>
+<li><p><strong>B+树索引</strong>：B+树是多叉平衡树，所以能够快速搜索到记录的位置，B+树的特点是非叶子节点不储存数据，叶子节点储存数据，最后所有叶子节点组成一条有序的双向链表，<strong>因为非叶子节点不储存数据，所以单个非叶子节点能够储存大量的索引数据，而由于这些索引数据是经常被访问的，所以能够常驻在内存中，减少缺页中断（或SWAP）带来的性能消耗</strong>。</p>
+</li>
+<li><p><strong>B树索引</strong>：B树叶子节点也储存数据，而且所有叶子节点不会组成有序链表。</p>
+</li>
+<li><p><strong>哈希索引</strong>：经过哈希函数能够快速找到记录的位置，不需要进行搜索（哈希冲突解决的办法）</p>
+</li>
+</ul>
+<h4 id="自适应哈希索引"><a href="#自适应哈希索引" class="headerlink" title="自适应哈希索引"></a>自适应哈希索引</h4><blockquote>
+<p>InnoDB引擎支持自适应哈希索引，是数据库自动优化，只能选择开启或者关闭。</p>
+</blockquote>
+<p>因为当使用辅助索引进行查找的时候，如果并不是覆盖索引，就需要<strong>回表</strong>到主键索引中找到记录的所有数据，如果这种查询的次数变多，那么InnoDB就会自动创建自适应哈希索引，<strong>提高在通过辅助索引查找到主键Id的时候，再回表的查询速度</strong>。（即通过辅助索引查找到主键Id，然后通过主键Id的哈希索引直接找到记录的位置）。</p>
+<p>根据一些资料的统计，读取和写入速度可以提高2倍，辅助索引的连接操作性能可以提高5倍。</p>
+<p><a target="_blank" rel="noopener" href="https://juejin.cn/post/6844903888080863245">https://juejin.cn/post/6844903888080863245</a></p>
+<h4 id="主键索引就是聚簇索引吗？"><a href="#主键索引就是聚簇索引吗？" class="headerlink" title="主键索引就是聚簇索引吗？"></a>主键索引就是聚簇索引吗？</h4><p><strong>不是</strong>！！！在InnoDB中主键的确是按聚簇索引的方式组织的，但是在MyISAM里面主键<strong>不是</strong>聚簇索引，sql server中还可以显示的指定聚簇索引。</p>
+<p>InnoDB中如果没有定义主键，Innodb会选择非空的唯一索引代替。如果没有这样的索引，Innodb会隐式的定义一个主键来作为聚簇索引。</p>
+<p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/lice-blog/p/11569443.html">https://www.cnblogs.com/lice-blog/p/11569443.html</a></p>
+<h4 id="什么是联合索引、覆盖索引、索引最左匹配原则"><a href="#什么是联合索引、覆盖索引、索引最左匹配原则" class="headerlink" title="什么是联合索引、覆盖索引、索引最左匹配原则"></a>什么是联合索引、覆盖索引、索引最左匹配原则</h4><ul>
+<li><p><strong>联合索引</strong>：由多个字段组合形成的索引</p>
+</li>
+<li><p><strong>覆盖索引</strong>：查询的字段会被索引覆盖到，就<strong>不需要回表</strong>根据主键Id查询其他字段，<strong>单个字段的索引</strong>和<strong>联合索引</strong>都能实现覆盖索引的功能。所以说覆盖索引并不是一种真正的索引，是查询的时候用到的索引覆盖到了所有需要查询的字段。</p>
+</li>
+<li><p><strong>索引最左匹配原则</strong>：对于一个联合索引（a, b, c, d），如果查询的时候指定了查询条件<code>a = 1 AND b = 2 AND c &gt; 4 AND d &lt; 5</code>，因为索引整体上是按<code>a,b,c,d</code>来排序的（即先按a排序，a相等的时候按b排序，以此类推），所以<strong>当a和b指定了确切的值的时候，记录在c上是有序的，但是在d上就不确认了</strong>。当联合索引遇到范围查询（&gt;，&lt;，between，like）最左匹配就不能进一步匹配了。（当然MySQL会优化查询的顺序比如，<code>d &lt; 5 AND b = 2 AND c &gt; 4 AND a = 1</code> 会优化为<code>a = 1 AND b = 2 AND c &gt; 4 AND d &lt; 5</code>）</p>
+</li>
+</ul>
+<h4 id="说一下索引下推"><a href="#说一下索引下推" class="headerlink" title="说一下索引下推"></a>说一下索引下推</h4><blockquote>
+<p>索引下推可以在索引遍历过程中（引擎层），对索引中包含的字段先做判断，直接过滤掉不满足条件的记录，减少回表次数。</p>
+</blockquote>
+<p>对于一个联合索引<strong>（name, age）</strong>和一个SQL语句</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select * from tuser where name like &#x27;张%&#x27; and age = 10 and ismale = 1;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>如果没有索引下推，因为最左匹配原则，所以只会用到<code>name</code>的索引，所以在引擎层会找到所有<code>name like &#39;张%&#39;</code>的主键并返回给server层，然后逐个回表判断</li>
+<li>如果有索引下推，即使有最左匹配原则，也会将索引能用到的<code>age = 10</code>放到引擎层进行判断，引擎层根据索引判断，只返回<code>name like &#39;张%&#39; and age = 10</code>的主键，这样过滤了不符合的部分数据，就能减少回表的次数</li>
+</ul>
+<h3 id="事务"><a href="#事务" class="headerlink" title="事务"></a>事务</h3><h4 id="事务的四大特性（ACID）"><a href="#事务的四大特性（ACID）" class="headerlink" title="事务的四大特性（ACID）"></a>事务的四大特性（ACID）</h4><ol>
+<li>原子性：一个事务是最小执行单位，事务中的动作要么都做，要么都不做</li>
+<li>一致性：执行事务之后，数据保持一致，多个事务对同一个数据读取的结果是相同的</li>
+<li>隔离性：并发访问数据库的时候，各个事务之间不会相互影响</li>
+<li>持久性：一个事务被提交之后，对数据库的修改是持久的，即使数据库发生故障也不会有影响</li>
+</ol>
+<h4 id="可能出现的问题"><a href="#可能出现的问题" class="headerlink" title="可能出现的问题"></a>可能出现的问题</h4><ol>
+<li><strong>脏读</strong>：事务A能够读到事务B还没提交的数据</li>
+<li><strong>不可重复读</strong>：对于读取一行数据，一个事务中两次读到的数据不一样</li>
+<li><strong>幻读</strong>：对于读取多行数据，一个事务中第二次读到的行数比第一次读到的行数要多</li>
+<li><strong>丢失修改</strong>：ABA问题，事务A读取记录R为20，将R-1&#x3D;19后写入数据库，事务B也执行一样的操作，但是最后数据库中的记录是R&#x3D;19，事务A的操作被事务B覆盖（这种是程序逻辑本身的问题，所以需要对需要修改的数据加锁&#x2F;版本号&#x2F;旧值比较）</li>
+</ol>
+<h4 id="隔离等级"><a href="#隔离等级" class="headerlink" title="隔离等级"></a>隔离等级</h4><ol>
+<li><p><strong>读未提交</strong>：一个事务还没提交，其变更就能被其他事务看到</p>
+</li>
+<li><p><strong>读已提交</strong>：一个事务提交之后，其变更才能被其他事务看到，能够解决脏读的问题</p>
+</li>
+<li><p><strong>可重复读</strong>：一个事务执行过程中，对同一字段的多次读取结果是一样的，除非数据是被自己事务本身修改，能够解决不可重复读的问题，但是幻读仍然有可能发生<strong>（InnoDB通过MVCC和Next-key Lock在可重复读的隔离级别下解决了幻读的问题）</strong></p>
+</li>
+<li><p><strong>串行化</strong>：所有事务都是串行执行的，完全服从ACID的隔离级别，能解决所有问题</p>
+</li>
+</ol>
+<h3 id="锁-、间隙锁、Next-Key-Lock"><a href="#锁-、间隙锁、Next-Key-Lock" class="headerlink" title="锁 、间隙锁、Next-Key Lock"></a>锁 、间隙锁、Next-Key Lock</h3><ul>
+<li><p><strong>全局锁</strong>：对整个数据库加锁（Flush tables with read lock），典型应用场景是做全库逻辑备份（如果使用InnoDB，则使用mysqldump备份数据库的时候，有MVCC的支持，就不用加全局锁了）</p>
+</li>
+<li><p><strong>表级锁</strong>：又分为<strong>表锁</strong>和<strong>元数据锁（metadata lock， MDL）</strong></p>
+<ul>
+<li>元数据锁：锁住表结构，在访问一个表的时候会被自动加上，事务中的MDL锁会在语句执行开始时申请，但是语句结束后并不会马上释放，而是等到整个事务提交后才会释放</li>
+</ul>
+</li>
+<li><p><strong>行锁</strong>：锁住一行，在InnoDB的事务中，行锁是在语句执行的时候加上，但是要等到事务结束才会释放（<strong>两阶段锁协议</strong>）</p>
+<ul>
+<li>行锁可能出现死锁的一种情况，事务A执行了第一条语句，事务B执行了第一条语句，两个事务分别获得了不同的行锁</li>
+<li>解决行锁死锁的方法， <strong>1. 等待超时（innodb_lock_wait_timeout）</strong>，<strong>2. 发起死锁检测，发现死锁后，主动回滚死锁链条中的某一个事务（innodb_deadlock_detect &#x3D; on）</strong></li>
+</ul>
+</li>
+</ul>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">-- 事务A</span></span><br><span class="line"><span class="keyword">start</span> transaction;</span><br><span class="line"><span class="keyword">update</span> t <span class="keyword">set</span> k <span class="operator">=</span> k <span class="operator">+</span> <span class="number">1</span> <span class="keyword">where</span> id <span class="operator">=</span> <span class="number">1</span>;</span><br><span class="line"><span class="keyword">update</span> t <span class="keyword">set</span> k <span class="operator">=</span> k <span class="operator">+</span> <span class="number">1</span> <span class="keyword">where</span> id <span class="operator">=</span> <span class="number">2</span>;</span><br><span class="line"><span class="keyword">commit</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">-- 事务B</span></span><br><span class="line"><span class="keyword">start</span> transaction;</span><br><span class="line"><span class="keyword">update</span> t <span class="keyword">set</span> k <span class="operator">=</span> k <span class="operator">+</span> <span class="number">1</span> <span class="keyword">where</span> id <span class="operator">=</span> <span class="number">2</span>;</span><br><span class="line"><span class="keyword">update</span> t <span class="keyword">set</span> k <span class="operator">=</span> k <span class="operator">+</span> <span class="number">1</span> <span class="keyword">where</span> id <span class="operator">=</span> <span class="number">1</span>;</span><br><span class="line"><span class="keyword">commit</span>;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>间隙锁（Gap Lock）</strong>:锁住两个值之间的空隙，前开后开区间，如6个值，有7个空隙，包括（-∞，num）和（num, +∞）<ul>
+<li><strong>跟间隙锁存在冲突关系的，是“往这个间隙中插入一个记录”这个操作</strong></li>
+<li>间隙锁死锁的例子<ul>
+<li>session A 执行 select … for update 语句，由于 id&#x3D;9 这一行并不存在，因此会加上间隙锁 (5,10);</li>
+<li>session B 执行 select … for update 语句，同样会加上间隙锁 (5,10)，间隙锁之间不会冲突，因此这个语句可以执行成功；</li>
+<li>session B 试图插入一行 (9,9,9)，被 session A 的间隙锁挡住了，只好进入等待；</li>
+<li>session A 试图插入一行 (9,9,9)，被 session B 的间隙锁挡住了。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE%5C%E9%97%B4%E9%9A%99%E9%94%81%E6%AD%BB%E9%94%81.png" alt="image-20220906104804761"></p>
+<ul>
+<li><strong>Next-key Lock</strong>：Inno加锁的<strong>基本单位</strong>，<strong>为的就是解决幻读</strong>，行锁<code>b</code>和间隙锁<code>(a, b)</code>加在一起，就是一个<strong>Next-key Lock</strong>，是前开后闭区间<code>(a, b]</code></li>
+</ul>
+<h3 id="多版本并发控制MVCC"><a href="#多版本并发控制MVCC" class="headerlink" title="多版本并发控制MVCC"></a>多版本并发控制MVCC</h3><blockquote>
+<p>MVCC加上Next-key Lock就能够解决幻读的问题。单单MVCC只能解决可重复读，当前读的情况下，还是会出现幻读</p>
+</blockquote>
+<blockquote>
+<p>在MVCC中，非锁定读（普通select）是不用加锁的，但是锁定读(select … for update &#x2F; select … lock in share mode &#x2F; update &#x2F; insert &#x2F; delete)的时候会用锁</p>
+</blockquote>
+<blockquote>
+<p>InnoDB中，每条记录在更新的时候都会同时记录一条回滚操作，因此能得到上一个状态的值。（这个回滚日志<code>undolog</code>会在不需要的时候才删除，即当前所有事务中的最小版本号大于回滚日志的版本号）</p>
+</blockquote>
+<h4 id="标识ID"><a href="#标识ID" class="headerlink" title="标识ID"></a>标识ID</h4><ul>
+<li><strong>每个事务</strong>都有一个唯一的<strong>事务ID（transaction id）</strong>，每个事务开始前向InnoDB的事务系统申请，严格递增</li>
+<li><strong>每行数据</strong>都有多个版本<strong>row trx_id</strong>，每次事务更新数据的时候，都会生成一个新的数据版本，并把<strong>事务ID</strong>赋值给<strong>row trx_id</strong>，旧的数据版本能够通过回滚日志得到</li>
+</ul>
+<p><img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE%5CMVCC.png" alt="image-20220905203039546"></p>
+<h4 id="详细过程"><a href="#详细过程" class="headerlink" title="详细过程"></a>详细过程</h4><blockquote>
+<p>核心是通过版本控制来获得一个一致性视图，但是当事务更新数据的时候，只能用当前读，如果当前记录的行锁被其他事务占用，就只能进入锁等待。</p>
+</blockquote>
+<ol>
+<li><strong>当前事务开始时</strong>，构造一个<strong>数组</strong>用于保存当前事务启动瞬间<strong>活跃</strong>的<strong>所有事务ID</strong>（即启动了，但是还没有提交）</li>
+<li>数组里面事务ID的<strong>最小值记为低水位</strong>，<strong>事务ID的最大值+1记为高水位</strong>，数组和高水位就组成了当前事务的一致性视图（read-view）</li>
+<li>对于<strong>一个数据记录</strong>的<strong>row trx_id</strong>来说，有以下几种可能<ul>
+<li><strong>row trx_id小于低水位</strong>，落在绿色部分，表示这个版本的数据是已经提交的，或者是当前事务自己生成的，所以数据<strong>可见</strong></li>
+<li><strong>row trx_id大于高水位</strong>，落在红色部分，表示这个版本的数据是由未来的事务生成的，<strong>不可见</strong></li>
+<li>如果落在黄色部分：<ul>
+<li><strong>row trx_id在数组中</strong>，表示这个版本是由未提交的事务生成的，<strong>不可见</strong></li>
+<li><strong>row trx_id不在数组中</strong>，表示这个版本的数据是由已提交的事务生成的，<strong>可见</strong>（因为低水位和高水位表示的只是一个区间，这个区间中有已经提交的事务和未提交的事务，数组中的是未提交的事务，而当前的事务ID大于高水位，<strong>row trx_id</strong>落在这个区间内已提交的事务，哪当然是可见的）</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>当前读</strong>：<strong>更新数据都是先读后写的</strong>，而这个读，只能<strong>读已经提交完成的最新版本</strong></li>
+<li>如果是更新&#x2F;删除&#x2F;插入这些锁定读的事务呢？<strong>两阶段锁协议</strong>，需要等到获得锁的事务结束了，释放锁，才能继续<strong>当前读</strong>，继续后面的操作</li>
+</ol>
+<p><img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/blog\source_posts\基础知识回顾\MVCC水位.png" alt="image-20220905225008836"></p>
+<h4 id="ABA问题"><a href="#ABA问题" class="headerlink" title="ABA问题"></a>ABA问题</h4><p>MVCC也会出现ABA问题，因为只有在锁定读的时候才会加锁，所以可能会出现ABA问题，一个简单的例子，事务A读取了记录R数值为1，之后事务B也读取这个记录R数值为1，之后事务AB都想要将记录R+1后更新，那么最后结果就会变成2，但是期望是3。ABA问题是编程问题，所以可以使用select … lock for update来锁住想要更新的表，这样只有获取到锁的事务才能进行操作。或者加一个旧值&#x2F;版本号进行判断，只有当旧值&#x2F;版本号一样的时候才更新（但是修改失败需要有重试机制）。</p>
+<h3 id="binlog、redolog"><a href="#binlog、redolog" class="headerlink" title="binlog、redolog"></a>binlog、redolog</h3><h4 id="binlog（归档日志）"><a href="#binlog（归档日志）" class="headerlink" title="binlog（归档日志）"></a>binlog（归档日志）</h4><blockquote>
+<p>binlog的主要作用是用于备份，以及主从同步</p>
+</blockquote>
+<blockquote>
+<p>binlog的写是追加写，所以不会覆盖以前的数据</p>
+</blockquote>
+<p>三种数据格式：</p>
+<ul>
+<li>statement – 记录执行的SQL语句，简洁，但是主库与从库执行同一条语句的结果可能不一样，如NOW()</li>
+<li>row – 记录真实数据的变化，可靠，主从库执行结果一样，但是占空间</li>
+<li>mixed – 前两种的混合，MySQL自己判断如果会引起主备不一致的时候，就用row格式，否则用statement</li>
+</ul>
+<h4 id="redo-log（重做日志）"><a href="#redo-log（重做日志）" class="headerlink" title="redo log（重做日志）"></a>redo log（重做日志）</h4><blockquote>
+<p>redolog主要的作用是用于崩溃恢复，固定大小，循环写，可以比如可以配置一组4个文件，每个文件大小1GB，从头开始写，写到末尾又回到开头循环写。</p>
+</blockquote>
+<ul>
+<li><p><strong>write pos</strong>：表示当前写记录的位置，一边写一边后移</p>
+</li>
+<li><p><strong>check point</strong>：check point之前的数据都是已经落盘（flush到磁盘）上的，write pos大于check point，write pos 与check point之间的数据表示在内存页上，但是还没落盘的数据</p>
+</li>
+</ul>
+<h4 id="缓冲结构"><a href="#缓冲结构" class="headerlink" title="缓冲结构"></a>缓冲结构</h4><blockquote>
+<p>崩溃分为数据库崩溃和操作系统崩溃，数据库崩溃只会影响MySQL中的缓存（丢失这一部分，已经调用write写入到操作系统缓存中的则是正常的），操作系统崩溃则是影响数据的落盘（无法恢复）</p>
+</blockquote>
+<ul>
+<li><p><strong>buffer pool</strong>：MySQL中用于缓存页的地方，有脏页以及干净页，脏页落盘需要flush，干净页不用</p>
+</li>
+<li><p><strong>change buffer</strong>：buffer pool内的一部分，<strong>主要用于记录页面数据的变化</strong>，如果一个<strong>数据页已经在内存</strong>中，则可以直接修改这个内存数据页然后变成脏页；但是如果一个<strong>数据页不在内存中，在磁盘中</strong>，则可以将更新操作写到change buffer中，这样能够避免将数据页从磁盘中读取到内存中，<strong>减少磁盘的随机读IO，适用于多写少读</strong>，当要读取这个数据页的数据时，再将从磁盘中读取的数据执行change buffer中的操作就能得到最新的数据。</p>
+</li>
+<li><p><strong>redolog buffer</strong>：可以认为也是buffer pool中的一部分，事务执行过程中更新数据的日志都得先保存起来，但是又不能在还没commit的时候写入到redo log文件中，所以先用redolog buffer来存redo日志。</p>
+</li>
+<li><p><strong>操作系统的缓存 os cache</strong>：调用操作系统的write函数并不会将数据直接写入磁盘，而是先写入系统的缓冲池中，系统自己判断何时将数据flush进磁盘，<strong>数据库崩溃不会影响到这部分的数据，操作系统崩溃才会影响</strong>。</p>
+</li>
+</ul>
+<h4 id="二阶段提交"><a href="#二阶段提交" class="headerlink" title="二阶段提交"></a>二阶段提交</h4><p>redo log是InnoDB引擎特有，用于提供崩溃恢复的功能，而二阶段提交涉及到<code>binlog(归档日志)</code>还有<code>redolog(重做日志)</code>，即server层与引擎层之间的交互。</p>
+<p><strong>两阶段提交的作用</strong>：保证MySQL数据库中的记录与磁盘中的记录一致</p>
+<p><strong>方法流程</strong>：</p>
+<ul>
+<li>执行器调用引擎的API接口(未写<code>binlog</code>)，写入一行数据</li>
+<li>InnoDB引擎把数据保存在内存中，同时记录<code>redolog</code>，此时<code>redolog </code>进入<code>prepare状态</code>，然后告诉执行器，执行完成可以随时提交</li>
+<li>执行器收到通知后记录<code>binlog</code>，然后调用InnoDB引擎接口说已经写完<code>binlog</code></li>
+<li>InnoDB写<code>redolog</code>为<code>commit状态</code></li>
+<li>更新完成</li>
+</ul>
+<p><strong>为什么要这样子？</strong></p>
+<ul>
+<li>假设<strong>先写redolog并设为commit状态，然后写binlog</strong>，那么写完<code>redolog</code>之后，机器挂了，<code>binlog</code>日志没有被写入。机器重启后，会通过<code>redolog</code>恢复数据，但是<code>binlog</code>没有记录这一条数据，那么后续机器根据<code>binlog</code><strong>备份</strong>或者<strong>主从同步</strong>的时候，就会丢失这一条数据。</li>
+<li>假设<strong>先写binlog，然后写redolog</strong>，那么当<code>binlog</code>写完的时候，机器异常重启了，但是由于没有这条<code>redolog</code>，所以机器无法恢复这一条记录，但是<code>binlog</code>里面多出这一条数据，哪备份或者主从同步的时候也会出现同样的问题。</li>
+<li><strong>二阶段提交如何保证一致性？</strong>假设极端的状态是<code>redolog</code>已经处于<strong>prepare状态</strong>，<code>binlog</code>也已经写完了，这个时候发生异常重启，就要依赖MySQL的处理机制<ul>
+<li>判断<code>redolog</code>是否完整(<strong>commit状态</strong>)，如果是完整的，就能立即提交</li>
+<li>如果<code>redolog</code>只是<code>prepare</code>状态，但<strong>不是commit状态</strong>，这个时候就判断<code>binlog</code>是否完整，如果完整就提交<code>redolog</code>，不完整就回滚事务</li>
+</ul>
+</li>
+</ul>
+<p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s?__biz=Mzg2OTA0Njk0OA==&mid=2247485097&idx=1&sn=84c89da477b1338bdf3e9fcd65514ac1&chksm=cea24962f9d5c074d8d3ff1ab04ee8f0d6486e3d015cfd783503685986485c11738ccb542ba7&token=79317275&lang=zh_CN%23rd">一条SQL语句在MySQL中如何执行的 (qq.com)</a></p>
+<h3 id="主从模式"><a href="#主从模式" class="headerlink" title="主从模式"></a>主从模式</h3><h4 id="详细流程"><a href="#详细流程" class="headerlink" title="详细流程"></a>详细流程</h4><ol>
+<li>在备库B上通过<strong>change master</strong>命令，设置主库A的IP、端口、用户名、密码，以及要从哪个位置开始请求binlog，这个位置包含文件名和日志偏移量</li>
+<li>在备库B上执行<strong>start slave</strong>命令，这个时候备库会启动两个线程，一个是<strong>io_thread</strong>，另一个是<strong>sql_thread</strong>。<strong>io_thread负责与主库A建立连接，获取binlog</strong></li>
+<li>主库A校验完备库B传来的参数之后，按照请求的位置读取binlog通过<strong>dump_thread</strong>线程发给备库B</li>
+<li>备库B拿到binlog之后，写到本地文件，称为<strong>中转日志（relay log）</strong></li>
+<li>备库B中的<strong>sql_thread读取中转日志，解析日志理的命令，并执行</strong></li>
+</ol>
+<p><img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/blog\source_posts\基础知识回顾\主从复制流程.png" alt="image-20220906144751652"></p>
+<h4 id="循环复制问题"><a href="#循环复制问题" class="headerlink" title="循环复制问题"></a>循环复制问题</h4><blockquote>
+<p>一般来说都是双Master结构，即节点A和节点B之间互为主从关系</p>
+</blockquote>
+<blockquote>
+<p>但是这样会产生一个问题，就是节点A更新了一条语句，并将binlog发给节点B，节点B更新之后又将binlog发给节点A执行</p>
+</blockquote>
+<p><strong>解决方法</strong></p>
+<p>设置server id</p>
+<ol>
+<li>规定两个库的server id必须不同，如果相同，则它们之间不能设定为主备关系</li>
+<li>一个备库收到binlog并且在重放过程中，要生成与原binlog的server id相同的新binlog</li>
+<li>备库收到主库发过来的binlog记录，先判断server id是不是跟自己的一样，一样表示这个日志是自己生成的，则直接丢弃；不一样表示不是自己生成的，重做这个日志</li>
+</ol>
+<p><img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/blog\source_posts\基础知识回顾\主从切换.png" alt="image-20220906145810695"></p>
+<h3 id="inner-join、left-join、right-join、full-join"><a href="#inner-join、left-join、right-join、full-join" class="headerlink" title="inner join、left join、right join、full join"></a>inner join、left join、right join、full join</h3><ul>
+<li><p><strong>inner join</strong>：等同于平时使用<code>，</code>连接两个表，内连接，交集</p>
+</li>
+<li><p><strong>left join</strong>：返回左表的全部数据</p>
+</li>
+<li><p><strong>right join</strong>：返回右表的全部数据</p>
+</li>
+<li><p><strong>full join</strong>：返回左右两个表的所有数据，并集</p>
+</li>
+</ul>
+<p><img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/blog\source_posts\基础知识回顾\join.png" alt="image-20220906162852592"></p>
+<h4 id="on和where的区别"><a href="#on和where的区别" class="headerlink" title="on和where的区别"></a>on和where的区别</h4><ul>
+<li><p><strong>on</strong>：在生成临时表时使用的条件，不管on中的条件，都会返回left join &#x2F; right join &#x2F; full join时，左边&#x2F;右边&#x2F;两边表中的记录</p>
+</li>
+<li><p><strong>where</strong>：临时表生成好后，对临时表进行过滤，所有条件不为真的记录都被过滤掉</p>
+</li>
+</ul>
+<p><a target="_blank" rel="noopener" href="https://www.runoob.com/w3cnote/sql-different-on-and-where.html">https://www.runoob.com/w3cnote/sql-different-on-and-where.html</a></p>
+<h3 id="小表驱动大表"><a href="#小表驱动大表" class="headerlink" title="小表驱动大表"></a>小表驱动大表</h3><blockquote>
+<p>select * from t1 straight_join t2 on (t1.a &#x3D; t2.a); 能够让MySQL使用固定的连接方式执行查询，t1是驱动表、t2是被驱动表</p>
+</blockquote>
+<blockquote>
+<p>小表是指两个表按照各自的条件过滤之后，参与join的各个字段的<strong>总数据量</strong>小的表</p>
+</blockquote>
+<p>驱动与被驱动：按照驱动表t1的数据到被驱动表t2中逐条查找数据，驱动表是外层循环，被驱动表是内层循环</p>
+<p>Index Nested-Loop Join：能够用上被驱动表的索引</p>
+<p>Simple Nested-Loop Join：不能用索引的情况下，就是两层循环</p>
+<p>Block Nested-Loop Join：先将驱动表数据放入join buffer中，再根据被驱动表与join buffer中的数据对比</p>
+<h3 id="数据库优化"><a href="#数据库优化" class="headerlink" title="数据库优化"></a>数据库优化</h3><h2 id="Spring"><a href="#Spring" class="headerlink" title="Spring"></a>Spring</h2><h3 id="DI-IOC-AOP"><a href="#DI-IOC-AOP" class="headerlink" title="DI IOC AOP"></a>DI IOC AOP</h3><h3 id="Bean的生命周期"><a href="#Bean的生命周期" class="headerlink" title="Bean的生命周期"></a>Bean的生命周期</h3><h3 id="Spring-MVC的工作流程"><a href="#Spring-MVC的工作流程" class="headerlink" title="Spring MVC的工作流程"></a>Spring MVC的工作流程</h3><h3 id="Spring-MVC的常用注解"><a href="#Spring-MVC的常用注解" class="headerlink" title="Spring MVC的常用注解"></a>Spring MVC的常用注解</h3><h2 id="k8s（待收拾）"><a href="#k8s（待收拾）" class="headerlink" title="k8s（待收拾）"></a>k8s（待收拾）</h2><h3 id="k8s的操作命令"><a href="#k8s的操作命令" class="headerlink" title="k8s的操作命令"></a>k8s的操作命令</h3><p>kubectl 动作 资源 -其他参数</p>
+<ul>
+<li>动作包括<ul>
+<li>create</li>
+<li>apply</li>
+<li>get</li>
+<li>describe</li>
+<li>exec</li>
+<li>logs</li>
+<li>delete</li>
+<li>explain</li>
+</ul>
+</li>
+<li>资源包括<ul>
+<li>Deployment</li>
+<li>StatefullSet</li>
+<li>ConfigMap</li>
+<li>Secret</li>
+<li>HPA</li>
+<li>RC、RS</li>
+<li>pods</li>
+<li>nodes</li>
+<li>namespace</li>
+</ul>
+</li>
+</ul>
+<h3 id="k8s的组件"><a href="#k8s的组件" class="headerlink" title="k8s的组件"></a>k8s的组件</h3><img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/k8s组件.png" alt="image-20220908094016645" style="zoom:50%;">
+
+<ul>
+<li>Kubectl：客户端与k8s集群交互的命令行工具</li>
+<li>API  server：作为k8s系统的入口，其封装了核心对象的增删改查操作，以及提供RESTful API接口给外部客户端或者k8s内部组件调用。维护的RSET对象会被持久化储存到etcd分布式数据库中</li>
+<li>Scheduler：负责集群的资源调度，为新建立的pod选择节点node进行部署。组件抽离，可以方便替换成其他调度器</li>
+<li>Controller Manager：负责维护集群的状态，比如故障检测、自动扩展、滚动更新等</li>
+<li>Kubelet：负责维护容器的生命周期，同时也负责Volume（CSI）和网络（CNI）的管理</li>
+<li>Container runtime：负责镜像管理以及pod和容器的真正运行（CRI）</li>
+<li>Kube-proxy：负责为Service提供cluster内部的服务发现和负载均衡</li>
+<li>CoreDNS：负责为整个集群提供DNS服务</li>
+<li>Ingress Controller：为k8s中的服务提供外网入口</li>
+<li>Prometheus：为整个集群提供资源监控能力</li>
+<li>Dashboard</li>
+<li>Federation</li>
+</ul>
+<h3 id="控制器类型"><a href="#控制器类型" class="headerlink" title="控制器类型"></a>控制器类型</h3><ul>
+<li>HPA：根据CPU使用率和内存使用率进行自动扩缩容<ul>
+<li>Deployment：一般用于负责管理RC和RS，提供滚动更新&#x2F;回滚能力<ul>
+<li>Replication Controller 和 Replication Set：RS用于替代RC，主要作用是维护应用的副本数量，并且RS支持集合式的selector</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>StatefullSet：解决有状态服务的问题，Pod重新调度之后还是有：稳定的持久化存储、稳定的网络标志（基于Headless Service没有Cluster IP的Service来实现）、有序部署、有序收缩</li>
+<li>DaemonSet：保证每个节点Node上都运行一个Pod的副本</li>
+<li>Job，CronJob：Job负责仅执行一次的任务，Cron Job则是基于Crontable的定时任务</li>
+</ul>
+<h3 id="K8S网络"><a href="#K8S网络" class="headerlink" title="K8S网络"></a>K8S网络</h3><p><img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE%5Ck8s%E7%BD%91%E7%BB%9C.png" alt="image-20220908101831528"></p>
+<h3 id="资源类型"><a href="#资源类型" class="headerlink" title="资源类型"></a>资源类型</h3><blockquote>
+<p>资源清单–k8s中用于定义资源的yaml文件</p>
+</blockquote>
+<ul>
+<li>NameSpace级别<ul>
+<li>工作负载型资源：Pod、RC、RS、Deployment…..</li>
+<li>服务发现及负载均衡型资源：Service、Ingress…</li>
+<li>配置与储存型资源：PV、PVC…</li>
+<li>特殊类型的储存卷：ConfigMap，Secret….</li>
+</ul>
+</li>
+<li>集群级别<ul>
+<li>NameSpace、Node、ClusterRole、ClusterRoleBinding</li>
+</ul>
+</li>
+<li>元数据型资源<ul>
+<li>HPA、PodTemplate、LimitRange</li>
+</ul>
+</li>
+</ul>
+<h3 id="Pod的生命周期"><a href="#Pod的生命周期" class="headerlink" title="Pod的生命周期"></a>Pod的生命周期</h3><blockquote>
+<p>一个Pod里面至少有两个容器，一个是pause容器，负责维护pod内部的网络和共享储存卷，使得pod内部的容器能够使用localhost互相访问，以及使用相同的共享储存卷，其他的容器就是应用启动的容器了</p>
+</blockquote>
+<ul>
+<li>Init容器：用于做初始化的容器，执行的顺序是按照定义时候的顺序，Init容器启动失败k8s会不断地重试，除非将restartPolicy设为Never（Pod重启，Init容器也会重新执行）</li>
+<li>探针<ul>
+<li>就绪探针</li>
+<li>存活探针</li>
+</ul>
+</li>
+<li>Pod hook钩子：在容器中进程启动前或者容器中进程终止运行之前运行，包含在容器的生命周期之中<ul>
+<li>exec：执行一段命令</li>
+<li>HTTP：发送Http请求</li>
+</ul>
+</li>
+</ul>
+<h3 id="Service的网络流向"><a href="#Service的网络流向" class="headerlink" title="Service的网络流向"></a>Service的网络流向</h3><p>apiserver发出一个请求（IP，PORT）随机到一个节点Node上，那么节点Node怎么知道是要访问哪个pod地址呢？</p>
+<p>首先会经过节点上的kube-proxy，然后kube-proxy到内核中去查找ip映射表，这个时候就要用上ipvs或者是iptables了，查找到之后再将流量负载均衡定向到对应的pod中</p>
+<h3 id="ipvs对比iptables"><a href="#ipvs对比iptables" class="headerlink" title="ipvs对比iptables"></a>ipvs对比iptables</h3><blockquote>
+<p>都是基于netfilter</p>
+</blockquote>
+<ul>
+<li>iptables使用列表来记录所有的规则，并且匹配方式是全部扫描匹配，所以当集群规模大的时候，性能问题就会突出</li>
+<li>ipvs使用hash表，hash随机访问的特性在集群规模大的时候，也不会影响性能</li>
+</ul>
+<h3 id="Headless-Service"><a href="#Headless-Service" class="headerlink" title="Headless Service"></a>Headless Service</h3><p>有时候不需要或者不想要负载均衡，以及单独的Service IP，可以将Cluster IP设置为None来创建Headless Service，StatefullSet的网络也是依靠Headless Service来实现稳定访问的</p>
+<p>Statefulset中创建的无头服务会为集群内部的每个成员提供一个唯一的DNS域名来作为每个成员的网络标识，集群内部成员之间使用域名通信（<code>pod名称+序号.Service名称</code>），如服务名称是<code>服务名.命名空间.svc.cluster.local</code>，那么一个创建的Pod使用的域名是<code>pod名称-序号.服务名.命名空间.svc.cluster.local</code>，如果StatefulSet中的一个Pod挂掉，那么新创建的Pod会被赋予跟原来Pod一样的名字，通过这个名字来匹配原来的储存和网络，因此实现了状态的保存。</p>
+<blockquote>
+<p>访问一个普通的<code>Service</code>, kube-proxy会将请求重定向到后端的某个<code>Pod</code>, 多次请求虽然发送到的后端可能不同, 但是前端是无感知的, 因为Service本身有固定IP.</p>
+<p>但是访问一个<code>headless service</code>, 其实是随机且直接访问到后端<code>Pod</code>, 比如多次<code>ping redis-service</code>, 你会发现解析出来的地址是不同的, 而这些地址都是Pod的地址.</p>
+</blockquote>
+<h3 id="亲和性，反亲和性，污点，污点容忍"><a href="#亲和性，反亲和性，污点，污点容忍" class="headerlink" title="亲和性，反亲和性，污点，污点容忍"></a>亲和性，反亲和性，污点，污点容忍</h3><h4 id="亲和性（pod的策略）"><a href="#亲和性（pod的策略）" class="headerlink" title="亲和性（pod的策略）"></a>亲和性（pod的策略）</h4><ul>
+<li>节点亲和性<ul>
+<li>软策略</li>
+<li>硬策略</li>
+</ul>
+</li>
+<li>Pod亲和性<ul>
+<li>硬策略</li>
+<li>软策略</li>
+</ul>
+</li>
+</ul>
+<h3 id="污点（node的策略）"><a href="#污点（node的策略）" class="headerlink" title="污点（node的策略）"></a>污点（node的策略）</h3><p>节点选项：</p>
+<ul>
+<li>NoSchedule：表示k8s将不会将pod调度到具有该污点的Node上</li>
+<li>PreferNoSchedule：表示k8s将尽量避免将pod调度到具有该污点的Node上</li>
+<li>NoExecute：表示k8s将不会将pod调度到具有该污点的Node上，同时会将Node上已经存在的pod驱逐出去</li>
+</ul>
+<p>pod的污点容忍：pod可以容忍node中污点的存在，并被调度到存在污点的node上</p>
+<h3 id="Prometheus-operator"><a href="#Prometheus-operator" class="headerlink" title="Prometheus-operator"></a>Prometheus-operator</h3><h2 id="Zookeeper"><a href="#Zookeeper" class="headerlink" title="Zookeeper"></a>Zookeeper</h2><h3 id="Zookeeper简介"><a href="#Zookeeper简介" class="headerlink" title="Zookeeper简介"></a>Zookeeper简介</h3><h4 id="Zookeeper的作用"><a href="#Zookeeper的作用" class="headerlink" title="Zookeeper的作用"></a>Zookeeper的作用</h4><blockquote>
+<p>目的是解决协作任务，如果是在单台机器上的多线程任务，能够使用操作系统提供的原语对资源进行访问，但是如果是跨多台机器分布式协作任务，就不能使用操作系统提供的原语了，因此需要一个中间件来解决分布式任务之间对资源的访问协调</p>
+</blockquote>
+<blockquote>
+<p>本质是一个分布式文件系统，以及有事件通知机制，不适合用作海量数据的储存，一个znode解决能够储存的数据大小默认是1M</p>
+</blockquote>
+<p>Zookeeper基于分布式计算的核心概念而设计，主要目的是给开发人员提供一套容易理解和开发的接口，从而简化分布式系统构建的任务。Zookeeper是从文件系统API得到启发，提供一组简单的API，是的开发人员可以实现通用的协作任务，包括选举主节点、管理组内成员关系、管理元数据等。</p>
+<ul>
+<li>顺序一致性：从同一客户端发起的事务请求，最终会严格地按照顺序被应用到Zookeeper中</li>
+<li>原子性：所有事务请求的处理结果在整个集群中所有机器上的应用情况是一致的，也就是说，集群中的所有机器都成功应用了某一个事务，要么都没有应用</li>
+<li>单一视图：无论客户端连到哪一个Zookeeper服务器上，其看到的服务端数据模型都是一致的</li>
+<li>可靠性：一旦服务端成功地应用了一个事务，并完成对客户端的响应，那么该事务所引起的服务端状态变更将会被一直保留下来</li>
+<li>最终一致性：Zookeeper仅仅能保证在一定的时间段内，客户端最终一定能够从服务端上读取到最新的数据状态</li>
+</ul>
+<h4 id="CAP理论"><a href="#CAP理论" class="headerlink" title="CAP理论"></a>CAP理论</h4><blockquote>
+<p>CAP理论：没有系统能够同时满足一致性、可用性、分区容错性这三种属性，只能尽量保证两种</p>
+</blockquote>
+<ul>
+<li>一致性（Consistency）：等同于所有节点访问同一份最新的数据副本</li>
+<li>可用性（Available）：每次请求都能获取到非错的响应——但是不保证获取的数据为最新数据</li>
+<li>分区容错性（Partition tolerance）：以实际效果而言，分区相当于对通信的时限要求。系统如果不能在时限内达成数据一致性，就意味着发生了分区的情况，必须就当前操作在C和A之间做出选择</li>
+</ul>
+<h4 id="常用场景"><a href="#常用场景" class="headerlink" title="常用场景"></a>常用场景</h4><ul>
+<li>主从模式</li>
+<li>分布式锁</li>
+<li>统一命名服务</li>
+<li>统一配置管理</li>
+<li>服务器节点动态上下线</li>
+<li>软负载均衡</li>
+</ul>
+<h4 id="常用命令"><a href="#常用命令" class="headerlink" title="常用命令"></a>常用命令</h4><p>ls、get、set、stat、create、delete、deleteall、help</p>
+<p>ls、get都可以通过加<code>-w</code>参数监听节点的状态</p>
+<h4 id="节点类型"><a href="#节点类型" class="headerlink" title="节点类型"></a>节点类型</h4><table>
+<thead>
+<tr>
+<th></th>
+<th>持久节点</th>
+<th>临时节点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>无序节点</strong></td>
+<td>持久无序节点</td>
+<td>临时无序节点</td>
+</tr>
+<tr>
+<td><strong>有序节点</strong></td>
+<td>持久有序节点</td>
+<td>临时有序节点</td>
+</tr>
+</tbody></table>
+<ul>
+<li>持久节点：创建了之后就一直存在，除非使用delete删除</li>
+<li>临时节点：当创建该节点的客户端连接断开&#x2F;会话超时时，这个节点就会被删除（临时节点不允许有子节点）</li>
+<li>有序节点：有序znode节点会被分配唯一个单调递增的整数序号，并附加到路径名上面，如创建的路径名<code>/tasks/task-</code>，分配序号是2，则最后创建出来的节点为<code>/tasks/task-2</code></li>
+</ul>
+<blockquote>
+<p>znode中储存的数据主要包括存储数据、访问权限、子节点引用、节点状态信息</p>
+<ul>
+<li>data：znode存储的业务数据信息</li>
+<li>ACL：记录客户端对znode节点的访问权限，如IP、Digest等</li>
+<li>child：当前节点的子节点引用</li>
+<li>stat：包含znode节点的状态信息，比如事务Id、版本号、时间戳等等</li>
+</ul>
+</blockquote>
+<h4 id="集群角色"><a href="#集群角色" class="headerlink" title="集群角色"></a>集群角色</h4><blockquote>
+<p>写数据会先写入Leader节点，然后通知Follower节点进行变更</p>
+</blockquote>
+<blockquote>
+<p>读数据既能够从Leader节点中读，也能从Follower节点中读</p>
+</blockquote>
+<p><strong>角色</strong>：</p>
+<ul>
+<li>Leader节点：集群内唯一，事务请求的唯一调度和处理者，保证集群事务处理的顺序性</li>
+<li>Follower节点：主要处理客户端的非事务请求，转发事务请求给Leader节点，参与事务请求Proposal的投票，参与Leader选举投票</li>
+<li>Observer节点：3.3.0版本开始引入的服务器角色，会处理客户端的非事务请求，并转发事务请求给Leader节点，但是不参与任何形式的投票</li>
+</ul>
+<p><strong>节点工作状态</strong>：</p>
+<ul>
+<li>LOOKING：正在寻找Leader，处于该状态时，会认为当前集群中没有Leader，因此需要进入Leader的选举状态</li>
+<li>FOLLOWING：跟随者状态，表明当前节点角色是Follower</li>
+<li>LEADING：领导者状态，表明当前节点角色是Leader</li>
+<li>OBSERVING：观察者状态，表明当前服务器角色是Oberver</li>
+</ul>
+<h3 id="Watcher监听机制"><a href="#Watcher监听机制" class="headerlink" title="Watcher监听机制"></a>Watcher监听机制</h3><blockquote>
+<p>Zookeeper允许客户端对某个znode注册一个Watcher监听，当服务端的一些指定事件触发了Watcher，服务端就会发送一个事件通知该客户端znode节点的变化，客户端根据znode节点的变化类型作出处理</p>
+</blockquote>
+<h4 id="Watcher类型"><a href="#Watcher类型" class="headerlink" title="Watcher类型"></a>Watcher类型</h4><p>- </p>
+<h3 id="Zookeeper原子广播协议ZAB"><a href="#Zookeeper原子广播协议ZAB" class="headerlink" title="Zookeeper原子广播协议ZAB"></a>Zookeeper原子广播协议ZAB</h3><blockquote>
+<p>包括两种模式，消息广播和崩溃恢复</p>
+</blockquote>
+<img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/ZXID.png" alt="image-20220907164835614" style="zoom:50%;">
+
+<p>需要了解的两个ID</p>
+<ul>
+<li><strong>Server Id</strong> –  服务器Id，即配置文件中的myid，每个节点上的值都要设为不同</li>
+<li><strong>ZXID</strong> – 事务ID，由一个64位的数字组成<ul>
+<li>高32位是Leader的任期epoch，每次选举Leader，epoch都会自增加一</li>
+<li>低32位是事务计数器，单调递增，每产生一个事务，计数器加一</li>
+</ul>
+</li>
+</ul>
+<h4 id="消息广播：Zookeeper如何保证事务的顺序一致性？"><a href="#消息广播：Zookeeper如何保证事务的顺序一致性？" class="headerlink" title="消息广播：Zookeeper如何保证事务的顺序一致性？"></a>消息广播：Zookeeper如何保证事务的顺序一致性？</h4><p><strong>Zookeeper的保证的最终一致性也叫顺序一致性</strong>，即每个节点的数据都是严格按照事务的发起顺序生效的。</p>
+<blockquote>
+<p>由ZXID的产生规则可以看出，在同一个Leader的任期内，ZXID是连续的，<strong>每个服务器节点都会保存着自己最新生效的ZXID</strong>，节点可以通过最新提案的ZXID与自身最新的ZXID是否相差<code>1</code>，来保证事务是严格按照顺序生效的</p>
+</blockquote>
+<p>Zookeeper集群的写入是由Leader节点协调的，<strong>类似于InnoDB引擎的二阶段提交</strong>，Leader会将提案广播给所有Follower，<strong>当收到半数以上的ACK时</strong>，就能够将提案生效(commit)并广播给所有Follower节点。</p>
+<h5 id="详细过程-1"><a href="#详细过程-1" class="headerlink" title="详细过程"></a>详细过程</h5><ul>
+<li>客户端发起一个事务，如果连接的是Follower，就会将事务转交给Leader处理</li>
+<li>Leader收到请求后会生成一个ZXID，并将事务存到磁盘日志文件，此外，<strong>Leader会使用一个ConcurrentHashMap记录所有未提交的提案，key为ZXID，value是提案的信息</strong>，并将提案的ZXID与内容放到Map中，作为待提交的提案，并广播给Follower进行处理（Leader会为每个Follower都分配一个单独的FIFO队列，提案会被放到这个FIFO队列中）</li>
+<li>Follower收到提案之后会把它写到磁盘日志文件中，完全写入后，发送ACK响应给Leader</li>
+<li>Leader收到Follower的ACK信息后，根据ACK中的ZXID从Map中获取到对应的提案，并对ACK计数，提案提交判断流程是</li>
+</ul>
+<ol>
+<li>首先判断该事务ZXID之前还有没有未提交的事务（map中是否有存在<code>ZXID - 1</code>的key），有，则暂时不能提交</li>
+<li>随后判断提案是否收到半数以上ACK，如果达到半数，则可以提交，将磁盘中日志文件的提案加载到znode内存数据结构中，将该提案转移到一个<code>ConcurrentLinkedQueue toBeApplied</code>中，里面记录着能提交的提案，并将该ZXID从当前map中清除，根据queue逐个向Followers广播提交当前提案</li>
+</ol>
+<ul>
+<li>Follower收到commit消息后，将磁盘中日志文件数据加载到znode内存数据结构中，数据即能生效</li>
+</ul>
+<p><img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE%5C%E6%B6%88%E6%81%AF%E5%B9%BF%E6%92%AD1.png" alt="image-20220907203724192"></p>
+<p><img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE%5C%E6%B6%88%E6%81%AF%E5%B9%BF%E6%92%AD2.png" alt="image-20220907203759457"></p>
+<p><a target="_blank" rel="noopener" href="https://www.jianshu.com/p/cfeb2f97af8a">https://www.jianshu.com/p/cfeb2f97af8a</a></p>
+<p><a target="_blank" rel="noopener" href="https://time.geekbang.org/column/article/239261">https://time.geekbang.org/column/article/239261</a></p>
+<p><a target="_blank" rel="noopener" href="https://juejin.cn/post/6844903464414232584#heading-12">https://juejin.cn/post/6844903464414232584#heading-12</a></p>
+<h4 id="崩溃恢复"><a href="#崩溃恢复" class="headerlink" title="崩溃恢复"></a>崩溃恢复</h4><blockquote>
+<p>因为消息广播中的两阶段提交并不能解决Leader故障，因此需要崩溃恢复</p>
+</blockquote>
+<blockquote>
+<p>Zookeeper正常工作时，Zab协议会一直处于广播模式，直到<strong>Leader故障</strong>或<strong>失去了指定数量的Follower</strong>，就会进入崩溃恢复模式</p>
+</blockquote>
+<p>崩溃恢复必须要保证两点：</p>
+<ul>
+<li>已经被Leader发送出去的提案，最终会被所有服务器都提交</li>
+<li>只在Leader中出现的提案，都要丢弃</li>
+</ul>
+<h5 id="详细过程-2"><a href="#详细过程-2" class="headerlink" title="详细过程"></a>详细过程</h5><ul>
+<li>每台Follow节点都会发起投票，每个节点都会先投自己一票，并同步给其他Follower节点。</li>
+<li>节点收到其他节点的投票信息后，进行选票筛选，不是同一个投票轮次的投票信息会被丢弃，随后根据（ZXID，Server Id）投票，<strong>这里的ZXID是本地磁盘日志文件中的</strong>，ZXID最大值获选，如果ZXID相同，则Server Id更大者胜出，更新自己的投票信息，并开始新一轮的投票，直到相同票数信息超过半数</li>
+<li>新Leader被选出，将epoch + 1，事务计数器置0，开始一个新的纪元<ul>
+<li>Follower连接到新的Leader上，会对比自己的ZXID与Leader的ZXID，所有没见过的提案都会被排队并提交</li>
+<li>当<code>旧的Leader</code>重新连接到<code>新的Leader</code>的时候，它已经变成了Follower，然后会对比ZXID，多出来的提案会被丢弃清除</li>
+</ul>
+</li>
+</ul>
+<p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/sunddenly/p/4138580.html">https://www.cnblogs.com/sunddenly/p/4138580.html</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.51cto.com/article/704705.html">https://www.51cto.com/article/704705.html</a></p>
+<h3 id="分布式锁的实现"><a href="#分布式锁的实现" class="headerlink" title="分布式锁的实现"></a>分布式锁的实现</h3><blockquote>
+<p>羊群效应是指，一个节点挂掉，所有节点都去监听，然后做出反应，这样会给服务器带来巨大的压力</p>
+</blockquote>
+<blockquote>
+<p>如果一个客户端的ZooKeeper会话过期，那么它所创建的短暂znode将会被删除，已持有的锁会被释放，或是放弃了申请锁的位置。使用锁的应用程序应当意识到它已经不再持有锁，应当清理它的状态，然后通过创建并尝试申请一个新的锁对象来重新启动。注意，这个过程是由应用程序控制的，而不是锁，因为锁是不能预知应用程序需要如何清理自己的状态。</p>
+</blockquote>
+<h4 id="非公平锁"><a href="#非公平锁" class="headerlink" title="非公平锁"></a>非公平锁</h4><blockquote>
+<p>依赖临时节点客户端连接断开会自动删除的特性</p>
+</blockquote>
+<blockquote>
+<p>存在的问题：羊群效应</p>
+</blockquote>
+<ol>
+<li>客户端以同一个资源名称路径创建一个临时节点，如<code>/path/resourceA</code></li>
+<li>客户端观察节点是否创建成功<ol>
+<li>如果创建成功，则表明自己已经取得了资源的使用权</li>
+<li>如果节点已经存在，则表明资源已经被其他客户端占用，则在该节点上设置监听器</li>
+<li>如果其他异常失败，则进行节点创建重试，或者其他处理</li>
+</ol>
+</li>
+<li>客户端使用完资源以后，主动删除节点，或者由于网络异常，连接断开，临时节点被删除</li>
+<li>其他客户端监听到临时节点被删除的事件，开始重复步骤1</li>
+</ol>
+<h4 id="公平锁"><a href="#公平锁" class="headerlink" title="公平锁"></a>公平锁</h4><blockquote>
+<p>依赖临时节点客户端连接断开会自动删除的特性</p>
+</blockquote>
+<blockquote>
+<p>依赖顺序节点会自动产生单调递增的整数序号的特性</p>
+</blockquote>
+<blockquote>
+<p>如果想要实现可公平重入锁，可以在获取到资源使用权的时候，在节点数据中写一个状态值，每次获取锁状态值就加一，释放锁就减一，为0的时候删除节点</p>
+</blockquote>
+<ol>
+<li>客户端在同一个目录下创建一个临时顺序节点，如<code>/resourceA/A-000001</code></li>
+<li>客户端获取资源目录下的所有节点，观察序号最小的节点是不是自己创建的序号<ol>
+<li>如果是，则表示自己已经取得了资源的使用权</li>
+<li>如果不是，则表示资源已经被其他客户端占用，在自己的前一个节点（序号比自己小的节点中，序号最大的节点）设置监听器</li>
+<li>如果其他异常失败，则重试，或者其他处理</li>
+</ol>
+</li>
+<li>客户端使用完资源以后，主动删除节点，或者由于网络异常，连接断开，临时节点被删除</li>
+<li>在被删除节点上设置了监听器的客户端监听到删除事件，开始重复步骤2</li>
+</ol>
+<h3 id="Leader选举机制"><a href="#Leader选举机制" class="headerlink" title="Leader选举机制"></a>Leader选举机制</h3><p>跟崩溃恢复差不多</p>
+<h3 id="Chroot特性"><a href="#Chroot特性" class="headerlink" title="Chroot特性"></a>Chroot特性</h3><blockquote>
+<p>3.2.0版本后添加的特性，Chroot特性允许每个客户端为自己设置一个命名空间。如果一个客户端设置了Chroot，那么对Zookeeper集群的任何操作，都会被限制在自己的命名空间下。Chroot能够将客户端对应上Zookeeper的一颗子树，因此在多个应用公用一个Zookeeper集群的时候，有利于应用间的相互隔离。</p>
+</blockquote>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2022/08/30/MySQL%E5%82%A8%E5%AD%98%E8%BF%87%E7%A8%8B%E6%B8%B8%E6%A0%87%E4%BD%BF%E7%94%A8%E8%B8%A9%E5%9D%91%EF%BC%88NOT-FOUND%EF%BC%89/" rel="prev" title="MySQL储存过程游标使用踩坑（NOT FOUND）">
+                  <i class="fa fa-chevron-left"></i> MySQL储存过程游标使用踩坑（NOT FOUND）
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2022/09/14/Spring-validation%E4%BD%BF%E7%94%A8%E5%8F%8A%E6%A0%A1%E9%AA%8C%E5%BC%82%E5%B8%B8%E5%A4%84%E7%90%86/" rel="next" title="Spring validation使用及校验异常处理">
+                  Spring validation使用及校验异常处理 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+
+<div class="copyright">
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Junhao Lin</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/pisces/" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+</body>
+</html>

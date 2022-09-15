@@ -118,12 +118,12 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
         <a href="/archives/">
-          <span class="site-state-item-count">5</span>
+          <span class="site-state-item-count">8</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-tags">
-        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-count">5</span>
         <span class="site-state-item-name">标签</span>
       </div>
   </nav>
@@ -152,6 +152,1195 @@
 
 
     <div class="main-inner index posts-expand">
+
+    
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/09/14/Spring-validation%E4%BD%BF%E7%94%A8%E5%8F%8A%E6%A0%A1%E9%AA%8C%E5%BC%82%E5%B8%B8%E5%A4%84%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Junhao Lin">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="IceVitalemon's Blog">
+      <meta itemprop="description" content="时光小屋">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="undefined | IceVitalemon's Blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          <a href="/2022/09/14/Spring-validation%E4%BD%BF%E7%94%A8%E5%8F%8A%E6%A0%A1%E9%AA%8C%E5%BC%82%E5%B8%B8%E5%A4%84%E7%90%86/" class="post-title-link" itemprop="url">Spring validation使用及校验异常处理</a>
+        </h2>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2022-09-14 17:57:11" itemprop="dateCreated datePublished" datetime="2022-09-14T17:57:11+08:00">2022-09-14</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2022-09-15 17:50:25" itemprop="dateModified" datetime="2022-09-15T17:50:25+08:00">2022-09-15</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+          <h3 id="作用"><a href="#作用" class="headerlink" title="作用"></a>作用</h3><blockquote>
+<p>Spring validation能够用来校验前端传到后端的参数，并且当参数不符合规则时抛出异常信息</p>
+</blockquote>
+<blockquote>
+<p><code>Java API</code>规范(<code>JSR303</code>)定义了<code>Bean</code>校验的标准<code>validation-api</code>，但没有提供实现。<code>hibernate validation</code>是对这个规范的实现，并增加了校验注解如<code>@Email</code>、<code>@Length</code>等。<code>Spring Validation</code>是对<code>hibernate validation</code>的二次封装，用于支持<code>spring mvc</code>参数自动校验。</p>
+</blockquote>
+<h3 id="引入依赖"><a href="#引入依赖" class="headerlink" title="引入依赖"></a>引入依赖</h3><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.springframework.boot<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spring-boot-starter-validation<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"># 或者</span><br><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.hibernate<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>hibernate-validator<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="常用注解"><a href="#常用注解" class="headerlink" title="常用注解"></a>常用注解</h3><h4 id="Valid和-Validated区别"><a href="#Valid和-Validated区别" class="headerlink" title="@Valid和@Validated区别"></a>@Valid和@Validated区别</h4><table>
+<thead>
+<tr>
+<th>区别</th>
+<th>@Valid</th>
+<th>@Validated</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>提供者</td>
+<td>JSR-303规范</td>
+<td>Spring</td>
+</tr>
+<tr>
+<td><strong>是否支持分组</strong></td>
+<td>不支持</td>
+<td>支持</td>
+</tr>
+<tr>
+<td>标注位置</td>
+<td>METHOD, FIELD, CONSTRUCTOR, PARAMETER, TYPE_USE</td>
+<td>TYPE, METHOD, PARAMETER</td>
+</tr>
+<tr>
+<td><strong>嵌套校验</strong></td>
+<td>支持</td>
+<td>不支持</td>
+</tr>
+</tbody></table>
+<h4 id="对象"><a href="#对象" class="headerlink" title="对象"></a>对象</h4><table>
+<thead>
+<tr>
+<th align="left">注解</th>
+<th>comment</th>
+<th>version</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">@Null</td>
+<td>对象，为空</td>
+<td>Bean Validation 1.0</td>
+</tr>
+<tr>
+<td align="left">@NotNull</td>
+<td>对象，不为空</td>
+<td>Bean Validation 1.0</td>
+</tr>
+</tbody></table>
+<h4 id="布尔"><a href="#布尔" class="headerlink" title="布尔"></a>布尔</h4><table>
+<thead>
+<tr>
+<th>注解</th>
+<th>comment</th>
+<th>version</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>@AssertTrue</td>
+<td>布尔，为True</td>
+<td>Bean Validation 1.0</td>
+</tr>
+<tr>
+<td>@AssertFalse</td>
+<td>布尔，为False</td>
+<td>Bean Validation 1.0</td>
+</tr>
+</tbody></table>
+<h4 id="数字"><a href="#数字" class="headerlink" title="数字"></a>数字</h4><table>
+<thead>
+<tr>
+<th>注解</th>
+<th>comment</th>
+<th>version</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>@Min(value)</td>
+<td>数字，最小为value</td>
+<td>Bean Validation 1.0</td>
+</tr>
+<tr>
+<td>@Max(value)</td>
+<td>数字，最大为value</td>
+<td>Bean Validation 1.0</td>
+</tr>
+<tr>
+<td>@DecimalMin(value)</td>
+<td>数字，最小为value</td>
+<td>Bean Validation 1.0</td>
+</tr>
+<tr>
+<td>@DecimalMax(value)</td>
+<td>数字，最大为value</td>
+<td>Bean Validation 1.0</td>
+</tr>
+<tr>
+<td>@Size(max, min)</td>
+<td>min&lt;&#x3D;value&lt;&#x3D;max</td>
+<td>Bean Validation 1.0</td>
+</tr>
+<tr>
+<td>@Range</td>
+<td>数字，某个范围内</td>
+<td>Hibernate Validation</td>
+</tr>
+<tr>
+<td>@Digits (integer, fraction)</td>
+<td>数字，某个范围内</td>
+<td>Bean Validation 1.0</td>
+</tr>
+<tr>
+<td>@Positive</td>
+<td>数字，正数</td>
+<td>Bean Validation 2.0</td>
+</tr>
+<tr>
+<td>@PositiveOrZero</td>
+<td>数字，正数或0</td>
+<td>Bean Validation 2.0</td>
+</tr>
+<tr>
+<td>@Negative</td>
+<td>数字，负数</td>
+<td>Bean Validation 2.0</td>
+</tr>
+<tr>
+<td>@NegativeOrZero</td>
+<td>数字，负数或0</td>
+<td>Bean Validation 2.0</td>
+</tr>
+</tbody></table>
+<h4 id="字符串"><a href="#字符串" class="headerlink" title="字符串"></a>字符串</h4><table>
+<thead>
+<tr>
+<th>注解</th>
+<th>comment</th>
+<th>version</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>@Length</td>
+<td>字符串，字符长度</td>
+<td>Hibernate Validation</td>
+</tr>
+<tr>
+<td>@Pattern(value)</td>
+<td>字符串，正则校验</td>
+<td>Bean Validation 1.0</td>
+</tr>
+<tr>
+<td>@Email</td>
+<td>字符串，邮箱类型</td>
+<td>Bean Validation 2.0</td>
+</tr>
+<tr>
+<td>@NotBlank</td>
+<td>字符串，不为空字符串</td>
+<td>Bean Validation 2.0</td>
+</tr>
+</tbody></table>
+<h4 id="日期"><a href="#日期" class="headerlink" title="日期"></a>日期</h4><table>
+<thead>
+<tr>
+<th>注解</th>
+<th>comment</th>
+<th>version</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>@Past</td>
+<td>日期，过去的日期</td>
+<td>Bean Validation 1.0</td>
+</tr>
+<tr>
+<td>@Future</td>
+<td>日期，将来的日期</td>
+<td>Bean Validation 1.0</td>
+</tr>
+<tr>
+<td>@PastOrPresent（时间）</td>
+<td>过去或者现在</td>
+<td>Bean Validation 2.0</td>
+</tr>
+<tr>
+<td>@FutureOrPresent（时间）</td>
+<td>将来或者现在</td>
+<td>Bean Validation 2.0</td>
+</tr>
+</tbody></table>
+<h4 id="集合"><a href="#集合" class="headerlink" title="集合"></a>集合</h4><table>
+<thead>
+<tr>
+<th>注解</th>
+<th>comment</th>
+<th>version</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>@NotEmpty</td>
+<td>集合，不为空</td>
+<td>Bean Validation 2.0</td>
+</tr>
+</tbody></table>
+<h3 id="使用示例"><a href="#使用示例" class="headerlink" title="使用示例"></a>使用示例</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> com.example.springvalidationdemo.controller.dto;</span><br><span class="line"><span class="keyword">import</span> lombok.Data;</span><br><span class="line"><span class="keyword">import</span> org.hibernate.validator.constraints.Length;</span><br><span class="line"><span class="keyword">import</span> javax.validation.constraints.*;</span><br><span class="line"><span class="keyword">import</span> java.time.LocalDateTime;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Data</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">UserDTO</span> &#123;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@NotNull</span></span><br><span class="line">    <span class="keyword">private</span> Long userId;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@NotBlank</span></span><br><span class="line">    <span class="meta">@Length(max = 32)</span></span><br><span class="line">    <span class="meta">@Pattern(regexp = &quot;^[\\\\u4E00-\\\\u9FA5A-Za-z0-9\\\\*]*$&quot;, message = &quot;用户昵称限制：最多20字符，包含文字、字母和数字&quot;)</span></span><br><span class="line">    <span class="keyword">private</span> String userName;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@NotBlank</span></span><br><span class="line">    <span class="meta">@Pattern(regexp = &quot;^((17[0-9])|(14[0-9])|(13[0-9])|(15[^4,\\D])|(18[0,5-9]))\\d&#123;8&#125;$&quot;)</span></span><br><span class="line">    <span class="keyword">private</span> String mobile;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">private</span> String sex;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@NotBlank</span></span><br><span class="line">    <span class="meta">@Email</span></span><br><span class="line">    <span class="keyword">private</span> String email;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">private</span> String password;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@Future</span></span><br><span class="line">    <span class="keyword">private</span> LocalDateTime createdTime;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> com.example.springvalidationdemo.controller;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> com.example.springvalidationdemo.controller.dto.UserDTO;</span><br><span class="line"><span class="keyword">import</span> lombok.extern.slf4j.Slf4j;</span><br><span class="line"><span class="keyword">import</span> org.springframework.context.support.DefaultMessageSourceResolvable;</span><br><span class="line"><span class="keyword">import</span> org.springframework.validation.BindingResult;</span><br><span class="line"><span class="keyword">import</span> org.springframework.web.bind.annotation.*;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> javax.validation.Valid;</span><br><span class="line"><span class="keyword">import</span> java.util.stream.Collectors;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Slf4j</span></span><br><span class="line"><span class="meta">@RestController</span></span><br><span class="line"><span class="meta">@RequestMapping(value = &quot;/validation&quot;)</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ValidationController</span> &#123;</span><br><span class="line">    </span><br><span class="line">    </span><br><span class="line">    <span class="meta">@PostMapping(value = &quot;/user1&quot;)</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">addUser1</span><span class="params">(<span class="meta">@Valid</span> <span class="meta">@RequestBody</span> UserDTO userDTO, BindingResult bindingResult)</span>&#123;</span><br><span class="line"><span class="comment">//        使用BindingResult就算绑定出错，也会进入controller方法</span></span><br><span class="line">        log.error(bindingResult.getAllErrors().stream().map(DefaultMessageSourceResolvable::getDefaultMessage).collect(Collectors.joining(<span class="string">&quot;\n&quot;</span>)));</span><br><span class="line">        log.info(<span class="string">&quot;addUser1&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@PostMapping(value = &quot;/user2&quot;)</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">addUser2</span><span class="params">(<span class="meta">@Valid</span> <span class="meta">@RequestBody</span> UserDTO userDTO)</span>&#123;</span><br><span class="line"><span class="comment">//        绑定错误时，不会进入controller方法，会抛出异常</span></span><br><span class="line">        log.info(<span class="string">&quot;addUser2&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h4 id="绑定结果处理"><a href="#绑定结果处理" class="headerlink" title="绑定结果处理"></a>绑定结果处理</h4><blockquote>
+<p>三种方法：</p>
+<ul>
+<li><p>统一全局异常处理</p>
+</li>
+<li><p>控制器特定异常处理</p>
+</li>
+<li><p>使用BindingResult对象封装异常信息，BindingResult对象需要<strong>紧跟</strong>在@Validation&#x2F;@Valid注解对象的后面</p>
+</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>如果只是使用validation注解，在参数绑定时，不符合规则会抛出<code>MethodArgumentNotValidException</code>或者<code>ConstraintViolationException</code>异常</p>
+</blockquote>
+<h5 id="统一全局异常处理"><a href="#统一全局异常处理" class="headerlink" title="统一全局异常处理"></a>统一全局异常处理</h5><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Slf4j</span></span><br><span class="line"><span class="meta">@RestControllerAdvice</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ValidationExceptionHandler</span> &#123;</span><br><span class="line">    <span class="comment">// 使用@Valid或者@Validated校验传入‘对象’的‘属性’时，校验失败后抛出的异常是MethodArgumentNotValidException</span></span><br><span class="line">    <span class="meta">@ExceptionHandler(MethodArgumentNotValidException.class)</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">handleMethodArgumentNotValidException</span><span class="params">(HttpServletResponse response, MethodArgumentNotValidException exception)</span> <span class="keyword">throws</span> IOException &#123;</span><br><span class="line">        log.info(<span class="string">&quot;handleMethodArgumentNotValidException&quot;</span>);</span><br><span class="line">        <span class="type">String</span> <span class="variable">message</span> <span class="operator">=</span> exception.getBindingResult().getAllErrors().stream().map(DefaultMessageSourceResolvable::getDefaultMessage).collect(Collectors.joining(<span class="string">&quot;\n&quot;</span>));</span><br><span class="line">        log.error(message);</span><br><span class="line">        <span class="type">ServletOutputStream</span> <span class="variable">outputStream</span> <span class="operator">=</span> response.getOutputStream();</span><br><span class="line">        outputStream.write(message.getBytes(StandardCharsets.UTF_8));</span><br><span class="line">        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// Spring validation方法入参上对‘单个参数’进行校验，校验失败时会抛出ConstraintViolationException异常</span></span><br><span class="line">    <span class="meta">@ExceptionHandler(ConstraintViolationException.class)</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">handleConstraintViolationException</span><span class="params">(HttpServletResponse response, ConstraintViolationException exception)</span> <span class="keyword">throws</span> IOException &#123;</span><br><span class="line">        log.info(<span class="string">&quot;handleConstraintViolationException&quot;</span>);</span><br><span class="line">        <span class="type">String</span> <span class="variable">message</span> <span class="operator">=</span> exception.getConstraintViolations().stream().map(ConstraintViolation::getMessage).collect(Collectors.joining(<span class="string">&quot;\n&quot;</span>));</span><br><span class="line">        log.error(message);</span><br><span class="line">        <span class="type">ServletOutputStream</span> <span class="variable">outputStream</span> <span class="operator">=</span> response.getOutputStream();</span><br><span class="line">        outputStream.write(message.getBytes(StandardCharsets.UTF_8));</span><br><span class="line">        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h5 id="控制器特定异常处理"><a href="#控制器特定异常处理" class="headerlink" title="控制器特定异常处理"></a>控制器特定异常处理</h5><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Slf4j</span></span><br><span class="line"><span class="meta">@RestController</span></span><br><span class="line"><span class="meta">@RequestMapping(value = &quot;/validation&quot;)</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ValidationController</span> &#123;</span><br><span class="line">	...</span><br><span class="line">	</span><br><span class="line">    <span class="meta">@ExceptionHandler(Exception.class)</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">handleException</span><span class="params">(Exception e)</span>&#123;</span><br><span class="line">        log.info(<span class="string">&quot;handleException&quot;</span>);</span><br><span class="line">        log.error(e.getMessage());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h5 id="使用BindingResult对象封装异常信息"><a href="#使用BindingResult对象封装异常信息" class="headerlink" title="使用BindingResult对象封装异常信息"></a>使用BindingResult对象封装异常信息</h5><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Slf4j</span></span><br><span class="line"><span class="meta">@RestController</span></span><br><span class="line"><span class="meta">@RequestMapping(value = &quot;/validation&quot;)</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ValidationController</span> &#123;</span><br><span class="line">    <span class="meta">@PostMapping(value = &quot;/user1&quot;)</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">addUser1</span><span class="params">(<span class="meta">@Valid</span> <span class="meta">@RequestBody</span> UserDTO userDTO, BindingResult bindingResult)</span>&#123;</span><br><span class="line"><span class="comment">//        使用BindingResult就算绑定出错，也会进入controller方法</span></span><br><span class="line">        log.error(bindingResult.getAllErrors().stream().map(DefaultMessageSourceResolvable::getDefaultMessage).collect(Collectors.joining(<span class="string">&quot;\n&quot;</span>)));</span><br><span class="line">        log.info(<span class="string">&quot;addUser1&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="Spring-validation方法参数级别的校验"><a href="#Spring-validation方法参数级别的校验" class="headerlink" title="Spring validation方法参数级别的校验"></a>Spring validation方法参数级别的校验</h4><blockquote>
+<p>JSR和Hibernate validator的校验只能对Object的属性进行校验，不能对单个的参数进行校验，spring 在此基础上进行了扩展，添加了MethodValidationPostProcessor拦截器，可以实现对方法参数的校验</p>
+</blockquote>
+<p>实现：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 1. 实例化MethodValidationPostProcessor(这一步Spring Boot已经自动创建了，不必自己手动创建)</span></span><br><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="keyword">public</span> MethodValidationPostProcessor <span class="title function_">methodValidationPostProcessor</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">MethodValidationPostProcessor</span>();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 2.在所要实现方法参数校验的类上面添加@Validated注解，不能是@Valid</span></span><br><span class="line"><span class="meta">@Validated</span></span><br><span class="line"><span class="meta">@RestController</span></span><br><span class="line"><span class="meta">@RequestMapping(value = &quot;/validation&quot;)</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ValidationController</span> &#123;</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 3.在方法上面添加校验规则</span></span><br><span class="line"><span class="meta">@GetMapping(value = &quot;/user/&#123;id&#125;&quot;)</span></span><br><span class="line"><span class="keyword">public</span> User <span class="title function_">getUser2</span><span class="params">(<span class="meta">@Min(value = 10)</span> <span class="meta">@PathVariable(&quot;id&quot;)</span> Long userId)</span>&#123;</span><br><span class="line">    <span class="type">User</span> <span class="variable">user</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">User</span>();</span><br><span class="line">    user.setUserId(userId);</span><br><span class="line">    <span class="keyword">return</span> user;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 4. 校验失败时，会抛出ConstraintViolationException异常</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="使用-Validator编程式校验"><a href="#使用-Validator编程式校验" class="headerlink" title="使用 Validator编程式校验"></a>使用 Validator编程式校验</h4><blockquote>
+<p>有的时候我们想在代码里面自己手动对对象参数进行校验，可以使用<code>Validation.buildDefaultValidatorFactory()</code>获取<code>ValidatorFactory</code>，通过<code>factory.getValidator()</code>获取对应的校验器<code>Validator</code></p>
+</blockquote>
+<p>使用方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">validateUser</span><span class="params">(UserDTO userDTO)</span>&#123;</span><br><span class="line">    <span class="type">ValidatorFactory</span> <span class="variable">factory</span> <span class="operator">=</span> Validation.buildDefaultValidatorFactory();</span><br><span class="line">        <span class="type">Validator</span> <span class="variable">validator</span> <span class="operator">=</span> factory.getValidator();</span><br><span class="line">        Set&lt;ConstraintViolation&lt;UserDTO&gt;&gt; validate = validator.validate(userDTO);</span><br><span class="line">        <span class="type">String</span> <span class="variable">message</span> <span class="operator">=</span> validate.stream().map(ConstraintViolation::getMessage).collect(Collectors.joining(<span class="string">&quot;\n&quot;</span>));</span><br><span class="line">        System.out.println(message);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="校验模式"><a href="#校验模式" class="headerlink" title="校验模式"></a>校验模式</h4><h5 id="普通模式（默认）"><a href="#普通模式（默认）" class="headerlink" title="普通模式（默认）"></a>普通模式（默认）</h5><blockquote>
+<p>在普通模式下，会校验完所有的属性，然后返回所有验证失败的信息</p>
+</blockquote>
+<h5 id="快速失败模式"><a href="#快速失败模式" class="headerlink" title="快速失败模式"></a>快速失败模式</h5><blockquote>
+<p>快速失败模式下，只要有一个参数校验失败，会立马返回验证失败信息，不再校验后面的参数</p>
+</blockquote>
+<p>配置方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="keyword">public</span> Validator <span class="title function_">validator</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="type">ValidatorFactory</span> <span class="variable">validatorFactory</span> <span class="operator">=</span> Validation.byProvider(HibernateValidator.class)</span><br><span class="line">            .configure()</span><br><span class="line">            <span class="comment">// 快速失败模式</span></span><br><span class="line">            .failFast(<span class="literal">true</span>)</span><br><span class="line">            .buildValidatorFactory();</span><br><span class="line">    <span class="keyword">return</span> validatorFactory.getValidator();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="自定义校验注解"><a href="#自定义校验注解" class="headerlink" title="自定义校验注解"></a>自定义校验注解</h4><blockquote>
+<p>虽然jSR303和Hibernate Validtor 已经提供了很多校验注解，但是当面对复杂参数校验时，还是不能满足我们的要求，这时候我们就需要自定义校验注解</p>
+</blockquote>
+<blockquote>
+<p>步骤：</p>
+<ul>
+<li>自定义约束注解</li>
+<li>实现ConstraintValidator接口</li>
+</ul>
+</blockquote>
+<h5 id="自定义约束注解"><a href="#自定义约束注解" class="headerlink" title="自定义约束注解"></a>自定义约束注解</h5><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 自定义参数校验注解</span></span><br><span class="line"><span class="comment"> * 列表中不允许有null元素</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="meta">@Target(&#123;ANNOTATION_TYPE, METHOD, ElementType.FIELD&#125;)</span></span><br><span class="line"><span class="meta">@Retention(RUNTIME)</span></span><br><span class="line"><span class="meta">@Documented</span></span><br><span class="line"><span class="meta">@Constraint(validatedBy = ListNoNullValidator.class)</span> <span class="comment">//指定了注解的验证实现类为ListNoNullValidator</span></span><br><span class="line"><span class="keyword">public</span> <span class="meta">@interface</span> ListNoNull &#123;</span><br><span class="line">    </span><br><span class="line">    String <span class="title function_">message</span><span class="params">()</span> <span class="keyword">default</span> <span class="string">&quot;List集合中不能含有null元素&quot;</span>;</span><br><span class="line">    </span><br><span class="line">    Class&lt;?&gt;[] groups() <span class="keyword">default</span> &#123;&#125;;</span><br><span class="line">    </span><br><span class="line">    Class&lt;? <span class="keyword">extends</span> <span class="title class_">Payload</span>&gt;[] payload() <span class="keyword">default</span> &#123;&#125;;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 定义List，为了让Bean的一个属性上可以添加多套规则</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="meta">@Target(&#123;METHOD, FIELD, ANNOTATION_TYPE, CONSTRUCTOR, PARAMETER&#125;)</span></span><br><span class="line">    <span class="meta">@Retention(RUNTIME)</span></span><br><span class="line">    <span class="meta">@Documented</span></span><br><span class="line">    <span class="meta">@interface</span> List &#123;</span><br><span class="line">        ListNoNull[] value();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h5 id="实现ConstraintValidator接口"><a href="#实现ConstraintValidator接口" class="headerlink" title="实现ConstraintValidator接口"></a>实现ConstraintValidator接口</h5><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ListNoNullValidator</span> <span class="keyword">implements</span> <span class="title class_">ConstraintValidator</span>&lt;ListNoNull, List&gt; &#123;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 实现具体的验证逻辑</span></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">isValid</span><span class="params">(List list, ConstraintValidatorContext constraintValidatorContext)</span> &#123;</span><br><span class="line">        <span class="keyword">if</span>(list == <span class="literal">null</span>)&#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">for</span>(Object object : list)&#123;</span><br><span class="line">            <span class="comment">// 如果List集合中存在null元素，校验失败</span></span><br><span class="line">            <span class="keyword">if</span>(object == <span class="literal">null</span>)&#123;</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 验证前做的初始化工作</span></span><br><span class="line">    <span class="comment">// 默认是没有操作</span></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">initialize</span><span class="params">(ListNoNull constraintAnnotation)</span> &#123;</span><br><span class="line">        ConstraintValidator.<span class="built_in">super</span>.initialize(constraintAnnotation);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="分组校验"><a href="#分组校验" class="headerlink" title="分组校验"></a>分组校验</h4><blockquote>
+<p>在实际项目中，增加和修改时对参数的验证方式可能不一样，如保存User的时候，userId时可以为空的，但是在更新User的时候，userId不能为空，所以就需要分组校验。</p>
+</blockquote>
+<blockquote>
+<p>Spring validation支持分组校验，需要使用@Validated，不能使用@Valid</p>
+</blockquote>
+<blockquote>
+<p>步骤：</p>
+<ul>
+<li>定义空接口表示分组</li>
+<li>约束注解上声明适用的分组信息</li>
+<li>@Validated注解上指定校验分组</li>
+</ul>
+</blockquote>
+<h5 id="定义空接口表示分组"><a href="#定义空接口表示分组" class="headerlink" title="定义空接口表示分组"></a>定义空接口表示分组</h5><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 可以定义一个继承Default的接口，这样分组校验的时候，没有设定分组的参数也会一起校验</span></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">* 保存的时候校验分组</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">interface</span> <span class="title class_">Save</span> &#123;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">* 更新的时候校验分组</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">interface</span> <span class="title class_">Update</span> &#123;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h5 id="约束注解上声明适用的分组信息"><a href="#约束注解上声明适用的分组信息" class="headerlink" title="约束注解上声明适用的分组信息"></a>约束注解上声明适用的分组信息</h5><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Data</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">UserDTO</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@NotNull(groups = Update.class)</span></span><br><span class="line">    <span class="keyword">private</span> Long userId;</span><br><span class="line">	</span><br><span class="line">    <span class="meta">@NotBlank</span></span><br><span class="line">    <span class="meta">@Length(max = 32)</span></span><br><span class="line">    <span class="keyword">private</span> String userName;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@NotBlank</span></span><br><span class="line">    <span class="meta">@Email(groups = &#123;Save.class, Update.class&#125;)</span></span><br><span class="line">    <span class="keyword">private</span> String email;</span><br><span class="line">	</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 保存的时候校验分组</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">interface</span> <span class="title class_">Save</span> &#123;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 更新的时候校验分组</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">interface</span> <span class="title class_">Update</span> &#123;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h5 id="Validated注解上指定校验分组"><a href="#Validated注解上指定校验分组" class="headerlink" title="@Validated注解上指定校验分组"></a>@Validated注解上指定校验分组</h5><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// javax.validation.groups.Default表示默认没有指定分组的验证规则</span></span><br><span class="line"><span class="meta">@PostMapping(value = &quot;/user3&quot;)</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">addUser3</span><span class="params">(<span class="meta">@Validated(&#123;UserDTO.Update.class, Default.class&#125;)</span> <span class="meta">@RequestBody</span> UserDTO userDTO)</span>&#123;</span><br><span class="line">	log.info(<span class="string">&quot;addUser3&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="嵌套校验"><a href="#嵌套校验" class="headerlink" title="嵌套校验"></a>嵌套校验</h4><blockquote>
+<p>必须使用@Valid注解才能使用嵌套校验</p>
+</blockquote>
+<blockquote>
+<p>前面的示例中，校验的属性都是基本数据类型或者String类型，如果某个属性是对象，则可以使用嵌套校验，对象属性上使用@Valid注解表明嵌套校验</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Data</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">UserDTO</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@NotNull</span></span><br><span class="line">    <span class="keyword">private</span> Long userId;</span><br><span class="line">	</span><br><span class="line">    <span class="meta">@NotBlank</span></span><br><span class="line">    <span class="meta">@Length(max = 32)</span></span><br><span class="line">    <span class="keyword">private</span> String userName;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@NotNull</span></span><br><span class="line">  	<span class="meta">@Valid</span></span><br><span class="line">    <span class="keyword">private</span> Item item;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@Data</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">class</span> <span class="title class_">Item</span>&#123;</span><br><span class="line">        <span class="meta">@NotNull</span></span><br><span class="line">        <span class="keyword">private</span> Long itemId;</span><br><span class="line">        </span><br><span class="line">        <span class="meta">@NotBlank</span></span><br><span class="line">        <span class="keyword">private</span> String itemName;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="Spring-validation原理"><a href="#Spring-validation原理" class="headerlink" title="Spring-validation原理"></a>Spring-validation原理</h3><blockquote>
+<p>无论是哪种方式，最终都是调用<code>Hibernate Validator</code>进行真正的校验处理，Spring只是做了一层封装</p>
+</blockquote>
+<h4 id="基于RequestBody的参数校验"><a href="#基于RequestBody的参数校验" class="headerlink" title="基于RequestBody的参数校验"></a>基于RequestBody的参数校验</h4><p>在Spring-MVC中，<code>RequestResponseBodyMethodProcessor</code>是用于解析<code>@RequestBody</code>标注的参数以及处理<code>@ResponseBody</code>标注方法的返回值的。显然执行参数校验的逻辑肯定在解析参数的方法<code>resolveArgument()</code>中。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">RequestResponseBodyMethodProcessor</span> <span class="keyword">extends</span> <span class="title class_">AbstractMessageConverterMethodProcessor</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> Object <span class="title function_">resolveArgument</span><span class="params">(MethodParameter parameter, <span class="meta">@Nullable</span> ModelAndViewContainer mavContainer,</span></span><br><span class="line"><span class="params">			NativeWebRequest webRequest, <span class="meta">@Nullable</span> WebDataBinderFactory binderFactory)</span> <span class="keyword">throws</span> Exception &#123;</span><br><span class="line"></span><br><span class="line">    parameter = parameter.nestedIfOptional();</span><br><span class="line">    <span class="comment">// 将请求参数封装到对象</span></span><br><span class="line">    <span class="type">Object</span> <span class="variable">arg</span> <span class="operator">=</span> readWithMessageConverters(webRequest, parameter, parameter.getNestedGenericParameterType());</span><br><span class="line">    <span class="type">String</span> <span class="variable">name</span> <span class="operator">=</span> Conventions.getVariableNameForParameter(parameter);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (binderFactory != <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="type">WebDataBinder</span> <span class="variable">binder</span> <span class="operator">=</span> binderFactory.createBinder(webRequest, arg, name);</span><br><span class="line">        <span class="keyword">if</span> (arg != <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="comment">// 校验数据</span></span><br><span class="line">            validateIfApplicable(binder, parameter);</span><br><span class="line">            <span class="keyword">if</span> (binder.getBindingResult().hasErrors() &amp;&amp; isBindExceptionRequired(binder, parameter)) &#123;</span><br><span class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">MethodArgumentNotValidException</span>(parameter, binder.getBindingResult());</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (mavContainer != <span class="literal">null</span>) &#123;</span><br><span class="line">            mavContainer.addAttribute(BindingResult.MODEL_KEY_PREFIX + name, binder.getBindingResult());</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> adaptArgumentIfNecessary(arg, parameter);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，<code>resolveArgument()</code>调用了<code>validateIfApplicable()</code>进行参数校验。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">validateIfApplicable</span><span class="params">(WebDataBinder binder, MethodParameter parameter)</span> &#123;</span><br><span class="line">    <span class="comment">// 获取所有注解</span></span><br><span class="line">    Annotation[] annotations = parameter.getParameterAnnotations();</span><br><span class="line">    <span class="keyword">for</span> (Annotation ann : annotations) &#123;</span><br><span class="line">        <span class="comment">// 判断有没有@Valid或者@Validated注解或者以Valid开头的注解</span></span><br><span class="line">        Object[] validationHints = ValidationAnnotationUtils.determineValidationHints(ann);</span><br><span class="line">        <span class="keyword">if</span> (validationHints != <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="comment">// 执行校验</span></span><br><span class="line">            binder.validate(validationHints);</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Nullable</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> Object[] determineValidationHints(Annotation ann) &#123;</span><br><span class="line">    Class&lt;? <span class="keyword">extends</span> <span class="title class_">Annotation</span>&gt; annotationType = ann.annotationType();</span><br><span class="line">    <span class="type">String</span> <span class="variable">annotationName</span> <span class="operator">=</span> annotationType.getName();</span><br><span class="line">    <span class="comment">// 注解为@Valid</span></span><br><span class="line">    <span class="keyword">if</span> (<span class="string">&quot;javax.validation.Valid&quot;</span>.equals(annotationName)) &#123;</span><br><span class="line">        <span class="keyword">return</span> EMPTY_OBJECT_ARRAY;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 获取@Validated注解</span></span><br><span class="line">    <span class="type">Validated</span> <span class="variable">validatedAnn</span> <span class="operator">=</span> AnnotationUtils.getAnnotation(ann, Validated.class);</span><br><span class="line">    <span class="keyword">if</span> (validatedAnn != <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="type">Object</span> <span class="variable">hints</span> <span class="operator">=</span> validatedAnn.value();</span><br><span class="line">        <span class="keyword">return</span> convertValidationHints(hints);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (annotationType.getSimpleName().startsWith(<span class="string">&quot;Valid&quot;</span>)) &#123;</span><br><span class="line">        <span class="type">Object</span> <span class="variable">hints</span> <span class="operator">=</span> AnnotationUtils.getValue(ann);</span><br><span class="line">        <span class="keyword">return</span> convertValidationHints(hints);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">validate</span><span class="params">(Object... validationHints)</span> &#123;</span><br><span class="line">    <span class="type">Object</span> <span class="variable">target</span> <span class="operator">=</span> getTarget();</span><br><span class="line">    Assert.state(target != <span class="literal">null</span>, <span class="string">&quot;No target to validate&quot;</span>);</span><br><span class="line">    <span class="type">BindingResult</span> <span class="variable">bindingResult</span> <span class="operator">=</span> getBindingResult();</span><br><span class="line">    <span class="comment">// Call each validator with the same binding result</span></span><br><span class="line">    <span class="comment">// 调用所有注册的validator验证绑定结果</span></span><br><span class="line">    <span class="keyword">for</span> (Validator validator : getValidators()) &#123;</span><br><span class="line">        <span class="keyword">if</span> (!ObjectUtils.isEmpty(validationHints) &amp;&amp; validator <span class="keyword">instanceof</span> SmartValidator) &#123;</span><br><span class="line">            ((SmartValidator) validator).validate(target, bindingResult, validationHints);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">else</span> <span class="keyword">if</span> (validator != <span class="literal">null</span>) &#123;</span><br><span class="line">            validator.validate(target, bindingResult);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="方法参数级别的校验"><a href="#方法参数级别的校验" class="headerlink" title="方法参数级别的校验"></a>方法参数级别的校验</h4><blockquote>
+<p>方法参数级别的校验能够用于任何Spring Bean的方法上，比如Controller或者Service等。<strong>其底层原理是<code>AOP</code>，通过<code>MethodValidationPostProcessor</code>动态注册<code>AOP</code>切面，然后使用<code>MethodValidationInterceptor</code>对切点方法织入增强</strong>。</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">MethodValidationPostProcessor</span> <span class="keyword">extends</span> <span class="title class_">AbstractBeanFactoryAwareAdvisingPostProcessor</span></span><br><span class="line">		<span class="keyword">implements</span> <span class="title class_">InitializingBean</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">	<span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">afterPropertiesSet</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="comment">// 为所有@Validated标注的Bean创建切面</span></span><br><span class="line">		<span class="type">Pointcut</span> <span class="variable">pointcut</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">AnnotationMatchingPointcut</span>(<span class="built_in">this</span>.validatedAnnotationType, <span class="literal">true</span>);</span><br><span class="line">        <span class="comment">// 创建Advice进行增强</span></span><br><span class="line">		<span class="built_in">this</span>.advisor = <span class="keyword">new</span> <span class="title class_">DefaultPointcutAdvisor</span>(pointcut, createMethodValidationAdvice(<span class="built_in">this</span>.validator));</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 创建Advice，本质是一个方法拦截器</span></span><br><span class="line">    <span class="keyword">protected</span> Advice <span class="title function_">createMethodValidationAdvice</span><span class="params">(<span class="meta">@Nullable</span> Validator validator)</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> (validator != <span class="literal">null</span> ? <span class="keyword">new</span> <span class="title class_">MethodValidationInterceptor</span>(validator) : <span class="keyword">new</span> <span class="title class_">MethodValidationInterceptor</span>());</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">MethodValidationInterceptor</span> <span class="keyword">implements</span> <span class="title class_">MethodInterceptor</span> &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">	<span class="meta">@Nullable</span></span><br><span class="line">	<span class="keyword">public</span> Object <span class="title function_">invoke</span><span class="params">(MethodInvocation invocation)</span> <span class="keyword">throws</span> Throwable &#123;</span><br><span class="line">		<span class="comment">// Avoid Validator invocation on FactoryBean.getObjectType/isSingleton</span></span><br><span class="line">        <span class="comment">// 避免在get属性方法或者isSingleton方法上调用验证器</span></span><br><span class="line">		<span class="keyword">if</span> (isFactoryBeanMetadataMethod(invocation.getMethod())) &#123;</span><br><span class="line">			<span class="keyword">return</span> invocation.proceed();</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 获取分组信息</span></span><br><span class="line">		Class&lt;?&gt;[] groups = determineValidationGroups(invocation);</span><br><span class="line"></span><br><span class="line">		<span class="comment">// Standard Bean Validation 1.1 API</span></span><br><span class="line">		<span class="type">ExecutableValidator</span> <span class="variable">execVal</span> <span class="operator">=</span> <span class="built_in">this</span>.validator.forExecutables();</span><br><span class="line">		<span class="type">Method</span> <span class="variable">methodToValidate</span> <span class="operator">=</span> invocation.getMethod();</span><br><span class="line">		Set&lt;ConstraintViolation&lt;Object&gt;&gt; result;</span><br><span class="line"></span><br><span class="line">		<span class="type">Object</span> <span class="variable">target</span> <span class="operator">=</span> invocation.getThis();</span><br><span class="line">		Assert.state(target != <span class="literal">null</span>, <span class="string">&quot;Target must not be null&quot;</span>);</span><br><span class="line"></span><br><span class="line">		<span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="comment">// 方法入参校验，最终还是委托给Hibernate Validator来校验</span></span><br><span class="line">			result = execVal.validateParameters(target, methodToValidate, invocation.getArguments(), groups);</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">catch</span> (IllegalArgumentException ex) &#123;</span><br><span class="line">			<span class="comment">// Probably a generic type mismatch between interface and impl as reported in SPR-12237 / HV-1011</span></span><br><span class="line">			<span class="comment">// Let&#x27;s try to find the bridged method on the implementation class...</span></span><br><span class="line">			methodToValidate = BridgeMethodResolver.findBridgedMethod(</span><br><span class="line">					ClassUtils.getMostSpecificMethod(invocation.getMethod(), target.getClass()));</span><br><span class="line">			result = execVal.validateParameters(target, methodToValidate, invocation.getArguments(), groups);</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">if</span> (!result.isEmpty()) &#123;</span><br><span class="line">            <span class="comment">// 抛出ConstraintViolationException异常</span></span><br><span class="line">			<span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">ConstraintViolationException</span>(result);</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 真正的方法调用</span></span><br><span class="line">		<span class="type">Object</span> <span class="variable">returnValue</span> <span class="operator">=</span> invocation.proceed();</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 对返回值做校验</span></span><br><span class="line">		result = execVal.validateReturnValue(target, methodToValidate, returnValue, groups);</span><br><span class="line">		<span class="keyword">if</span> (!result.isEmpty()) &#123;</span><br><span class="line">            <span class="comment">// 抛出ConstraintViolationException异常</span></span><br><span class="line">			<span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">ConstraintViolationException</span>(result);</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		<span class="keyword">return</span> returnValue;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+      
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+</div>
+
+
+
+
+    
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Junhao Lin">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="IceVitalemon's Blog">
+      <meta itemprop="description" content="时光小屋">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="undefined | IceVitalemon's Blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          <a href="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/" class="post-title-link" itemprop="url">基础知识回顾</a>
+        </h2>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2022-09-05 10:07:20" itemprop="dateCreated datePublished" datetime="2022-09-05T10:07:20+08:00">2022-09-05</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2022-09-08 16:35:50" itemprop="dateModified" datetime="2022-09-08T16:35:50+08:00">2022-09-08</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+          <h2 id="JAVA基础知识"><a href="#JAVA基础知识" class="headerlink" title="JAVA基础知识"></a>JAVA基础知识</h2><h3 id="集合"><a href="#集合" class="headerlink" title="集合"></a>集合</h3><p>HashMap</p>
+<p>ConcurrentHashMap</p>
+<h3 id="JVM"><a href="#JVM" class="headerlink" title="JVM"></a>JVM</h3><h3 id="多线程"><a href="#多线程" class="headerlink" title="多线程"></a>多线程</h3><p>线程状态</p>
+<p>锁</p>
+<p>AQS</p>
+<p>线程池</p>
+<h3 id="网络编程"><a href="#网络编程" class="headerlink" title="网络编程"></a>网络编程</h3><p>epoll channel</p>
+<p>BIO</p>
+<p>NIO</p>
+<p>AIO</p>
+<h2 id="计算机基础"><a href="#计算机基础" class="headerlink" title="计算机基础"></a>计算机基础</h2><h3 id="计算机网络"><a href="#计算机网络" class="headerlink" title="计算机网络"></a>计算机网络</h3><p>发起HTTP请求的流程</p>
+<p>ARP（地址解析协议）</p>
+<p>DNS</p>
+<p>PING，ICMP</p>
+<p>TCP&#x2F;IP</p>
+<p>TCP -三次握手四次挥手</p>
+<p>CLOSED WAIT</p>
+<p>TIME WAIT</p>
+<p>UDP</p>
+<h3 id="操作系统"><a href="#操作系统" class="headerlink" title="操作系统"></a>操作系统</h3><p>进程、线程、协程</p>
+<p>页式、段式、段页式</p>
+<p>虚拟内存（储存）</p>
+<p>虚拟硬盘</p>
+<p>CPU寻址、逻辑地址、物理地址</p>
+<p>磁盘</p>
+<h2 id="MySQL"><a href="#MySQL" class="headerlink" title="MySQL"></a>MySQL</h2><h3 id="MyISAM和InnoDB的区别"><a href="#MyISAM和InnoDB的区别" class="headerlink" title="MyISAM和InnoDB的区别"></a>MyISAM和InnoDB的区别</h3><ul>
+<li><p>MyISAM</p>
+<ul>
+<li>不支持事务、崩溃恢复</li>
+<li>不支持行锁，只支持表锁</li>
+<li>不支持外键</li>
+<li>主键索引中叶子节点储存的不是数据记录，而是记录的内存地址，因此MyISAM的数据文件分为索引文件和数据文件</li>
+</ul>
+</li>
+<li><p>InnoDB</p>
+<ul>
+<li>支持事务，崩溃恢复，有redo log</li>
+<li>支持表锁、行级锁，通过MVCC和Next-key Lock在可重复读的隔离级别下解决幻读的问题</li>
+<li>支持外键</li>
+<li>InnoDB的主键索引是聚簇索引，所以数据文件只有一个</li>
+</ul>
+</li>
+</ul>
+<h3 id="索引"><a href="#索引" class="headerlink" title="索引"></a>索引</h3><blockquote>
+<p>以 InnoDB 的一个整数字段索引为例，N叉B+树的N 差不多是 1200。这棵树高是 4 的时候，就可以存 1200 的 3 次方个值，这已经 17 亿了。考虑到树根的数据块总是在内存中的，一个 10 亿行的表上一个整数字段的索引，查找一个值最多只需要访问 3 次磁盘。其实，树的第二层也有很大概率在内存中，那么访问磁盘的平均次数就更少了。</p>
+</blockquote>
+<h4 id="索引类型（分类角度）"><a href="#索引类型（分类角度）" class="headerlink" title="索引类型（分类角度）"></a>索引类型（分类角度）</h4><ul>
+<li><p><strong>主键索引</strong>：一种<strong>特殊的唯一索引</strong>，一个表只能有一个主键，<strong>不允许有空值</strong>，主键索引的记录在物理存储上的方式跟数据库引擎的实现有关，MyISAM中主键索引B+树的叶子节点储存的是记录的物理地址（所以数据库的数据文件分为索引文件和数据文件），而InnoDB中主键索引B+树的叶子节点储存了记录的所有字段值。</p>
+</li>
+<li><p><strong>普通索引</strong>：就是普通的索引。</p>
+</li>
+<li><p><strong>唯一索引</strong>：字段唯一，能够<strong>允许NULL值</strong>，就是只要是NULL就认为是不一样的，在InnoDB中NULL值储存在B+树的最左边。</p>
+</li>
+<li><p><strong>前缀索引</strong>：指对字符类型字段的前几个字符或对二进制类型字段的前几个bytes建立的索引，而不是在整个字段上建索引。前缀索引可以建立在类型为char、varchar、binary、varbinary的列上，可以大大减少索引占用的存储空间，也能提升索引的查询效率。</p>
+</li>
+<li><p><strong>全文索引</strong>：与搜索引擎相关，都是需要分词，然后根据关键字中的词频和重要性进行排序。</p>
+</li>
+<li><p><strong>联合索引</strong>：由多个字段组合形成的索引。</p>
+</li>
+</ul>
+<h4 id="聚簇索引与非聚簇索引（物理储存角度）"><a href="#聚簇索引与非聚簇索引（物理储存角度）" class="headerlink" title="聚簇索引与非聚簇索引（物理储存角度）"></a>聚簇索引与非聚簇索引（物理储存角度）</h4><ul>
+<li><p><strong>聚簇索引</strong>：记录的物理储存顺序与列值（一般是主键的一列）的逻辑顺序相同，一个表中只有一个聚簇索引（因为聚簇索引的记录在物理储存上是有序的，所以当按照主键遍历的时候，相邻的主键都在同一块内存页中，能够减少缺页中断，提高查询效率）。</p>
+</li>
+<li><p><strong>非聚簇索引</strong>（二级索引、辅助索引）：与聚簇索引相反，如果记录的物理储存顺序与列值的逻辑顺序不一样，那么就是非聚簇索引，一个表中可以有多个非聚簇索引。</p>
+</li>
+</ul>
+<h4 id="B-树索引和哈希索引（数据结构角度）"><a href="#B-树索引和哈希索引（数据结构角度）" class="headerlink" title="B+树索引和哈希索引（数据结构角度）"></a>B+树索引和哈希索引（数据结构角度）</h4><ul>
+<li><p><strong>B+树索引</strong>：B+树是多叉平衡树，所以能够快速搜索到记录的位置，B+树的特点是非叶子节点不储存数据，叶子节点储存数据，最后所有叶子节点组成一条有序的双向链表，<strong>因为非叶子节点不储存数据，所以单个非叶子节点能够储存大量的索引数据，而由于这些索引数据是经常被访问的，所以能够常驻在内存中，减少缺页中断（或SWAP）带来的性能消耗</strong>。</p>
+</li>
+<li><p><strong>B树索引</strong>：B树叶子节点也储存数据，而且所有叶子节点不会组成有序链表。</p>
+</li>
+<li><p><strong>哈希索引</strong>：经过哈希函数能够快速找到记录的位置，不需要进行搜索（哈希冲突解决的办法）</p>
+</li>
+</ul>
+<h4 id="自适应哈希索引"><a href="#自适应哈希索引" class="headerlink" title="自适应哈希索引"></a>自适应哈希索引</h4><blockquote>
+<p>InnoDB引擎支持自适应哈希索引，是数据库自动优化，只能选择开启或者关闭。</p>
+</blockquote>
+<p>因为当使用辅助索引进行查找的时候，如果并不是覆盖索引，就需要<strong>回表</strong>到主键索引中找到记录的所有数据，如果这种查询的次数变多，那么InnoDB就会自动创建自适应哈希索引，<strong>提高在通过辅助索引查找到主键Id的时候，再回表的查询速度</strong>。（即通过辅助索引查找到主键Id，然后通过主键Id的哈希索引直接找到记录的位置）。</p>
+<p>根据一些资料的统计，读取和写入速度可以提高2倍，辅助索引的连接操作性能可以提高5倍。</p>
+<p><a target="_blank" rel="noopener" href="https://juejin.cn/post/6844903888080863245">https://juejin.cn/post/6844903888080863245</a></p>
+<h4 id="主键索引就是聚簇索引吗？"><a href="#主键索引就是聚簇索引吗？" class="headerlink" title="主键索引就是聚簇索引吗？"></a>主键索引就是聚簇索引吗？</h4><p><strong>不是</strong>！！！在InnoDB中主键的确是按聚簇索引的方式组织的，但是在MyISAM里面主键<strong>不是</strong>聚簇索引，sql server中还可以显示的指定聚簇索引。</p>
+<p>InnoDB中如果没有定义主键，Innodb会选择非空的唯一索引代替。如果没有这样的索引，Innodb会隐式的定义一个主键来作为聚簇索引。</p>
+<p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/lice-blog/p/11569443.html">https://www.cnblogs.com/lice-blog/p/11569443.html</a></p>
+<h4 id="什么是联合索引、覆盖索引、索引最左匹配原则"><a href="#什么是联合索引、覆盖索引、索引最左匹配原则" class="headerlink" title="什么是联合索引、覆盖索引、索引最左匹配原则"></a>什么是联合索引、覆盖索引、索引最左匹配原则</h4><ul>
+<li><p><strong>联合索引</strong>：由多个字段组合形成的索引</p>
+</li>
+<li><p><strong>覆盖索引</strong>：查询的字段会被索引覆盖到，就<strong>不需要回表</strong>根据主键Id查询其他字段，<strong>单个字段的索引</strong>和<strong>联合索引</strong>都能实现覆盖索引的功能。所以说覆盖索引并不是一种真正的索引，是查询的时候用到的索引覆盖到了所有需要查询的字段。</p>
+</li>
+<li><p><strong>索引最左匹配原则</strong>：对于一个联合索引（a, b, c, d），如果查询的时候指定了查询条件<code>a = 1 AND b = 2 AND c &gt; 4 AND d &lt; 5</code>，因为索引整体上是按<code>a,b,c,d</code>来排序的（即先按a排序，a相等的时候按b排序，以此类推），所以<strong>当a和b指定了确切的值的时候，记录在c上是有序的，但是在d上就不确认了</strong>。当联合索引遇到范围查询（&gt;，&lt;，between，like）最左匹配就不能进一步匹配了。（当然MySQL会优化查询的顺序比如，<code>d &lt; 5 AND b = 2 AND c &gt; 4 AND a = 1</code> 会优化为<code>a = 1 AND b = 2 AND c &gt; 4 AND d &lt; 5</code>）</p>
+</li>
+</ul>
+<h4 id="说一下索引下推"><a href="#说一下索引下推" class="headerlink" title="说一下索引下推"></a>说一下索引下推</h4><blockquote>
+<p>索引下推可以在索引遍历过程中（引擎层），对索引中包含的字段先做判断，直接过滤掉不满足条件的记录，减少回表次数。</p>
+</blockquote>
+<p>对于一个联合索引<strong>（name, age）</strong>和一个SQL语句</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select * from tuser where name like &#x27;张%&#x27; and age = 10 and ismale = 1;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>如果没有索引下推，因为最左匹配原则，所以只会用到<code>name</code>的索引，所以在引擎层会找到所有<code>name like &#39;张%&#39;</code>的主键并返回给server层，然后逐个回表判断</li>
+<li>如果有索引下推，即使有最左匹配原则，也会将索引能用到的<code>age = 10</code>放到引擎层进行判断，引擎层根据索引判断，只返回<code>name like &#39;张%&#39; and age = 10</code>的主键，这样过滤了不符合的部分数据，就能减少回表的次数</li>
+</ul>
+<h3 id="事务"><a href="#事务" class="headerlink" title="事务"></a>事务</h3><h4 id="事务的四大特性（ACID）"><a href="#事务的四大特性（ACID）" class="headerlink" title="事务的四大特性（ACID）"></a>事务的四大特性（ACID）</h4><ol>
+<li>原子性：一个事务是最小执行单位，事务中的动作要么都做，要么都不做</li>
+<li>一致性：执行事务之后，数据保持一致，多个事务对同一个数据读取的结果是相同的</li>
+<li>隔离性：并发访问数据库的时候，各个事务之间不会相互影响</li>
+<li>持久性：一个事务被提交之后，对数据库的修改是持久的，即使数据库发生故障也不会有影响</li>
+</ol>
+<h4 id="可能出现的问题"><a href="#可能出现的问题" class="headerlink" title="可能出现的问题"></a>可能出现的问题</h4><ol>
+<li><strong>脏读</strong>：事务A能够读到事务B还没提交的数据</li>
+<li><strong>不可重复读</strong>：对于读取一行数据，一个事务中两次读到的数据不一样</li>
+<li><strong>幻读</strong>：对于读取多行数据，一个事务中第二次读到的行数比第一次读到的行数要多</li>
+<li><strong>丢失修改</strong>：ABA问题，事务A读取记录R为20，将R-1&#x3D;19后写入数据库，事务B也执行一样的操作，但是最后数据库中的记录是R&#x3D;19，事务A的操作被事务B覆盖（这种是程序逻辑本身的问题，所以需要对需要修改的数据加锁&#x2F;版本号&#x2F;旧值比较）</li>
+</ol>
+<h4 id="隔离等级"><a href="#隔离等级" class="headerlink" title="隔离等级"></a>隔离等级</h4><ol>
+<li><p><strong>读未提交</strong>：一个事务还没提交，其变更就能被其他事务看到</p>
+</li>
+<li><p><strong>读已提交</strong>：一个事务提交之后，其变更才能被其他事务看到，能够解决脏读的问题</p>
+</li>
+<li><p><strong>可重复读</strong>：一个事务执行过程中，对同一字段的多次读取结果是一样的，除非数据是被自己事务本身修改，能够解决不可重复读的问题，但是幻读仍然有可能发生<strong>（InnoDB通过MVCC和Next-key Lock在可重复读的隔离级别下解决了幻读的问题）</strong></p>
+</li>
+<li><p><strong>串行化</strong>：所有事务都是串行执行的，完全服从ACID的隔离级别，能解决所有问题</p>
+</li>
+</ol>
+<h3 id="锁-、间隙锁、Next-Key-Lock"><a href="#锁-、间隙锁、Next-Key-Lock" class="headerlink" title="锁 、间隙锁、Next-Key Lock"></a>锁 、间隙锁、Next-Key Lock</h3><ul>
+<li><p><strong>全局锁</strong>：对整个数据库加锁（Flush tables with read lock），典型应用场景是做全库逻辑备份（如果使用InnoDB，则使用mysqldump备份数据库的时候，有MVCC的支持，就不用加全局锁了）</p>
+</li>
+<li><p><strong>表级锁</strong>：又分为<strong>表锁</strong>和<strong>元数据锁（metadata lock， MDL）</strong></p>
+<ul>
+<li>元数据锁：锁住表结构，在访问一个表的时候会被自动加上，事务中的MDL锁会在语句执行开始时申请，但是语句结束后并不会马上释放，而是等到整个事务提交后才会释放</li>
+</ul>
+</li>
+<li><p><strong>行锁</strong>：锁住一行，在InnoDB的事务中，行锁是在语句执行的时候加上，但是要等到事务结束才会释放（<strong>两阶段锁协议</strong>）</p>
+<ul>
+<li>行锁可能出现死锁的一种情况，事务A执行了第一条语句，事务B执行了第一条语句，两个事务分别获得了不同的行锁</li>
+<li>解决行锁死锁的方法， <strong>1. 等待超时（innodb_lock_wait_timeout）</strong>，<strong>2. 发起死锁检测，发现死锁后，主动回滚死锁链条中的某一个事务（innodb_deadlock_detect &#x3D; on）</strong></li>
+</ul>
+</li>
+</ul>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">-- 事务A</span></span><br><span class="line"><span class="keyword">start</span> transaction;</span><br><span class="line"><span class="keyword">update</span> t <span class="keyword">set</span> k <span class="operator">=</span> k <span class="operator">+</span> <span class="number">1</span> <span class="keyword">where</span> id <span class="operator">=</span> <span class="number">1</span>;</span><br><span class="line"><span class="keyword">update</span> t <span class="keyword">set</span> k <span class="operator">=</span> k <span class="operator">+</span> <span class="number">1</span> <span class="keyword">where</span> id <span class="operator">=</span> <span class="number">2</span>;</span><br><span class="line"><span class="keyword">commit</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">-- 事务B</span></span><br><span class="line"><span class="keyword">start</span> transaction;</span><br><span class="line"><span class="keyword">update</span> t <span class="keyword">set</span> k <span class="operator">=</span> k <span class="operator">+</span> <span class="number">1</span> <span class="keyword">where</span> id <span class="operator">=</span> <span class="number">2</span>;</span><br><span class="line"><span class="keyword">update</span> t <span class="keyword">set</span> k <span class="operator">=</span> k <span class="operator">+</span> <span class="number">1</span> <span class="keyword">where</span> id <span class="operator">=</span> <span class="number">1</span>;</span><br><span class="line"><span class="keyword">commit</span>;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>间隙锁（Gap Lock）</strong>:锁住两个值之间的空隙，前开后开区间，如6个值，有7个空隙，包括（-∞，num）和（num, +∞）<ul>
+<li><strong>跟间隙锁存在冲突关系的，是“往这个间隙中插入一个记录”这个操作</strong></li>
+<li>间隙锁死锁的例子<ul>
+<li>session A 执行 select … for update 语句，由于 id&#x3D;9 这一行并不存在，因此会加上间隙锁 (5,10);</li>
+<li>session B 执行 select … for update 语句，同样会加上间隙锁 (5,10)，间隙锁之间不会冲突，因此这个语句可以执行成功；</li>
+<li>session B 试图插入一行 (9,9,9)，被 session A 的间隙锁挡住了，只好进入等待；</li>
+<li>session A 试图插入一行 (9,9,9)，被 session B 的间隙锁挡住了。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE%5C%E9%97%B4%E9%9A%99%E9%94%81%E6%AD%BB%E9%94%81.png" alt="image-20220906104804761"></p>
+<ul>
+<li><strong>Next-key Lock</strong>：Inno加锁的<strong>基本单位</strong>，<strong>为的就是解决幻读</strong>，行锁<code>b</code>和间隙锁<code>(a, b)</code>加在一起，就是一个<strong>Next-key Lock</strong>，是前开后闭区间<code>(a, b]</code></li>
+</ul>
+<h3 id="多版本并发控制MVCC"><a href="#多版本并发控制MVCC" class="headerlink" title="多版本并发控制MVCC"></a>多版本并发控制MVCC</h3><blockquote>
+<p>MVCC加上Next-key Lock就能够解决幻读的问题。单单MVCC只能解决可重复读，当前读的情况下，还是会出现幻读</p>
+</blockquote>
+<blockquote>
+<p>在MVCC中，非锁定读（普通select）是不用加锁的，但是锁定读(select … for update &#x2F; select … lock in share mode &#x2F; update &#x2F; insert &#x2F; delete)的时候会用锁</p>
+</blockquote>
+<blockquote>
+<p>InnoDB中，每条记录在更新的时候都会同时记录一条回滚操作，因此能得到上一个状态的值。（这个回滚日志<code>undolog</code>会在不需要的时候才删除，即当前所有事务中的最小版本号大于回滚日志的版本号）</p>
+</blockquote>
+<h4 id="标识ID"><a href="#标识ID" class="headerlink" title="标识ID"></a>标识ID</h4><ul>
+<li><strong>每个事务</strong>都有一个唯一的<strong>事务ID（transaction id）</strong>，每个事务开始前向InnoDB的事务系统申请，严格递增</li>
+<li><strong>每行数据</strong>都有多个版本<strong>row trx_id</strong>，每次事务更新数据的时候，都会生成一个新的数据版本，并把<strong>事务ID</strong>赋值给<strong>row trx_id</strong>，旧的数据版本能够通过回滚日志得到</li>
+</ul>
+<p><img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE%5CMVCC.png" alt="image-20220905203039546"></p>
+<h4 id="详细过程"><a href="#详细过程" class="headerlink" title="详细过程"></a>详细过程</h4><blockquote>
+<p>核心是通过版本控制来获得一个一致性视图，但是当事务更新数据的时候，只能用当前读，如果当前记录的行锁被其他事务占用，就只能进入锁等待。</p>
+</blockquote>
+<ol>
+<li><strong>当前事务开始时</strong>，构造一个<strong>数组</strong>用于保存当前事务启动瞬间<strong>活跃</strong>的<strong>所有事务ID</strong>（即启动了，但是还没有提交）</li>
+<li>数组里面事务ID的<strong>最小值记为低水位</strong>，<strong>事务ID的最大值+1记为高水位</strong>，数组和高水位就组成了当前事务的一致性视图（read-view）</li>
+<li>对于<strong>一个数据记录</strong>的<strong>row trx_id</strong>来说，有以下几种可能<ul>
+<li><strong>row trx_id小于低水位</strong>，落在绿色部分，表示这个版本的数据是已经提交的，或者是当前事务自己生成的，所以数据<strong>可见</strong></li>
+<li><strong>row trx_id大于高水位</strong>，落在红色部分，表示这个版本的数据是由未来的事务生成的，<strong>不可见</strong></li>
+<li>如果落在黄色部分：<ul>
+<li><strong>row trx_id在数组中</strong>，表示这个版本是由未提交的事务生成的，<strong>不可见</strong></li>
+<li><strong>row trx_id不在数组中</strong>，表示这个版本的数据是由已提交的事务生成的，<strong>可见</strong>（因为低水位和高水位表示的只是一个区间，这个区间中有已经提交的事务和未提交的事务，数组中的是未提交的事务，而当前的事务ID大于高水位，<strong>row trx_id</strong>落在这个区间内已提交的事务，哪当然是可见的）</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>当前读</strong>：<strong>更新数据都是先读后写的</strong>，而这个读，只能<strong>读已经提交完成的最新版本</strong></li>
+<li>如果是更新&#x2F;删除&#x2F;插入这些锁定读的事务呢？<strong>两阶段锁协议</strong>，需要等到获得锁的事务结束了，释放锁，才能继续<strong>当前读</strong>，继续后面的操作</li>
+</ol>
+<p><img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/blog\source_posts\基础知识回顾\MVCC水位.png" alt="image-20220905225008836"></p>
+<h4 id="ABA问题"><a href="#ABA问题" class="headerlink" title="ABA问题"></a>ABA问题</h4><p>MVCC也会出现ABA问题，因为只有在锁定读的时候才会加锁，所以可能会出现ABA问题，一个简单的例子，事务A读取了记录R数值为1，之后事务B也读取这个记录R数值为1，之后事务AB都想要将记录R+1后更新，那么最后结果就会变成2，但是期望是3。ABA问题是编程问题，所以可以使用select … lock for update来锁住想要更新的表，这样只有获取到锁的事务才能进行操作。或者加一个旧值&#x2F;版本号进行判断，只有当旧值&#x2F;版本号一样的时候才更新（但是修改失败需要有重试机制）。</p>
+<h3 id="binlog、redolog"><a href="#binlog、redolog" class="headerlink" title="binlog、redolog"></a>binlog、redolog</h3><h4 id="binlog（归档日志）"><a href="#binlog（归档日志）" class="headerlink" title="binlog（归档日志）"></a>binlog（归档日志）</h4><blockquote>
+<p>binlog的主要作用是用于备份，以及主从同步</p>
+</blockquote>
+<blockquote>
+<p>binlog的写是追加写，所以不会覆盖以前的数据</p>
+</blockquote>
+<p>三种数据格式：</p>
+<ul>
+<li>statement – 记录执行的SQL语句，简洁，但是主库与从库执行同一条语句的结果可能不一样，如NOW()</li>
+<li>row – 记录真实数据的变化，可靠，主从库执行结果一样，但是占空间</li>
+<li>mixed – 前两种的混合，MySQL自己判断如果会引起主备不一致的时候，就用row格式，否则用statement</li>
+</ul>
+<h4 id="redo-log（重做日志）"><a href="#redo-log（重做日志）" class="headerlink" title="redo log（重做日志）"></a>redo log（重做日志）</h4><blockquote>
+<p>redolog主要的作用是用于崩溃恢复，固定大小，循环写，可以比如可以配置一组4个文件，每个文件大小1GB，从头开始写，写到末尾又回到开头循环写。</p>
+</blockquote>
+<ul>
+<li><p><strong>write pos</strong>：表示当前写记录的位置，一边写一边后移</p>
+</li>
+<li><p><strong>check point</strong>：check point之前的数据都是已经落盘（flush到磁盘）上的，write pos大于check point，write pos 与check point之间的数据表示在内存页上，但是还没落盘的数据</p>
+</li>
+</ul>
+<h4 id="缓冲结构"><a href="#缓冲结构" class="headerlink" title="缓冲结构"></a>缓冲结构</h4><blockquote>
+<p>崩溃分为数据库崩溃和操作系统崩溃，数据库崩溃只会影响MySQL中的缓存（丢失这一部分，已经调用write写入到操作系统缓存中的则是正常的），操作系统崩溃则是影响数据的落盘（无法恢复）</p>
+</blockquote>
+<ul>
+<li><p><strong>buffer pool</strong>：MySQL中用于缓存页的地方，有脏页以及干净页，脏页落盘需要flush，干净页不用</p>
+</li>
+<li><p><strong>change buffer</strong>：buffer pool内的一部分，<strong>主要用于记录页面数据的变化</strong>，如果一个<strong>数据页已经在内存</strong>中，则可以直接修改这个内存数据页然后变成脏页；但是如果一个<strong>数据页不在内存中，在磁盘中</strong>，则可以将更新操作写到change buffer中，这样能够避免将数据页从磁盘中读取到内存中，<strong>减少磁盘的随机读IO，适用于多写少读</strong>，当要读取这个数据页的数据时，再将从磁盘中读取的数据执行change buffer中的操作就能得到最新的数据。</p>
+</li>
+<li><p><strong>redolog buffer</strong>：可以认为也是buffer pool中的一部分，事务执行过程中更新数据的日志都得先保存起来，但是又不能在还没commit的时候写入到redo log文件中，所以先用redolog buffer来存redo日志。</p>
+</li>
+<li><p><strong>操作系统的缓存 os cache</strong>：调用操作系统的write函数并不会将数据直接写入磁盘，而是先写入系统的缓冲池中，系统自己判断何时将数据flush进磁盘，<strong>数据库崩溃不会影响到这部分的数据，操作系统崩溃才会影响</strong>。</p>
+</li>
+</ul>
+<h4 id="二阶段提交"><a href="#二阶段提交" class="headerlink" title="二阶段提交"></a>二阶段提交</h4><p>redo log是InnoDB引擎特有，用于提供崩溃恢复的功能，而二阶段提交涉及到<code>binlog(归档日志)</code>还有<code>redolog(重做日志)</code>，即server层与引擎层之间的交互。</p>
+<p><strong>两阶段提交的作用</strong>：保证MySQL数据库中的记录与磁盘中的记录一致</p>
+<p><strong>方法流程</strong>：</p>
+<ul>
+<li>执行器调用引擎的API接口(未写<code>binlog</code>)，写入一行数据</li>
+<li>InnoDB引擎把数据保存在内存中，同时记录<code>redolog</code>，此时<code>redolog </code>进入<code>prepare状态</code>，然后告诉执行器，执行完成可以随时提交</li>
+<li>执行器收到通知后记录<code>binlog</code>，然后调用InnoDB引擎接口说已经写完<code>binlog</code></li>
+<li>InnoDB写<code>redolog</code>为<code>commit状态</code></li>
+<li>更新完成</li>
+</ul>
+<p><strong>为什么要这样子？</strong></p>
+<ul>
+<li>假设<strong>先写redolog并设为commit状态，然后写binlog</strong>，那么写完<code>redolog</code>之后，机器挂了，<code>binlog</code>日志没有被写入。机器重启后，会通过<code>redolog</code>恢复数据，但是<code>binlog</code>没有记录这一条数据，那么后续机器根据<code>binlog</code><strong>备份</strong>或者<strong>主从同步</strong>的时候，就会丢失这一条数据。</li>
+<li>假设<strong>先写binlog，然后写redolog</strong>，那么当<code>binlog</code>写完的时候，机器异常重启了，但是由于没有这条<code>redolog</code>，所以机器无法恢复这一条记录，但是<code>binlog</code>里面多出这一条数据，哪备份或者主从同步的时候也会出现同样的问题。</li>
+<li><strong>二阶段提交如何保证一致性？</strong>假设极端的状态是<code>redolog</code>已经处于<strong>prepare状态</strong>，<code>binlog</code>也已经写完了，这个时候发生异常重启，就要依赖MySQL的处理机制<ul>
+<li>判断<code>redolog</code>是否完整(<strong>commit状态</strong>)，如果是完整的，就能立即提交</li>
+<li>如果<code>redolog</code>只是<code>prepare</code>状态，但<strong>不是commit状态</strong>，这个时候就判断<code>binlog</code>是否完整，如果完整就提交<code>redolog</code>，不完整就回滚事务</li>
+</ul>
+</li>
+</ul>
+<p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s?__biz=Mzg2OTA0Njk0OA==&mid=2247485097&idx=1&sn=84c89da477b1338bdf3e9fcd65514ac1&chksm=cea24962f9d5c074d8d3ff1ab04ee8f0d6486e3d015cfd783503685986485c11738ccb542ba7&token=79317275&lang=zh_CN%23rd">一条SQL语句在MySQL中如何执行的 (qq.com)</a></p>
+<h3 id="主从模式"><a href="#主从模式" class="headerlink" title="主从模式"></a>主从模式</h3><h4 id="详细流程"><a href="#详细流程" class="headerlink" title="详细流程"></a>详细流程</h4><ol>
+<li>在备库B上通过<strong>change master</strong>命令，设置主库A的IP、端口、用户名、密码，以及要从哪个位置开始请求binlog，这个位置包含文件名和日志偏移量</li>
+<li>在备库B上执行<strong>start slave</strong>命令，这个时候备库会启动两个线程，一个是<strong>io_thread</strong>，另一个是<strong>sql_thread</strong>。<strong>io_thread负责与主库A建立连接，获取binlog</strong></li>
+<li>主库A校验完备库B传来的参数之后，按照请求的位置读取binlog通过<strong>dump_thread</strong>线程发给备库B</li>
+<li>备库B拿到binlog之后，写到本地文件，称为<strong>中转日志（relay log）</strong></li>
+<li>备库B中的<strong>sql_thread读取中转日志，解析日志理的命令，并执行</strong></li>
+</ol>
+<p><img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/blog\source_posts\基础知识回顾\主从复制流程.png" alt="image-20220906144751652"></p>
+<h4 id="循环复制问题"><a href="#循环复制问题" class="headerlink" title="循环复制问题"></a>循环复制问题</h4><blockquote>
+<p>一般来说都是双Master结构，即节点A和节点B之间互为主从关系</p>
+</blockquote>
+<blockquote>
+<p>但是这样会产生一个问题，就是节点A更新了一条语句，并将binlog发给节点B，节点B更新之后又将binlog发给节点A执行</p>
+</blockquote>
+<p><strong>解决方法</strong></p>
+<p>设置server id</p>
+<ol>
+<li>规定两个库的server id必须不同，如果相同，则它们之间不能设定为主备关系</li>
+<li>一个备库收到binlog并且在重放过程中，要生成与原binlog的server id相同的新binlog</li>
+<li>备库收到主库发过来的binlog记录，先判断server id是不是跟自己的一样，一样表示这个日志是自己生成的，则直接丢弃；不一样表示不是自己生成的，重做这个日志</li>
+</ol>
+<p><img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/blog\source_posts\基础知识回顾\主从切换.png" alt="image-20220906145810695"></p>
+<h3 id="inner-join、left-join、right-join、full-join"><a href="#inner-join、left-join、right-join、full-join" class="headerlink" title="inner join、left join、right join、full join"></a>inner join、left join、right join、full join</h3><ul>
+<li><p><strong>inner join</strong>：等同于平时使用<code>，</code>连接两个表，内连接，交集</p>
+</li>
+<li><p><strong>left join</strong>：返回左表的全部数据</p>
+</li>
+<li><p><strong>right join</strong>：返回右表的全部数据</p>
+</li>
+<li><p><strong>full join</strong>：返回左右两个表的所有数据，并集</p>
+</li>
+</ul>
+<p><img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/blog\source_posts\基础知识回顾\join.png" alt="image-20220906162852592"></p>
+<h4 id="on和where的区别"><a href="#on和where的区别" class="headerlink" title="on和where的区别"></a>on和where的区别</h4><ul>
+<li><p><strong>on</strong>：在生成临时表时使用的条件，不管on中的条件，都会返回left join &#x2F; right join &#x2F; full join时，左边&#x2F;右边&#x2F;两边表中的记录</p>
+</li>
+<li><p><strong>where</strong>：临时表生成好后，对临时表进行过滤，所有条件不为真的记录都被过滤掉</p>
+</li>
+</ul>
+<p><a target="_blank" rel="noopener" href="https://www.runoob.com/w3cnote/sql-different-on-and-where.html">https://www.runoob.com/w3cnote/sql-different-on-and-where.html</a></p>
+<h3 id="小表驱动大表"><a href="#小表驱动大表" class="headerlink" title="小表驱动大表"></a>小表驱动大表</h3><blockquote>
+<p>select * from t1 straight_join t2 on (t1.a &#x3D; t2.a); 能够让MySQL使用固定的连接方式执行查询，t1是驱动表、t2是被驱动表</p>
+</blockquote>
+<blockquote>
+<p>小表是指两个表按照各自的条件过滤之后，参与join的各个字段的<strong>总数据量</strong>小的表</p>
+</blockquote>
+<p>驱动与被驱动：按照驱动表t1的数据到被驱动表t2中逐条查找数据，驱动表是外层循环，被驱动表是内层循环</p>
+<p>Index Nested-Loop Join：能够用上被驱动表的索引</p>
+<p>Simple Nested-Loop Join：不能用索引的情况下，就是两层循环</p>
+<p>Block Nested-Loop Join：先将驱动表数据放入join buffer中，再根据被驱动表与join buffer中的数据对比</p>
+<h3 id="数据库优化"><a href="#数据库优化" class="headerlink" title="数据库优化"></a>数据库优化</h3><h2 id="Spring"><a href="#Spring" class="headerlink" title="Spring"></a>Spring</h2><h3 id="DI-IOC-AOP"><a href="#DI-IOC-AOP" class="headerlink" title="DI IOC AOP"></a>DI IOC AOP</h3><h3 id="Bean的生命周期"><a href="#Bean的生命周期" class="headerlink" title="Bean的生命周期"></a>Bean的生命周期</h3><h3 id="Spring-MVC的工作流程"><a href="#Spring-MVC的工作流程" class="headerlink" title="Spring MVC的工作流程"></a>Spring MVC的工作流程</h3><h3 id="Spring-MVC的常用注解"><a href="#Spring-MVC的常用注解" class="headerlink" title="Spring MVC的常用注解"></a>Spring MVC的常用注解</h3><h2 id="k8s（待收拾）"><a href="#k8s（待收拾）" class="headerlink" title="k8s（待收拾）"></a>k8s（待收拾）</h2><h3 id="k8s的操作命令"><a href="#k8s的操作命令" class="headerlink" title="k8s的操作命令"></a>k8s的操作命令</h3><p>kubectl 动作 资源 -其他参数</p>
+<ul>
+<li>动作包括<ul>
+<li>create</li>
+<li>apply</li>
+<li>get</li>
+<li>describe</li>
+<li>exec</li>
+<li>logs</li>
+<li>delete</li>
+<li>explain</li>
+</ul>
+</li>
+<li>资源包括<ul>
+<li>Deployment</li>
+<li>StatefullSet</li>
+<li>ConfigMap</li>
+<li>Secret</li>
+<li>HPA</li>
+<li>RC、RS</li>
+<li>pods</li>
+<li>nodes</li>
+<li>namespace</li>
+</ul>
+</li>
+</ul>
+<h3 id="k8s的组件"><a href="#k8s的组件" class="headerlink" title="k8s的组件"></a>k8s的组件</h3><img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/k8s组件.png" alt="image-20220908094016645" style="zoom:50%;">
+
+<ul>
+<li>Kubectl：客户端与k8s集群交互的命令行工具</li>
+<li>API  server：作为k8s系统的入口，其封装了核心对象的增删改查操作，以及提供RESTful API接口给外部客户端或者k8s内部组件调用。维护的RSET对象会被持久化储存到etcd分布式数据库中</li>
+<li>Scheduler：负责集群的资源调度，为新建立的pod选择节点node进行部署。组件抽离，可以方便替换成其他调度器</li>
+<li>Controller Manager：负责维护集群的状态，比如故障检测、自动扩展、滚动更新等</li>
+<li>Kubelet：负责维护容器的生命周期，同时也负责Volume（CSI）和网络（CNI）的管理</li>
+<li>Container runtime：负责镜像管理以及pod和容器的真正运行（CRI）</li>
+<li>Kube-proxy：负责为Service提供cluster内部的服务发现和负载均衡</li>
+<li>CoreDNS：负责为整个集群提供DNS服务</li>
+<li>Ingress Controller：为k8s中的服务提供外网入口</li>
+<li>Prometheus：为整个集群提供资源监控能力</li>
+<li>Dashboard</li>
+<li>Federation</li>
+</ul>
+<h3 id="控制器类型"><a href="#控制器类型" class="headerlink" title="控制器类型"></a>控制器类型</h3><ul>
+<li>HPA：根据CPU使用率和内存使用率进行自动扩缩容<ul>
+<li>Deployment：一般用于负责管理RC和RS，提供滚动更新&#x2F;回滚能力<ul>
+<li>Replication Controller 和 Replication Set：RS用于替代RC，主要作用是维护应用的副本数量，并且RS支持集合式的selector</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>StatefullSet：解决有状态服务的问题，Pod重新调度之后还是有：稳定的持久化存储、稳定的网络标志（基于Headless Service没有Cluster IP的Service来实现）、有序部署、有序收缩</li>
+<li>DaemonSet：保证每个节点Node上都运行一个Pod的副本</li>
+<li>Job，CronJob：Job负责仅执行一次的任务，Cron Job则是基于Crontable的定时任务</li>
+</ul>
+<h3 id="K8S网络"><a href="#K8S网络" class="headerlink" title="K8S网络"></a>K8S网络</h3><p><img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE%5Ck8s%E7%BD%91%E7%BB%9C.png" alt="image-20220908101831528"></p>
+<h3 id="资源类型"><a href="#资源类型" class="headerlink" title="资源类型"></a>资源类型</h3><blockquote>
+<p>资源清单–k8s中用于定义资源的yaml文件</p>
+</blockquote>
+<ul>
+<li>NameSpace级别<ul>
+<li>工作负载型资源：Pod、RC、RS、Deployment…..</li>
+<li>服务发现及负载均衡型资源：Service、Ingress…</li>
+<li>配置与储存型资源：PV、PVC…</li>
+<li>特殊类型的储存卷：ConfigMap，Secret….</li>
+</ul>
+</li>
+<li>集群级别<ul>
+<li>NameSpace、Node、ClusterRole、ClusterRoleBinding</li>
+</ul>
+</li>
+<li>元数据型资源<ul>
+<li>HPA、PodTemplate、LimitRange</li>
+</ul>
+</li>
+</ul>
+<h3 id="Pod的生命周期"><a href="#Pod的生命周期" class="headerlink" title="Pod的生命周期"></a>Pod的生命周期</h3><blockquote>
+<p>一个Pod里面至少有两个容器，一个是pause容器，负责维护pod内部的网络和共享储存卷，使得pod内部的容器能够使用localhost互相访问，以及使用相同的共享储存卷，其他的容器就是应用启动的容器了</p>
+</blockquote>
+<ul>
+<li>Init容器：用于做初始化的容器，执行的顺序是按照定义时候的顺序，Init容器启动失败k8s会不断地重试，除非将restartPolicy设为Never（Pod重启，Init容器也会重新执行）</li>
+<li>探针<ul>
+<li>就绪探针</li>
+<li>存活探针</li>
+</ul>
+</li>
+<li>Pod hook钩子：在容器中进程启动前或者容器中进程终止运行之前运行，包含在容器的生命周期之中<ul>
+<li>exec：执行一段命令</li>
+<li>HTTP：发送Http请求</li>
+</ul>
+</li>
+</ul>
+<h3 id="Service的网络流向"><a href="#Service的网络流向" class="headerlink" title="Service的网络流向"></a>Service的网络流向</h3><p>apiserver发出一个请求（IP，PORT）随机到一个节点Node上，那么节点Node怎么知道是要访问哪个pod地址呢？</p>
+<p>首先会经过节点上的kube-proxy，然后kube-proxy到内核中去查找ip映射表，这个时候就要用上ipvs或者是iptables了，查找到之后再将流量负载均衡定向到对应的pod中</p>
+<h3 id="ipvs对比iptables"><a href="#ipvs对比iptables" class="headerlink" title="ipvs对比iptables"></a>ipvs对比iptables</h3><blockquote>
+<p>都是基于netfilter</p>
+</blockquote>
+<ul>
+<li>iptables使用列表来记录所有的规则，并且匹配方式是全部扫描匹配，所以当集群规模大的时候，性能问题就会突出</li>
+<li>ipvs使用hash表，hash随机访问的特性在集群规模大的时候，也不会影响性能</li>
+</ul>
+<h3 id="Headless-Service"><a href="#Headless-Service" class="headerlink" title="Headless Service"></a>Headless Service</h3><p>有时候不需要或者不想要负载均衡，以及单独的Service IP，可以将Cluster IP设置为None来创建Headless Service，StatefullSet的网络也是依靠Headless Service来实现稳定访问的</p>
+<p>Statefulset中创建的无头服务会为集群内部的每个成员提供一个唯一的DNS域名来作为每个成员的网络标识，集群内部成员之间使用域名通信（<code>pod名称+序号.Service名称</code>），如服务名称是<code>服务名.命名空间.svc.cluster.local</code>，那么一个创建的Pod使用的域名是<code>pod名称-序号.服务名.命名空间.svc.cluster.local</code>，如果StatefulSet中的一个Pod挂掉，那么新创建的Pod会被赋予跟原来Pod一样的名字，通过这个名字来匹配原来的储存和网络，因此实现了状态的保存。</p>
+<blockquote>
+<p>访问一个普通的<code>Service</code>, kube-proxy会将请求重定向到后端的某个<code>Pod</code>, 多次请求虽然发送到的后端可能不同, 但是前端是无感知的, 因为Service本身有固定IP.</p>
+<p>但是访问一个<code>headless service</code>, 其实是随机且直接访问到后端<code>Pod</code>, 比如多次<code>ping redis-service</code>, 你会发现解析出来的地址是不同的, 而这些地址都是Pod的地址.</p>
+</blockquote>
+<h3 id="亲和性，反亲和性，污点，污点容忍"><a href="#亲和性，反亲和性，污点，污点容忍" class="headerlink" title="亲和性，反亲和性，污点，污点容忍"></a>亲和性，反亲和性，污点，污点容忍</h3><h4 id="亲和性（pod的策略）"><a href="#亲和性（pod的策略）" class="headerlink" title="亲和性（pod的策略）"></a>亲和性（pod的策略）</h4><ul>
+<li>节点亲和性<ul>
+<li>软策略</li>
+<li>硬策略</li>
+</ul>
+</li>
+<li>Pod亲和性<ul>
+<li>硬策略</li>
+<li>软策略</li>
+</ul>
+</li>
+</ul>
+<h3 id="污点（node的策略）"><a href="#污点（node的策略）" class="headerlink" title="污点（node的策略）"></a>污点（node的策略）</h3><p>节点选项：</p>
+<ul>
+<li>NoSchedule：表示k8s将不会将pod调度到具有该污点的Node上</li>
+<li>PreferNoSchedule：表示k8s将尽量避免将pod调度到具有该污点的Node上</li>
+<li>NoExecute：表示k8s将不会将pod调度到具有该污点的Node上，同时会将Node上已经存在的pod驱逐出去</li>
+</ul>
+<p>pod的污点容忍：pod可以容忍node中污点的存在，并被调度到存在污点的node上</p>
+<h3 id="Prometheus-operator"><a href="#Prometheus-operator" class="headerlink" title="Prometheus-operator"></a>Prometheus-operator</h3><h2 id="Zookeeper"><a href="#Zookeeper" class="headerlink" title="Zookeeper"></a>Zookeeper</h2><h3 id="Zookeeper简介"><a href="#Zookeeper简介" class="headerlink" title="Zookeeper简介"></a>Zookeeper简介</h3><h4 id="Zookeeper的作用"><a href="#Zookeeper的作用" class="headerlink" title="Zookeeper的作用"></a>Zookeeper的作用</h4><blockquote>
+<p>目的是解决协作任务，如果是在单台机器上的多线程任务，能够使用操作系统提供的原语对资源进行访问，但是如果是跨多台机器分布式协作任务，就不能使用操作系统提供的原语了，因此需要一个中间件来解决分布式任务之间对资源的访问协调</p>
+</blockquote>
+<blockquote>
+<p>本质是一个分布式文件系统，以及有事件通知机制，不适合用作海量数据的储存，一个znode解决能够储存的数据大小默认是1M</p>
+</blockquote>
+<p>Zookeeper基于分布式计算的核心概念而设计，主要目的是给开发人员提供一套容易理解和开发的接口，从而简化分布式系统构建的任务。Zookeeper是从文件系统API得到启发，提供一组简单的API，是的开发人员可以实现通用的协作任务，包括选举主节点、管理组内成员关系、管理元数据等。</p>
+<ul>
+<li>顺序一致性：从同一客户端发起的事务请求，最终会严格地按照顺序被应用到Zookeeper中</li>
+<li>原子性：所有事务请求的处理结果在整个集群中所有机器上的应用情况是一致的，也就是说，集群中的所有机器都成功应用了某一个事务，要么都没有应用</li>
+<li>单一视图：无论客户端连到哪一个Zookeeper服务器上，其看到的服务端数据模型都是一致的</li>
+<li>可靠性：一旦服务端成功地应用了一个事务，并完成对客户端的响应，那么该事务所引起的服务端状态变更将会被一直保留下来</li>
+<li>最终一致性：Zookeeper仅仅能保证在一定的时间段内，客户端最终一定能够从服务端上读取到最新的数据状态</li>
+</ul>
+<h4 id="CAP理论"><a href="#CAP理论" class="headerlink" title="CAP理论"></a>CAP理论</h4><blockquote>
+<p>CAP理论：没有系统能够同时满足一致性、可用性、分区容错性这三种属性，只能尽量保证两种</p>
+</blockquote>
+<ul>
+<li>一致性（Consistency）：等同于所有节点访问同一份最新的数据副本</li>
+<li>可用性（Available）：每次请求都能获取到非错的响应——但是不保证获取的数据为最新数据</li>
+<li>分区容错性（Partition tolerance）：以实际效果而言，分区相当于对通信的时限要求。系统如果不能在时限内达成数据一致性，就意味着发生了分区的情况，必须就当前操作在C和A之间做出选择</li>
+</ul>
+<h4 id="常用场景"><a href="#常用场景" class="headerlink" title="常用场景"></a>常用场景</h4><ul>
+<li>主从模式</li>
+<li>分布式锁</li>
+<li>统一命名服务</li>
+<li>统一配置管理</li>
+<li>服务器节点动态上下线</li>
+<li>软负载均衡</li>
+</ul>
+<h4 id="常用命令"><a href="#常用命令" class="headerlink" title="常用命令"></a>常用命令</h4><p>ls、get、set、stat、create、delete、deleteall、help</p>
+<p>ls、get都可以通过加<code>-w</code>参数监听节点的状态</p>
+<h4 id="节点类型"><a href="#节点类型" class="headerlink" title="节点类型"></a>节点类型</h4><table>
+<thead>
+<tr>
+<th></th>
+<th>持久节点</th>
+<th>临时节点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>无序节点</strong></td>
+<td>持久无序节点</td>
+<td>临时无序节点</td>
+</tr>
+<tr>
+<td><strong>有序节点</strong></td>
+<td>持久有序节点</td>
+<td>临时有序节点</td>
+</tr>
+</tbody></table>
+<ul>
+<li>持久节点：创建了之后就一直存在，除非使用delete删除</li>
+<li>临时节点：当创建该节点的客户端连接断开&#x2F;会话超时时，这个节点就会被删除（临时节点不允许有子节点）</li>
+<li>有序节点：有序znode节点会被分配唯一个单调递增的整数序号，并附加到路径名上面，如创建的路径名<code>/tasks/task-</code>，分配序号是2，则最后创建出来的节点为<code>/tasks/task-2</code></li>
+</ul>
+<blockquote>
+<p>znode中储存的数据主要包括存储数据、访问权限、子节点引用、节点状态信息</p>
+<ul>
+<li>data：znode存储的业务数据信息</li>
+<li>ACL：记录客户端对znode节点的访问权限，如IP、Digest等</li>
+<li>child：当前节点的子节点引用</li>
+<li>stat：包含znode节点的状态信息，比如事务Id、版本号、时间戳等等</li>
+</ul>
+</blockquote>
+<h4 id="集群角色"><a href="#集群角色" class="headerlink" title="集群角色"></a>集群角色</h4><blockquote>
+<p>写数据会先写入Leader节点，然后通知Follower节点进行变更</p>
+</blockquote>
+<blockquote>
+<p>读数据既能够从Leader节点中读，也能从Follower节点中读</p>
+</blockquote>
+<p><strong>角色</strong>：</p>
+<ul>
+<li>Leader节点：集群内唯一，事务请求的唯一调度和处理者，保证集群事务处理的顺序性</li>
+<li>Follower节点：主要处理客户端的非事务请求，转发事务请求给Leader节点，参与事务请求Proposal的投票，参与Leader选举投票</li>
+<li>Observer节点：3.3.0版本开始引入的服务器角色，会处理客户端的非事务请求，并转发事务请求给Leader节点，但是不参与任何形式的投票</li>
+</ul>
+<p><strong>节点工作状态</strong>：</p>
+<ul>
+<li>LOOKING：正在寻找Leader，处于该状态时，会认为当前集群中没有Leader，因此需要进入Leader的选举状态</li>
+<li>FOLLOWING：跟随者状态，表明当前节点角色是Follower</li>
+<li>LEADING：领导者状态，表明当前节点角色是Leader</li>
+<li>OBSERVING：观察者状态，表明当前服务器角色是Oberver</li>
+</ul>
+<h3 id="Watcher监听机制"><a href="#Watcher监听机制" class="headerlink" title="Watcher监听机制"></a>Watcher监听机制</h3><blockquote>
+<p>Zookeeper允许客户端对某个znode注册一个Watcher监听，当服务端的一些指定事件触发了Watcher，服务端就会发送一个事件通知该客户端znode节点的变化，客户端根据znode节点的变化类型作出处理</p>
+</blockquote>
+<h4 id="Watcher类型"><a href="#Watcher类型" class="headerlink" title="Watcher类型"></a>Watcher类型</h4><p>- </p>
+<h3 id="Zookeeper原子广播协议ZAB"><a href="#Zookeeper原子广播协议ZAB" class="headerlink" title="Zookeeper原子广播协议ZAB"></a>Zookeeper原子广播协议ZAB</h3><blockquote>
+<p>包括两种模式，消息广播和崩溃恢复</p>
+</blockquote>
+<img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/ZXID.png" alt="image-20220907164835614" style="zoom:50%;">
+
+<p>需要了解的两个ID</p>
+<ul>
+<li><strong>Server Id</strong> –  服务器Id，即配置文件中的myid，每个节点上的值都要设为不同</li>
+<li><strong>ZXID</strong> – 事务ID，由一个64位的数字组成<ul>
+<li>高32位是Leader的任期epoch，每次选举Leader，epoch都会自增加一</li>
+<li>低32位是事务计数器，单调递增，每产生一个事务，计数器加一</li>
+</ul>
+</li>
+</ul>
+<h4 id="消息广播：Zookeeper如何保证事务的顺序一致性？"><a href="#消息广播：Zookeeper如何保证事务的顺序一致性？" class="headerlink" title="消息广播：Zookeeper如何保证事务的顺序一致性？"></a>消息广播：Zookeeper如何保证事务的顺序一致性？</h4><p><strong>Zookeeper的保证的最终一致性也叫顺序一致性</strong>，即每个节点的数据都是严格按照事务的发起顺序生效的。</p>
+<blockquote>
+<p>由ZXID的产生规则可以看出，在同一个Leader的任期内，ZXID是连续的，<strong>每个服务器节点都会保存着自己最新生效的ZXID</strong>，节点可以通过最新提案的ZXID与自身最新的ZXID是否相差<code>1</code>，来保证事务是严格按照顺序生效的</p>
+</blockquote>
+<p>Zookeeper集群的写入是由Leader节点协调的，<strong>类似于InnoDB引擎的二阶段提交</strong>，Leader会将提案广播给所有Follower，<strong>当收到半数以上的ACK时</strong>，就能够将提案生效(commit)并广播给所有Follower节点。</p>
+<h5 id="详细过程-1"><a href="#详细过程-1" class="headerlink" title="详细过程"></a>详细过程</h5><ul>
+<li>客户端发起一个事务，如果连接的是Follower，就会将事务转交给Leader处理</li>
+<li>Leader收到请求后会生成一个ZXID，并将事务存到磁盘日志文件，此外，<strong>Leader会使用一个ConcurrentHashMap记录所有未提交的提案，key为ZXID，value是提案的信息</strong>，并将提案的ZXID与内容放到Map中，作为待提交的提案，并广播给Follower进行处理（Leader会为每个Follower都分配一个单独的FIFO队列，提案会被放到这个FIFO队列中）</li>
+<li>Follower收到提案之后会把它写到磁盘日志文件中，完全写入后，发送ACK响应给Leader</li>
+<li>Leader收到Follower的ACK信息后，根据ACK中的ZXID从Map中获取到对应的提案，并对ACK计数，提案提交判断流程是</li>
+</ul>
+<ol>
+<li>首先判断该事务ZXID之前还有没有未提交的事务（map中是否有存在<code>ZXID - 1</code>的key），有，则暂时不能提交</li>
+<li>随后判断提案是否收到半数以上ACK，如果达到半数，则可以提交，将磁盘中日志文件的提案加载到znode内存数据结构中，将该提案转移到一个<code>ConcurrentLinkedQueue toBeApplied</code>中，里面记录着能提交的提案，并将该ZXID从当前map中清除，根据queue逐个向Followers广播提交当前提案</li>
+</ol>
+<ul>
+<li>Follower收到commit消息后，将磁盘中日志文件数据加载到znode内存数据结构中，数据即能生效</li>
+</ul>
+<p><img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE%5C%E6%B6%88%E6%81%AF%E5%B9%BF%E6%92%AD1.png" alt="image-20220907203724192"></p>
+<p><img src="/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE%5C%E6%B6%88%E6%81%AF%E5%B9%BF%E6%92%AD2.png" alt="image-20220907203759457"></p>
+<p><a target="_blank" rel="noopener" href="https://www.jianshu.com/p/cfeb2f97af8a">https://www.jianshu.com/p/cfeb2f97af8a</a></p>
+<p><a target="_blank" rel="noopener" href="https://time.geekbang.org/column/article/239261">https://time.geekbang.org/column/article/239261</a></p>
+<p><a target="_blank" rel="noopener" href="https://juejin.cn/post/6844903464414232584#heading-12">https://juejin.cn/post/6844903464414232584#heading-12</a></p>
+<h4 id="崩溃恢复"><a href="#崩溃恢复" class="headerlink" title="崩溃恢复"></a>崩溃恢复</h4><blockquote>
+<p>因为消息广播中的两阶段提交并不能解决Leader故障，因此需要崩溃恢复</p>
+</blockquote>
+<blockquote>
+<p>Zookeeper正常工作时，Zab协议会一直处于广播模式，直到<strong>Leader故障</strong>或<strong>失去了指定数量的Follower</strong>，就会进入崩溃恢复模式</p>
+</blockquote>
+<p>崩溃恢复必须要保证两点：</p>
+<ul>
+<li>已经被Leader发送出去的提案，最终会被所有服务器都提交</li>
+<li>只在Leader中出现的提案，都要丢弃</li>
+</ul>
+<h5 id="详细过程-2"><a href="#详细过程-2" class="headerlink" title="详细过程"></a>详细过程</h5><ul>
+<li>每台Follow节点都会发起投票，每个节点都会先投自己一票，并同步给其他Follower节点。</li>
+<li>节点收到其他节点的投票信息后，进行选票筛选，不是同一个投票轮次的投票信息会被丢弃，随后根据（ZXID，Server Id）投票，<strong>这里的ZXID是本地磁盘日志文件中的</strong>，ZXID最大值获选，如果ZXID相同，则Server Id更大者胜出，更新自己的投票信息，并开始新一轮的投票，直到相同票数信息超过半数</li>
+<li>新Leader被选出，将epoch + 1，事务计数器置0，开始一个新的纪元<ul>
+<li>Follower连接到新的Leader上，会对比自己的ZXID与Leader的ZXID，所有没见过的提案都会被排队并提交</li>
+<li>当<code>旧的Leader</code>重新连接到<code>新的Leader</code>的时候，它已经变成了Follower，然后会对比ZXID，多出来的提案会被丢弃清除</li>
+</ul>
+</li>
+</ul>
+<p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/sunddenly/p/4138580.html">https://www.cnblogs.com/sunddenly/p/4138580.html</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.51cto.com/article/704705.html">https://www.51cto.com/article/704705.html</a></p>
+<h3 id="分布式锁的实现"><a href="#分布式锁的实现" class="headerlink" title="分布式锁的实现"></a>分布式锁的实现</h3><blockquote>
+<p>羊群效应是指，一个节点挂掉，所有节点都去监听，然后做出反应，这样会给服务器带来巨大的压力</p>
+</blockquote>
+<blockquote>
+<p>如果一个客户端的ZooKeeper会话过期，那么它所创建的短暂znode将会被删除，已持有的锁会被释放，或是放弃了申请锁的位置。使用锁的应用程序应当意识到它已经不再持有锁，应当清理它的状态，然后通过创建并尝试申请一个新的锁对象来重新启动。注意，这个过程是由应用程序控制的，而不是锁，因为锁是不能预知应用程序需要如何清理自己的状态。</p>
+</blockquote>
+<h4 id="非公平锁"><a href="#非公平锁" class="headerlink" title="非公平锁"></a>非公平锁</h4><blockquote>
+<p>依赖临时节点客户端连接断开会自动删除的特性</p>
+</blockquote>
+<blockquote>
+<p>存在的问题：羊群效应</p>
+</blockquote>
+<ol>
+<li>客户端以同一个资源名称路径创建一个临时节点，如<code>/path/resourceA</code></li>
+<li>客户端观察节点是否创建成功<ol>
+<li>如果创建成功，则表明自己已经取得了资源的使用权</li>
+<li>如果节点已经存在，则表明资源已经被其他客户端占用，则在该节点上设置监听器</li>
+<li>如果其他异常失败，则进行节点创建重试，或者其他处理</li>
+</ol>
+</li>
+<li>客户端使用完资源以后，主动删除节点，或者由于网络异常，连接断开，临时节点被删除</li>
+<li>其他客户端监听到临时节点被删除的事件，开始重复步骤1</li>
+</ol>
+<h4 id="公平锁"><a href="#公平锁" class="headerlink" title="公平锁"></a>公平锁</h4><blockquote>
+<p>依赖临时节点客户端连接断开会自动删除的特性</p>
+</blockquote>
+<blockquote>
+<p>依赖顺序节点会自动产生单调递增的整数序号的特性</p>
+</blockquote>
+<blockquote>
+<p>如果想要实现可公平重入锁，可以在获取到资源使用权的时候，在节点数据中写一个状态值，每次获取锁状态值就加一，释放锁就减一，为0的时候删除节点</p>
+</blockquote>
+<ol>
+<li>客户端在同一个目录下创建一个临时顺序节点，如<code>/resourceA/A-000001</code></li>
+<li>客户端获取资源目录下的所有节点，观察序号最小的节点是不是自己创建的序号<ol>
+<li>如果是，则表示自己已经取得了资源的使用权</li>
+<li>如果不是，则表示资源已经被其他客户端占用，在自己的前一个节点（序号比自己小的节点中，序号最大的节点）设置监听器</li>
+<li>如果其他异常失败，则重试，或者其他处理</li>
+</ol>
+</li>
+<li>客户端使用完资源以后，主动删除节点，或者由于网络异常，连接断开，临时节点被删除</li>
+<li>在被删除节点上设置了监听器的客户端监听到删除事件，开始重复步骤2</li>
+</ol>
+<h3 id="Leader选举机制"><a href="#Leader选举机制" class="headerlink" title="Leader选举机制"></a>Leader选举机制</h3><p>跟崩溃恢复差不多</p>
+<h3 id="Chroot特性"><a href="#Chroot特性" class="headerlink" title="Chroot特性"></a>Chroot特性</h3><blockquote>
+<p>3.2.0版本后添加的特性，Chroot特性允许每个客户端为自己设置一个命名空间。如果一个客户端设置了Chroot，那么对Zookeeper集群的任何操作，都会被限制在自己的命名空间下。Chroot能够将客户端对应上Zookeeper的一颗子树，因此在多个应用公用一个Zookeeper集群的时候，有利于应用间的相互隔离。</p>
+</blockquote>
+
+      
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+</div>
+
+
+
+
+    
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/08/30/MySQL%E5%82%A8%E5%AD%98%E8%BF%87%E7%A8%8B%E6%B8%B8%E6%A0%87%E4%BD%BF%E7%94%A8%E8%B8%A9%E5%9D%91%EF%BC%88NOT-FOUND%EF%BC%89/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Junhao Lin">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="IceVitalemon's Blog">
+      <meta itemprop="description" content="时光小屋">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="undefined | IceVitalemon's Blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          <a href="/2022/08/30/MySQL%E5%82%A8%E5%AD%98%E8%BF%87%E7%A8%8B%E6%B8%B8%E6%A0%87%E4%BD%BF%E7%94%A8%E8%B8%A9%E5%9D%91%EF%BC%88NOT-FOUND%EF%BC%89/" class="post-title-link" itemprop="url">MySQL储存过程游标使用踩坑（NOT FOUND）</a>
+        </h2>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2022-08-30 15:43:55 / 修改时间：18:04:41" itemprop="dateCreated datePublished" datetime="2022-08-30T15:43:55+08:00">2022-08-30</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+          <h3 id="具体问题"><a href="#具体问题" class="headerlink" title="具体问题"></a>具体问题</h3><p>在使用游标的过程中，通常都会使用未找到（NOT FOUND或者SQLSTATE ‘02000’）的条件来标识游标的结束。</p>
+<p>即定义一个变量finished初始化为FALSE，并且定义一个事件处理程序处理NOT FOUND异常（FETCH时，游标已经达到末尾）将变量finished设置为TRUE，并通过检查变量finished来结束循环。</p>
+<h3 id="问题原因"><a href="#问题原因" class="headerlink" title="问题原因"></a>问题原因</h3><p>坑就在这个NOT FOUNT异常，作用范围是整个储存过程。当FETCH获取下一行数据为空时，会抛出NOT FOUND异常。但是！但是！当使用普通的SELECT语句时，查询为空也会抛出NOT FOUND异常，就会触发设定好的NOT FOUND异常处理程序，所以如果遍历游标的循环体内如果存在查询为空，会导致循环提前退出。</p>
+<h3 id="复现"><a href="#复现" class="headerlink" title="复现"></a>复现</h3><h4 id="相关的表"><a href="#相关的表" class="headerlink" title="相关的表"></a>相关的表</h4><ul>
+<li>inst（inst_id, tenant_id, user_id）</li>
+<li>data_resource(resource_id, inst_id)</li>
+</ul>
+<h4 id="错误示例"><a href="#错误示例" class="headerlink" title="错误示例"></a>错误示例</h4><p>这里在游标循环里面使用inst_id查询了关联表data_resource，但是当data_resource表中没有这条数据的时候就会出现NOT FOUND异常，将finished设置为TRUE，提前结束游标循环。如，本来是要显示inst_id为1、2、3这三行，但是当inst_id&#x3D;2时，data_resource表查询为空，就只显示inst_id为1这一行。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">	DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">	DECLARE v_tenant_id BIGINT;</span><br><span class="line">	DECLARE v_user_id BIGINT;</span><br><span class="line">	DECLARE v_resource_id BIGINT;</span><br><span class="line">	-- 定义游标循环结束条件</span><br><span class="line">	DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">	-- 定义游标</span><br><span class="line">	DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">	-- 定义NOT FOUND结束处理程序</span><br><span class="line">	DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">	</span><br><span class="line">	-- 开始使用游标</span><br><span class="line">	OPEN my_cursor;</span><br><span class="line">		foreach_inst: LOOP</span><br><span class="line">		FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">			-- 判断游标是否已经达到末尾</span><br><span class="line">			IF finished = TRUE THEN</span><br><span class="line">				LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">			END IF;</span><br><span class="line">			-- 显示当前行</span><br><span class="line">			SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">			-- 问题行！！！！</span><br><span class="line">			SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">			-- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">		-- 回到标签foreach_inst</span><br><span class="line">		END LOOP foreach_inst;</span><br><span class="line">	-- 关闭游标</span><br><span class="line">	CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="正确示例"><a href="#正确示例" class="headerlink" title="正确示例"></a>正确示例</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">	DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">	DECLARE v_tenant_id BIGINT;</span><br><span class="line">	DECLARE v_user_id BIGINT;</span><br><span class="line">	DECLARE v_resource_id BIGINT;</span><br><span class="line">	-- 定义游标循环结束条件</span><br><span class="line">	DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">	-- 定义游标</span><br><span class="line">	DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">	-- 定义NOT FOUND结束处理程序</span><br><span class="line">	DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">	</span><br><span class="line">	-- 开始使用游标</span><br><span class="line">	OPEN my_cursor;</span><br><span class="line">		foreach_inst: LOOP</span><br><span class="line">		FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">			-- 判断游标是否已经达到末尾</span><br><span class="line">			IF finished = TRUE THEN</span><br><span class="line">				LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">			END IF;</span><br><span class="line">			-- 显示当前行</span><br><span class="line">			SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">			-- 问题行！！！！</span><br><span class="line">			-- SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">			SET v_resource_id = (SELECT resource_id FROM data_resource WHERE inst_id = v_inst_id);</span><br><span class="line">			-- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">		-- 回到标签foreach_inst</span><br><span class="line">		END LOOP foreach_inst;</span><br><span class="line">	-- 关闭游标</span><br><span class="line">	CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="解决办法"><a href="#解决办法" class="headerlink" title="解决办法"></a>解决办法</h3><ul>
+<li>保证循环中的查询不会出现NOT FOUND异常</li>
+<li>使用<code>SET variable = (SELECT cloumn FROM table);</code> 来设置变量，替代<code>SELECT cloumn INTO variable FROM table;</code> 的方式</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br></pre></td><td class="code"><pre><span class="line">-- 应用编码</span><br><span class="line">SET @APP_CODE := &#x27;zookeeper&#x27;;</span><br><span class="line">-- 资源池ID</span><br><span class="line">SET @RES_POOL_ID := 2;</span><br><span class="line"></span><br><span class="line">-- 将分隔符设置为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE add_data_permission(</span><br><span class="line">	IN in_app_code VARCHAR(128),</span><br><span class="line">	IN in_res_pool_id BIGINT</span><br><span class="line">)</span><br><span class="line">BEGIN</span><br><span class="line">	DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">	DECLARE v_tenant_id BIGINT;</span><br><span class="line">	DECLARE v_user_id BIGINT;</span><br><span class="line">	DECLARE v_app_id BIGINT;</span><br><span class="line">	DECLARE v_resource_id BIGINT;</span><br><span class="line">	DECLARE v_rela_id BIGINT;</span><br><span class="line">	DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">	-- 定义游标</span><br><span class="line">	DECLARE cursor_spu_inst CURSOR FOR (SELECT spu_inst_id, tenant_id, created_by FROM spu_inst WHERE app_code = in_app_code AND res_pool_id = in_res_pool_id AND status = 1);</span><br><span class="line">	-- 定义NOT FOUND结束处理程序</span><br><span class="line">	DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;</span><br><span class="line">	-- 定义SQL执行异常处理程序</span><br><span class="line">	DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET finished = 2; </span><br><span class="line">	-- 开始事务</span><br><span class="line">	START TRANSACTION;</span><br><span class="line">	SELECT app_id INTO v_app_id FROM application WHERE app_code = in_app_code;</span><br><span class="line">	-- 打开游标</span><br><span class="line">	OPEN cursor_spu_inst;</span><br><span class="line">		-- 	定义循环处理每一行数据</span><br><span class="line">		foreach_inst_id: LOOP</span><br><span class="line">		FETCH cursor_spu_inst INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">			-- 判断游标是否已经达到末尾</span><br><span class="line">			IF finished in (1, 2) THEN</span><br><span class="line">				LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">			END IF;</span><br><span class="line">			-- 处理数据</span><br><span class="line">			-- 如果data_resource表中已经有数据，则不处理</span><br><span class="line">			SET v_resource_id = (SELECT resource_id FROM data_resource WHERE app_id = v_app_id AND spu_inst_id = v_inst_id AND resource_type = &#x27;cluster&#x27; AND created_by = v_user_id AND tenant_id = v_tenant_id);</span><br><span class="line">			IF v_resource_id is NULL THEN</span><br><span class="line">				-- 插data_resource表</span><br><span class="line">				INSERT INTO `data_resource` (`app_id`, `resource_code`, `resource_type`, `resource_name`, `spu_inst_id`, `tenant_id`, `parent_id`, `list_order`, `description`, `created_by`, `created_time`, `status`, `sharding_id`) VALUES (v_app_id, v_inst_id, &#x27;cluster&#x27;, v_inst_id, v_inst_id, v_tenant_id, 0, 0, &#x27;数据权限控制割接数据&#x27;, v_user_id, NOW(), 1, NULL);</span><br><span class="line">				SET v_resource_id = (SELECT resource_id FROM data_resource WHERE app_id = v_app_id AND spu_inst_id = v_inst_id AND resource_type = &#x27;cluster&#x27; AND created_by = v_user_id AND tenant_id = v_tenant_id);</span><br><span class="line">			END IF;</span><br><span class="line">			</span><br><span class="line">			-- 查user_data_permission表</span><br><span class="line">			SET v_rela_id = (SELECT rela_id FROM user_data_permission WHERE resource_id = v_resource_id AND user_id = v_user_id);</span><br><span class="line">			IF v_rela_id is NULL THEN</span><br><span class="line">				-- 插user_data_permission表</span><br><span class="line">				INSERT INTO `user_data_permission` (`resource_id`, `user_id`, `data_priv_id`, `created_by`, `created_time`, `sharding_id`) VALUES (v_resource_id, v_user_id, 1, v_user_id, NOW(), NULL);</span><br><span class="line">			END IF;</span><br><span class="line">			-- 结束处理</span><br><span class="line">			</span><br><span class="line">		-- 结束循环</span><br><span class="line">		END LOOP foreach_inst_id;</span><br><span class="line">	-- 关闭游标</span><br><span class="line">	CLOSE cursor_spu_inst;</span><br><span class="line">	IF finished = 2 THEN</span><br><span class="line">		ROLLBACK;</span><br><span class="line">	ELSE</span><br><span class="line">		COMMIT;</span><br><span class="line">	END IF;</span><br><span class="line">END $$</span><br><span class="line">-- 将分隔符重新设置为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL add_data_permission(@APP_CODE, @RES_POOL_ID);</span><br><span class="line">DROP PROCEDURE add_data_permission;</span><br></pre></td></tr></table></figure>
+
+
+      
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+</div>
+
+
+
 
     
 
