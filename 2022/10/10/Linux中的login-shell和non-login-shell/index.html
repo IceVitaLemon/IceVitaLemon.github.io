@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#222" media="(prefers-color-scheme: dark)"><meta name="generator" content="Hexo 6.3.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.2/css/all.min.css" integrity="sha256-xejo6yLi6vGtAjcMIsY8BHdKsLg7QynVlFMzdQgUuy8=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pace/1.2.4/themes/blue/pace-theme-minimal.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pace/1.2.4/pace.min.js" integrity="sha256-gqd7YTjg/BtfqWSwsJOvndl0Bxc8gFImLEkXQT8+qj0=" crossorigin="anonymous"></script>
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"example.com","root":"/","images":"/images","scheme":"Muse","darkmode":true,"version":"8.12.3","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"bookmark":{"enable":true,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"},"path":"/search.xml","localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="简要介绍Shell是用于为用户提供与Linux内核交互的工具，比如sh、bash、zch等都是shell。当我们使用Linux的时候，一进入系统就有一堆的变量可以使用，那么这些变量从哪里来呢？在Linux启动的时候，会按一定的顺序读取配置文件，并且将这些配置文件中的环境变量设置到当前的shell中，所以我们才能使用这些环境变量中目录里面的命令。 因此我们就需要了解两个问题：">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Linux中的login shell和non-login shell">
+<meta property="og:url" content="http://example.com/2022/10/10/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell/index.html">
+<meta property="og:site_name" content="IceVitalemon&#39;s Blog">
+<meta property="og:description" content="简要介绍Shell是用于为用户提供与Linux内核交互的工具，比如sh、bash、zch等都是shell。当我们使用Linux的时候，一进入系统就有一堆的变量可以使用，那么这些变量从哪里来呢？在Linux启动的时候，会按一定的顺序读取配置文件，并且将这些配置文件中的环境变量设置到当前的shell中，所以我们才能使用这些环境变量中目录里面的命令。 因此我们就需要了解两个问题：">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/2022/10/10/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell%5Clogin_shell.png">
+<meta property="article:published_time" content="2022-10-10T06:58:13.000Z">
+<meta property="article:modified_time" content="2022-10-20T08:40:41.520Z">
+<meta property="article:author" content="Junhao Lin">
+<meta property="article:tag" content="Linux">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/2022/10/10/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell%5Clogin_shell.png">
+
+
+<link rel="canonical" href="http://example.com/2022/10/10/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"http://example.com/2022/10/10/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell/","path":"2022/10/10/Linux中的login-shell和non-login-shell/","title":"Linux中的login shell和non-login shell"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Linux中的login shell和non-login shell | IceVitalemon's Blog</title>
+  
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">IceVitalemon's Blog</p>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AE%80%E8%A6%81%E4%BB%8B%E7%BB%8D"><span class="nav-text">简要介绍</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#login-shell%E5%92%8Cnon-login-shell%E7%9A%84%E5%8C%BA%E5%88%AB"><span class="nav-text">login shell和non-login shell的区别</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#login-shell"><span class="nav-text">login shell</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#x2F-etc-x2F-profile%E5%85%AC%E5%85%B1%E9%85%8D%E7%BD%AE%E5%86%85%E5%AE%B9"><span class="nav-text">&#x2F;etc&#x2F;profile公共配置内容</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%94%A8%E6%88%B7%E9%85%8D%E7%BD%AE%E5%86%85%E5%AE%B9"><span class="nav-text">用户配置内容</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-text">总结</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#non-login-shell"><span class="nav-text">non-login shell</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%B6%E4%BB%96%E7%9B%B8%E5%85%B3%E7%9A%84%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6"><span class="nav-text">其他相关的配置文件</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <a href="/">
+      <img class="site-author-image" itemprop="image" alt="Junhao Lin"
+        src="/images/avatar.gif">
+    </a>
+  <p class="site-author-name" itemprop="name">Junhao Lin</p>
+  <div class="site-description" itemprop="description">朝花夕拾</div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">10</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">8</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author site-overview-item animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/IceVitaLemon" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;IceVitaLemon" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:junhaol0902@outlook.com" title="E-Mail → mailto:junhaol0902@outlook.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/10/10/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Junhao Lin">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="IceVitalemon's Blog">
+      <meta itemprop="description" content="朝花夕拾">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Linux中的login shell和non-login shell | IceVitalemon's Blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Linux中的login shell和non-login shell
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2022-10-10 14:58:13" itemprop="dateCreated datePublished" datetime="2022-10-10T14:58:13+08:00">2022-10-10</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2022-10-20 16:40:41" itemprop="dateModified" datetime="2022-10-20T16:40:41+08:00">2022-10-20</time>
+    </span>
+
+  
+    <span class="post-meta-break"></span>
+    <span class="post-meta-item" title="本文字数">
+      <span class="post-meta-item-icon">
+        <i class="far fa-file-word"></i>
+      </span>
+      <span class="post-meta-item-text">本文字数：</span>
+      <span>1.2k</span>
+    </span>
+    <span class="post-meta-item" title="阅读时长">
+      <span class="post-meta-item-icon">
+        <i class="far fa-clock"></i>
+      </span>
+      <span class="post-meta-item-text">阅读时长 &asymp;</span>
+      <span>4 分钟</span>
+    </span>
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <h3 id="简要介绍"><a href="#简要介绍" class="headerlink" title="简要介绍"></a>简要介绍</h3><p>Shell是用于为用户提供与Linux内核交互的工具，比如sh、bash、zch等都是shell。当我们使用Linux的时候，一进入系统就有一堆的变量可以使用，那么这些变量从哪里来呢？在Linux启动的时候，会按一定的顺序读取配置文件，并且将这些配置文件中的环境变量设置到当前的shell中，所以我们才能使用这些环境变量中目录里面的命令。</p>
+<p>因此我们就需要了解两个问题：</p>
+<ul>
+<li>Linux会按什么顺序读取哪些配置文件？</li>
+<li>login shell和non-login shell有什么区别？</li>
+</ul>
+<h3 id="login-shell和non-login-shell的区别"><a href="#login-shell和non-login-shell的区别" class="headerlink" title="login shell和non-login shell的区别"></a>login shell和non-login shell的区别</h3><ul>
+<li><strong>login shell</strong>：取得bash时需要完整的登录流程，就称为login shell。如：<ul>
+<li>登录到ubuntu之后需要输入用户名和密码才能操作用户界面，这就是一个login shell</li>
+<li>登录tty1~tty6时，也需要输入用户名和密码，这也是login sehll</li>
+</ul>
+</li>
+<li><strong>non-login shell</strong>：取得bash时不需要重复登录。如：<ul>
+<li>登录到ubuntu用户操作界面之后，通过鼠标打开的终端Terminal，就不需要输入用户名和密码，因此这就是non-login shell</li>
+<li>或者在原本bash环境下再次使用bash这个命令，会建立一个新的bash子进程，也不用输入账号密码，哪这个bash子程序也是non-login shell</li>
+</ul>
+</li>
+</ul>
+<h3 id="login-shell"><a href="#login-shell" class="headerlink" title="login shell"></a>login shell</h3><blockquote>
+<p>一般来说，login shell只会读取下面两个配置文件：</p>
+<ul>
+<li><strong>&#x2F;etc&#x2F;profile</strong>：系统整体的配置，一般尽量不要修改这个文件</li>
+<li><strong><del>&#x2F;.bash_profile或</del>&#x2F;.bash_login或~&#x2F;.profile</strong>：属于用户个人配置（从~目录就能看出），需要修改自己的数据，就写入这些文件。（bash的login shell配置只会读取上面三个文件的其中一个，而读取的顺序则是依照上面的顺序）</li>
+</ul>
+</blockquote>
+<h4 id="x2F-etc-x2F-profile公共配置内容"><a href="#x2F-etc-x2F-profile公共配置内容" class="headerlink" title="&#x2F;etc&#x2F;profile公共配置内容"></a>&#x2F;etc&#x2F;profile公共配置内容</h4><p><code>/etc/profile</code>文件中主要配置的环境变量包括：</p>
+<ul>
+<li>PATH：会根据UID来决定PATH变量中包不包含sbin的系统命令目录</li>
+<li>MAIL：将用户配置的mailbox配置到<code>/var/spool/mail/账户名</code></li>
+<li>USER：根据用户的账号配置这个变量内容</li>
+<li>HOSTNAME：根据主机的hostname配置</li>
+<li>HISTSIZE：历史命令的记录条数</li>
+</ul>
+<p>此外，<code>/etc/profile</code>文件还会按以下顺序读取外部配置文件：</p>
+<ol>
+<li><code>/etc/inputrc</code>：主要配置bash的热键、[tab]键需不需要有声音等</li>
+<li><code>/etc/profile.d/*.sh</code>：只要在<code>/etc/profile.d/</code>目录内，并且文件扩展名为 .sh，用户具有读的权限，那么该文件就会被&#x2F;etc&#x2F;profile读取。主要包括：bash操作界面的颜色，ll与ls命令的命令别名、which的命令别名等。<strong>如果需要给所有用户配置一些共享的命令别名时，可以在这个目录底下创建扩展名为.sh的文件，并将需要的数据写入</strong></li>
+<li><code>/etc/sysconfig/i18n</code>：这个文件是被<code>/etc/profile.d/lang.sh</code>文件调用，配置LANG变量，也就是bash默认使用什么语言</li>
+</ol>
+<h4 id="用户配置内容"><a href="#用户配置内容" class="headerlink" title="用户配置内容"></a>用户配置内容</h4><p>我们可以看下<code>~/.bash_profile</code>中的内容：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">[junhao@localhost ~]$ cat ~/.bash_profile</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">.bash_profile</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Get the aliases and <span class="built_in">functions</span></span></span><br><span class="line">if [ -f ~/.bashrc ]; then</span><br><span class="line">	. ~/.bashrc</span><br><span class="line">fi</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">User specific environment and startup programs</span></span><br><span class="line"></span><br><span class="line">PATH=$PATH:$HOME/.local/bin:$HOME/bin</span><br><span class="line"></span><br><span class="line">export PATH</span><br><span class="line">[junhao@localhost ~]$ </span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>可以看到if判断语句中的一段，判断home目录下的文件<code>~/.bashrc</code>是不是存在，如果存在则读入<code>~/.bashrc</code>中的配置。</p>
+<p>至于<code>~/.bash_login</code> 或<code>~/.profile</code>文件，前面提到过，bash的login shell只会读取上面三个文件中的其中一个，哪个文件存在就读取哪个文件，而最后读取的都是<code>~/.bashrc</code>中的配置。</p>
+</blockquote>
+<p>我们再看看<code>~/.bashrc</code>文件中的内容：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">[junhao@localhost ~]$ cat ~/.bashrc</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">.bashrc</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Source global definitions</span></span><br><span class="line">if [ -f /etc/bashrc ]; then</span><br><span class="line">	. /etc/bashrc</span><br><span class="line">fi</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Uncomment the following line <span class="keyword">if</span> you don<span class="string">&#x27;t like systemctl&#x27;</span>s auto-paging feature:</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">export</span> SYSTEMD_PAGER=</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">User specific aliases and <span class="built_in">functions</span></span></span><br><span class="line">[junhao@localhost ~]$ </span><br></pre></td></tr></table></figure>
+
+<p>可以看到在<code>~/.bashrc</code>文件中，最后会读取<code>/etc/bashrc</code>文件中的配置，而<code>/etc/bashrc</code>也会读取<code>/etc/profile.d/*.sh</code>中的配置。</p>
+<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><p><img src="/2022/10/10/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell%5Clogin_shell.png" alt="login shell 的配置文件读取流程"></p>
+<p>实线的方向是主线流程，虚线的方向则是被调用的配置文件，从上面的流程图可以看出，最终读取的配置文件是<code>~/.bashrc</code>，所以可以将用户特定的配置写入<code>~/.bashrc</code>文件中，而所有用户共用的配置写入<code>/etc/bashrc</code>文件中。</p>
+<h3 id="non-login-shell"><a href="#non-login-shell" class="headerlink" title="non-login shell"></a>non-login shell</h3><blockquote>
+<p>当获取non-login shell的时候，bash的配置文件仅仅会读取<code>~/.bashrc</code>文件中的内容</p>
+</blockquote>
+<p><code>~/.bashrc</code>中会调用<code>/etc/bashrc</code>，而<code>/etc/bashrc</code>主要负责：</p>
+<ul>
+<li>根据UID设置umask的值</li>
+<li>根据UID设置命令行提示即PS1变量</li>
+<li>调用<code>/etc/profile.d/*.sh</code>中的配置</li>
+</ul>
+<h3 id="其他相关的配置文件"><a href="#其他相关的配置文件" class="headerlink" title="其他相关的配置文件"></a>其他相关的配置文件</h3><ul>
+<li><code>/etc/man.config</code>：配置man相关属性</li>
+<li><code>~/.bash_history</code>：历史命令相关</li>
+<li><code>~/.bash_logout</code>：注销bash时，需要执行的操作</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Linux/" rel="tag"><i class="fa fa-tag"></i> Linux</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2022/09/14/Spring-validation%E4%BD%BF%E7%94%A8%E5%8F%8A%E6%A0%A1%E9%AA%8C%E5%BC%82%E5%B8%B8%E5%A4%84%E7%90%86/" rel="prev" title="Spring validation使用及校验异常处理">
+                  <i class="fa fa-chevron-left"></i> Spring validation使用及校验异常处理
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/" rel="next" title="记一次WSDL使用">
+                  记一次WSDL使用 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+
+<div class="copyright">
+  &copy; 2021 – 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Junhao Lin</span>
+</div>
+<div class="wordcount">
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-line"></i>
+    </span>
+    <span title="站点总字数">46k</span>
+  </span>
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">2:48</span>
+  </span>
+</div><script color="0,0,255" opacity="0.5" zIndex="-1" count="99" src="/js/canvas-nest.js"></script>
+
+    </div>
+  </footer>
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js" integrity="sha256-j+yj56cdEY2CwkVtGyz18fNybFGpMGJ8JxG3GSyO2+I=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script><script src="/js/bookmark.js"></script>
+
+  
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hexo-generator-searchdb/1.4.0/search.js" integrity="sha256-vXZMYLEqsROAXkEw93GGIvaB2ab+QW6w3+1ahD9nXXA=" crossorigin="anonymous"></script>
+<script src="/js/third-party/search/local-search.js"></script>
+
+
+
+
+  <script src="/js/third-party/pace.js"></script>
+
+  
+
+
+
+
+
+</body>
+</html>
