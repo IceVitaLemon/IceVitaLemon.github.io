@@ -23,21 +23,21 @@
 
 <script class="next-config" data-name="main" type="application/json">{"hostname":"example.com","root":"/","images":"/images","scheme":"Muse","darkmode":true,"version":"8.12.3","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"bookmark":{"enable":true,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"},"path":"/search.xml","localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false}}</script><script src="/js/config.js"></script>
 
-    <meta name="description" content="起因突然要求对接公司集团的一个接口，给了一个 http:&#x2F;&#x2F;192.168.1.1:7001&#x2F;services&#x2F;NotifyService?wsdl 这种地址过来，然后还给了个说明文档，介绍用 XML 的格式发送报文。 一开始觉得跟 restful 接口差不多，就没多大留意。然后按照说明文档构建了 XML 格式的报文，跟下面的例子差不多。觉得没啥问题了，用 Postman 一测试，哎，怎么返回失败">
+    <meta name="description" content="1. 起因突然要求对接公司集团的一个接口，给了一个 http:&#x2F;&#x2F;192.168.1.1:7001&#x2F;services&#x2F;NotifyService?wsdl 这种地址过来，然后还给了个说明文档，介绍用 XML 的格式发送报文。 一开始觉得跟 restful 接口差不多，就没多大留意。然后按照说明文档构建了 XML 格式的报文，跟下面的例子差不多。觉得没啥问题了，用 Postman 一测试，哎，怎么返">
 <meta property="og:type" content="article">
 <meta property="og:title" content="记一次WSDL使用">
 <meta property="og:url" content="http://example.com/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/index.html">
 <meta property="og:site_name" content="IceVitalemon&#39;s Blog">
-<meta property="og:description" content="起因突然要求对接公司集团的一个接口，给了一个 http:&#x2F;&#x2F;192.168.1.1:7001&#x2F;services&#x2F;NotifyService?wsdl 这种地址过来，然后还给了个说明文档，介绍用 XML 的格式发送报文。 一开始觉得跟 restful 接口差不多，就没多大留意。然后按照说明文档构建了 XML 格式的报文，跟下面的例子差不多。觉得没啥问题了，用 Postman 一测试，哎，怎么返回失败">
+<meta property="og:description" content="1. 起因突然要求对接公司集团的一个接口，给了一个 http:&#x2F;&#x2F;192.168.1.1:7001&#x2F;services&#x2F;NotifyService?wsdl 这种地址过来，然后还给了个说明文档，介绍用 XML 的格式发送报文。 一开始觉得跟 restful 接口差不多，就没多大留意。然后按照说明文档构建了 XML 格式的报文，跟下面的例子差不多。觉得没啥问题了，用 Postman 一测试，哎，怎么返">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="http://example.com/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8%5Cwsdl%E7%BD%91%E9%A1%B5.png">
-<meta property="og:image" content="http://example.com/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8%5Csoapui.png">
+<meta property="og:image" content="http://example.com/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/wsdl%E7%BD%91%E9%A1%B5.png">
+<meta property="og:image" content="http://example.com/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/soapui.png">
 <meta property="article:published_time" content="2022-11-01T09:59:24.000Z">
-<meta property="article:modified_time" content="2022-12-01T05:56:24.577Z">
+<meta property="article:modified_time" content="2022-12-02T08:24:38.290Z">
 <meta property="article:author" content="Junhao Lin">
 <meta property="article:tag" content="日常">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://example.com/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8%5Cwsdl%E7%BD%91%E9%A1%B5.png">
+<meta name="twitter:image" content="http://example.com/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/wsdl%E7%BD%91%E9%A1%B5.png">
 
 
 <link rel="canonical" href="http://example.com/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/">
@@ -149,7 +149,7 @@
       <div class="sidebar-panel-container">
         <!--noindex-->
         <div class="post-toc-wrap sidebar-panel">
-            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%B5%B7%E5%9B%A0"><span class="nav-text">起因</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BB%8F%E8%BF%87"><span class="nav-text">经过</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BB%80%E4%B9%88%E6%98%AFWSDL%EF%BC%9F"><span class="nav-text">什么是WSDL？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%80%8E%E4%B9%88%E4%BD%BF%E7%94%A8"><span class="nav-text">怎么使用</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8-Postman-%E8%B0%83%E7%94%A8"><span class="nav-text">使用 Postman 调用</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-text">总结</span></a></li></ol></div>
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-%E8%B5%B7%E5%9B%A0"><span class="nav-text">1. 起因</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-%E7%BB%8F%E8%BF%87"><span class="nav-text">2. 经过</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#2-1-%E4%BB%80%E4%B9%88%E6%98%AFWSDL%EF%BC%9F"><span class="nav-text">2.1 什么是WSDL？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-2-%E6%80%8E%E4%B9%88%E4%BD%BF%E7%94%A8"><span class="nav-text">2.2 怎么使用</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-3-%E4%BD%BF%E7%94%A8-Postman-%E8%B0%83%E7%94%A8"><span class="nav-text">2.3 使用 Postman 调用</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-%E6%80%BB%E7%BB%93"><span class="nav-text">3. 总结</span></a></li></ol></div>
         </div>
         <!--/noindex-->
 
@@ -257,7 +257,7 @@
         <i class="far fa-calendar-check"></i>
       </span>
       <span class="post-meta-item-text">更新于</span>
-      <time title="修改时间：2022-12-01 13:56:24" itemprop="dateModified" datetime="2022-12-01T13:56:24+08:00">2022-12-01</time>
+      <time title="修改时间：2022-12-02 16:24:38" itemprop="dateModified" datetime="2022-12-02T16:24:38+08:00">2022-12-02</time>
     </span>
 
   
@@ -285,14 +285,14 @@
     
     
     <div class="post-body" itemprop="articleBody">
-        <h3 id="起因"><a href="#起因" class="headerlink" title="起因"></a>起因</h3><p>突然要求对接公司集团的一个接口，给了一个 <code>http://192.168.1.1:7001/services/NotifyService?wsdl</code> 这种地址过来，然后还给了个说明文档，介绍用 XML 的格式发送报文。</p>
+        <h3 id="1-起因"><a href="#1-起因" class="headerlink" title="1. 起因"></a>1. 起因</h3><p>突然要求对接公司集团的一个接口，给了一个 <code>http://192.168.1.1:7001/services/NotifyService?wsdl</code> 这种地址过来，然后还给了个说明文档，介绍用 XML 的格式发送报文。</p>
 <p>一开始觉得跟 restful 接口差不多，就没多大留意。然后按照说明文档构建了 XML 格式的报文，跟下面的例子差不多。觉得没啥问题了，用 Postman 一测试，哎，怎么返回失败呢？首先是网络，检查了一下是通的。哪说明是调用接口的方式出了问题。</p>
 <figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">ReqRoot</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">ReqTime</span>&gt;</span>2022-10-27 10:03:02<span class="tag">&lt;/<span class="name">ReqTime</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">BillNo</span>&gt;</span></span><br><span class="line">            000000</span><br><span class="line">        <span class="tag">&lt;/<span class="name">BillNo</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Content</span>&gt;</span>消息成功发送<span class="tag">&lt;/<span class="name">Content</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">SendUser</span>&gt;</span>user<span class="tag">&lt;/<span class="name">SendUser</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Address</span>&gt;</span>mobile<span class="tag">&lt;/<span class="name">Address</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">ReqRoot</span>&gt;</span></span><br></pre></td></tr></table></figure>
 
 
 
-<h3 id="经过"><a href="#经过" class="headerlink" title="经过"></a>经过</h3><p>既然调用失败，那就百度一下为什么调用失败。看到给的链接后面有个 <code>wsdl</code> 的东西，感觉不太对劲，于是乎搜索了一下 <code>wsdl</code>。问了一下同事，说这是历史久远的接口。</p>
-<h4 id="什么是WSDL？"><a href="#什么是WSDL？" class="headerlink" title="什么是WSDL？"></a>什么是WSDL？</h4><blockquote>
+<h3 id="2-经过"><a href="#2-经过" class="headerlink" title="2. 经过"></a>2. 经过</h3><p>既然调用失败，那就百度一下为什么调用失败。看到给的链接后面有个 <code>wsdl</code> 的东西，感觉不太对劲，于是乎搜索了一下 <code>wsdl</code>。问了一下同事，说这是历史久远的接口。</p>
+<h4 id="2-1-什么是WSDL？"><a href="#2-1-什么是WSDL？" class="headerlink" title="2.1 什么是WSDL？"></a>2.1 什么是WSDL？</h4><blockquote>
 <p>WSDL 是一种使用 XML 编写的文档。这种文档可描述某个 Web service。它可规定服务的位置，以及此服务提供的操作（或方法）。</p>
 </blockquote>
 <blockquote>
@@ -306,15 +306,15 @@
 <li>WSDL 也可用于定位网络服务</li>
 <li>WSDL 还不是 W3C 标准</li>
 </ul>
-<h4 id="怎么使用"><a href="#怎么使用" class="headerlink" title="怎么使用"></a>怎么使用</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">可以用下面的这个链接进行测试，这是一个中国电视节目预告 Web 服务</span><br><span class="line">http://www.webxml.com.cn/webservices/ChinaTVprogramWebService.asmx?wsdl</span><br></pre></td></tr></table></figure>
+<h4 id="2-2-怎么使用"><a href="#2-2-怎么使用" class="headerlink" title="2.2 怎么使用"></a>2.2 怎么使用</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">可以用下面的这个链接进行测试，这是一个中国电视节目预告 Web 服务</span><br><span class="line">http://www.webxml.com.cn/webservices/ChinaTVprogramWebService.asmx?wsdl</span><br></pre></td></tr></table></figure>
 
 <p>我主要关注的是怎么用这个接口，起码能保证业务上的功能正常再去关注这是什么东西。于是乎开始搜索怎么才能让接口调用成功。</p>
 <p>突然发现这个接口是能够直接在浏览器上面打开的，不过其实打开了，也看不出什么东西，因为是一堆的 XML 文本。大概知道的就是这个文本里面定义了有哪些接口，还有接口的调用方式。</p>
-<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8%5Cwsdl%E7%BD%91%E9%A1%B5.png" alt="image-20221124152448072"></p>
+<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/wsdl%E7%BD%91%E9%A1%B5.png" alt="image-20221124152448072"></p>
 <p>然后在网上找啊找，都没怎么找到比较好的方式去调用，但是起码别人是能调通的。观察发现怎么有一个应用叫 SoapUI 能够生成请求的报文体呢（截图截全一点对大家都好）。于是乎自己下载了一个下来看一下。</p>
-<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8%5Csoapui.png" alt="image-20221124153100317"></p>
+<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/soapui.png" alt="image-20221124153100317"></p>
 <p>界面上就是上面的样子，填入 wsdl 的链接就能够比较直观的看到有哪些能够调用的方法，在对应的方法里面创建请求还会帮你填充好一些 SOAP 协议相关的东西（之前就是缺少了这一部分）。如果把请求部分填充完整，是能够使用 SoapUI 请求成功。</p>
-<h4 id="使用-Postman-调用"><a href="#使用-Postman-调用" class="headerlink" title="使用 Postman 调用"></a>使用 Postman 调用</h4><p>既然能够使用 SoapUI 请求成功，那么就要尝试一下怎样才能使用 Postman 请求成功了。简单分为以下三步：</p>
+<h4 id="2-3-使用-Postman-调用"><a href="#2-3-使用-Postman-调用" class="headerlink" title="2.3 使用 Postman 调用"></a>2.3 使用 Postman 调用</h4><p>既然能够使用 SoapUI 请求成功，那么就要尝试一下怎样才能使用 Postman 请求成功了。简单分为以下三步：</p>
 <ul>
 <li>将请求的 Content-Type 设置为 text&#x2F;xml</li>
 <li>请求头部加上SOAPAction，值可以置为空</li>
@@ -324,7 +324,7 @@
 
 
 
-<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>其实就是 WSDL 与 Soap 的相关知识，但是其实现在很少用，等什么时候有空了再详细看看吧。</p>
+<h3 id="3-总结"><a href="#3-总结" class="headerlink" title="3. 总结"></a>3. 总结</h3><p>其实就是 WSDL 与 Soap 的相关知识，但是其实现在很少用，等什么时候有空了再详细看看吧。</p>
 
     </div>
 
