@@ -276,34 +276,6 @@
       </tags>
   </entry>
   <entry>
-    <title>MySQL储存过程游标使用踩坑（NOT FOUND）</title>
-    <url>/2022/08/30/MySQL%E5%82%A8%E5%AD%98%E8%BF%87%E7%A8%8B%E6%B8%B8%E6%A0%87%E4%BD%BF%E7%94%A8%E8%B8%A9%E5%9D%91%EF%BC%88NOT-FOUND%EF%BC%89/</url>
-    <content><![CDATA[<h3 id="1-具体问题"><a href="#1-具体问题" class="headerlink" title="1. 具体问题"></a>1. 具体问题</h3><p>在使用游标的过程中，通常都会使用未找到（NOT FOUND或者SQLSTATE ‘02000’）的条件来标识游标的结束。</p>
-<p>即定义一个变量finished初始化为FALSE，并且定义一个事件处理程序处理NOT FOUND异常（FETCH时，游标已经达到末尾）将变量finished设置为TRUE，并通过检查变量finished来结束循环。</p>
-<h3 id="2-问题原因"><a href="#2-问题原因" class="headerlink" title="2. 问题原因"></a>2. 问题原因</h3><p>坑就在这个NOT FOUNT异常，作用范围是整个储存过程。当FETCH获取下一行数据为空时，会抛出NOT FOUND异常。但是！但是！当使用普通的SELECT语句时，查询为空也会抛出NOT FOUND异常，就会触发设定好的NOT FOUND异常处理程序，所以如果遍历游标的循环体内如果存在查询为空，会导致循环提前退出。</p>
-<h3 id="3-复现"><a href="#3-复现" class="headerlink" title="3. 复现"></a>3. 复现</h3><h4 id="3-1-相关的表"><a href="#3-1-相关的表" class="headerlink" title="3.1 相关的表"></a>3.1 相关的表</h4><ul>
-<li>inst（inst_id, tenant_id, user_id）</li>
-<li>data_resource(resource_id, inst_id)</li>
-</ul>
-<h4 id="3-2-错误示例"><a href="#3-2-错误示例" class="headerlink" title="3.2 错误示例"></a>3.2 错误示例</h4><p>这里在游标循环里面使用inst_id查询了关联表data_resource，但是当data_resource表中没有这条数据的时候就会出现NOT FOUND异常，将finished设置为TRUE，提前结束游标循环。如，本来是要显示inst_id为1、2、3这三行，但是当inst_id&#x3D;2时，data_resource表查询为空，就只显示inst_id为1这一行。</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">    DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">    DECLARE v_tenant_id BIGINT;</span><br><span class="line">    DECLARE v_user_id BIGINT;</span><br><span class="line">    DECLARE v_resource_id BIGINT;</span><br><span class="line">    -- 定义游标循环结束条件</span><br><span class="line">    DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">    -- 定义游标</span><br><span class="line">    DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">    -- 定义NOT FOUND结束处理程序</span><br><span class="line">    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">    </span><br><span class="line">    -- 开始使用游标</span><br><span class="line">    OPEN my_cursor;</span><br><span class="line">        foreach_inst: LOOP</span><br><span class="line">        FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 判断游标是否已经达到末尾</span><br><span class="line">            IF finished = TRUE THEN</span><br><span class="line">                LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">            END IF;</span><br><span class="line">            -- 显示当前行</span><br><span class="line">            SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 问题行！！！！</span><br><span class="line">            SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">            -- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">        -- 回到标签foreach_inst</span><br><span class="line">        END LOOP foreach_inst;</span><br><span class="line">    -- 关闭游标</span><br><span class="line">    CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="3-3-正确示例"><a href="#3-3-正确示例" class="headerlink" title="3.3 正确示例"></a>3.3 正确示例</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">    DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">    DECLARE v_tenant_id BIGINT;</span><br><span class="line">    DECLARE v_user_id BIGINT;</span><br><span class="line">    DECLARE v_resource_id BIGINT;</span><br><span class="line">    -- 定义游标循环结束条件</span><br><span class="line">    DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">    -- 定义游标</span><br><span class="line">    DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">    -- 定义NOT FOUND结束处理程序</span><br><span class="line">    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">    </span><br><span class="line">    -- 开始使用游标</span><br><span class="line">    OPEN my_cursor;</span><br><span class="line">        foreach_inst: LOOP</span><br><span class="line">        FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 判断游标是否已经达到末尾</span><br><span class="line">            IF finished = TRUE THEN</span><br><span class="line">                LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">            END IF;</span><br><span class="line">            -- 显示当前行</span><br><span class="line">            SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 问题行！！！！</span><br><span class="line">            -- SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">            SET v_resource_id = (SELECT resource_id FROM data_resource WHERE inst_id = v_inst_id);</span><br><span class="line">            -- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">        -- 回到标签foreach_inst</span><br><span class="line">        END LOOP foreach_inst;</span><br><span class="line">    -- 关闭游标</span><br><span class="line">    CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="4-解决办法"><a href="#4-解决办法" class="headerlink" title="4. 解决办法"></a>4. 解决办法</h3><ul>
-<li>保证循环中的查询不会出现 NOT FOUND 异常</li>
-<li>使用<code>SET variable = (SELECT cloumn FROM table);</code> 来设置变量，替代<code>SELECT cloumn INTO variable FROM table;</code> 的方式</li>
-</ul>
-]]></content>
-      <tags>
-        <tag>MySQL</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>Linux中的login shell和non-login shell</title>
     <url>/2022/10/10/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell/</url>
     <content><![CDATA[<h3 id="1-简要介绍"><a href="#1-简要介绍" class="headerlink" title="1. 简要介绍"></a>1. 简要介绍</h3><p>Shell是用于为用户提供与Linux内核交互的工具，比如sh、bash、zch等都是shell。当我们使用Linux的时候，一进入系统就有一堆的变量可以使用，那么这些变量从哪里来呢？在Linux启动的时候，会按一定的顺序读取配置文件，并且将这些配置文件中的环境变量设置到当前的shell中，所以我们才能使用这些环境变量中目录里面的命令。</p>
@@ -375,6 +347,34 @@
 ]]></content>
       <tags>
         <tag>Linux</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>MySQL储存过程游标使用踩坑（NOT FOUND）</title>
+    <url>/2022/08/30/MySQL%E5%82%A8%E5%AD%98%E8%BF%87%E7%A8%8B%E6%B8%B8%E6%A0%87%E4%BD%BF%E7%94%A8%E8%B8%A9%E5%9D%91%EF%BC%88NOT-FOUND%EF%BC%89/</url>
+    <content><![CDATA[<h3 id="1-具体问题"><a href="#1-具体问题" class="headerlink" title="1. 具体问题"></a>1. 具体问题</h3><p>在使用游标的过程中，通常都会使用未找到（NOT FOUND或者SQLSTATE ‘02000’）的条件来标识游标的结束。</p>
+<p>即定义一个变量finished初始化为FALSE，并且定义一个事件处理程序处理NOT FOUND异常（FETCH时，游标已经达到末尾）将变量finished设置为TRUE，并通过检查变量finished来结束循环。</p>
+<h3 id="2-问题原因"><a href="#2-问题原因" class="headerlink" title="2. 问题原因"></a>2. 问题原因</h3><p>坑就在这个NOT FOUNT异常，作用范围是整个储存过程。当FETCH获取下一行数据为空时，会抛出NOT FOUND异常。但是！但是！当使用普通的SELECT语句时，查询为空也会抛出NOT FOUND异常，就会触发设定好的NOT FOUND异常处理程序，所以如果遍历游标的循环体内如果存在查询为空，会导致循环提前退出。</p>
+<h3 id="3-复现"><a href="#3-复现" class="headerlink" title="3. 复现"></a>3. 复现</h3><h4 id="3-1-相关的表"><a href="#3-1-相关的表" class="headerlink" title="3.1 相关的表"></a>3.1 相关的表</h4><ul>
+<li>inst（inst_id, tenant_id, user_id）</li>
+<li>data_resource(resource_id, inst_id)</li>
+</ul>
+<h4 id="3-2-错误示例"><a href="#3-2-错误示例" class="headerlink" title="3.2 错误示例"></a>3.2 错误示例</h4><p>这里在游标循环里面使用inst_id查询了关联表data_resource，但是当data_resource表中没有这条数据的时候就会出现NOT FOUND异常，将finished设置为TRUE，提前结束游标循环。如，本来是要显示inst_id为1、2、3这三行，但是当inst_id&#x3D;2时，data_resource表查询为空，就只显示inst_id为1这一行。</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">    DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">    DECLARE v_tenant_id BIGINT;</span><br><span class="line">    DECLARE v_user_id BIGINT;</span><br><span class="line">    DECLARE v_resource_id BIGINT;</span><br><span class="line">    -- 定义游标循环结束条件</span><br><span class="line">    DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">    -- 定义游标</span><br><span class="line">    DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">    -- 定义NOT FOUND结束处理程序</span><br><span class="line">    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">    </span><br><span class="line">    -- 开始使用游标</span><br><span class="line">    OPEN my_cursor;</span><br><span class="line">        foreach_inst: LOOP</span><br><span class="line">        FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 判断游标是否已经达到末尾</span><br><span class="line">            IF finished = TRUE THEN</span><br><span class="line">                LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">            END IF;</span><br><span class="line">            -- 显示当前行</span><br><span class="line">            SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 问题行！！！！</span><br><span class="line">            SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">            -- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">        -- 回到标签foreach_inst</span><br><span class="line">        END LOOP foreach_inst;</span><br><span class="line">    -- 关闭游标</span><br><span class="line">    CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="3-3-正确示例"><a href="#3-3-正确示例" class="headerlink" title="3.3 正确示例"></a>3.3 正确示例</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">    DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">    DECLARE v_tenant_id BIGINT;</span><br><span class="line">    DECLARE v_user_id BIGINT;</span><br><span class="line">    DECLARE v_resource_id BIGINT;</span><br><span class="line">    -- 定义游标循环结束条件</span><br><span class="line">    DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">    -- 定义游标</span><br><span class="line">    DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">    -- 定义NOT FOUND结束处理程序</span><br><span class="line">    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">    </span><br><span class="line">    -- 开始使用游标</span><br><span class="line">    OPEN my_cursor;</span><br><span class="line">        foreach_inst: LOOP</span><br><span class="line">        FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 判断游标是否已经达到末尾</span><br><span class="line">            IF finished = TRUE THEN</span><br><span class="line">                LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">            END IF;</span><br><span class="line">            -- 显示当前行</span><br><span class="line">            SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 问题行！！！！</span><br><span class="line">            -- SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">            SET v_resource_id = (SELECT resource_id FROM data_resource WHERE inst_id = v_inst_id);</span><br><span class="line">            -- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">        -- 回到标签foreach_inst</span><br><span class="line">        END LOOP foreach_inst;</span><br><span class="line">    -- 关闭游标</span><br><span class="line">    CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="4-解决办法"><a href="#4-解决办法" class="headerlink" title="4. 解决办法"></a>4. 解决办法</h3><ul>
+<li>保证循环中的查询不会出现 NOT FOUND 异常</li>
+<li>使用<code>SET variable = (SELECT cloumn FROM table);</code> 来设置变量，替代<code>SELECT cloumn INTO variable FROM table;</code> 的方式</li>
+</ul>
+]]></content>
+      <tags>
+        <tag>MySQL</tag>
       </tags>
   </entry>
   <entry>
@@ -719,6 +719,45 @@
       </tags>
   </entry>
   <entry>
+    <title>python模块加载顺序</title>
+    <url>/2022/08/17/python%E6%A8%A1%E5%9D%97%E5%8A%A0%E8%BD%BD%E9%A1%BA%E5%BA%8F/</url>
+    <content><![CDATA[<blockquote>
+<p>结论：工程自定义包 -&gt; 工程py文件 -&gt; 系统路径 </p>
+<p>所以如果在工程中自己创建了跟系统&#x2F;第三方模块重名的模块时，则无法加载系统&#x2F;第三方模块</p>
+</blockquote>
+<p>python出于性能考虑，每个模块在每个解释器会话中只导入一遍，所以如果程序运行过程中，你修改了自定义模块，那么需要重启解释器（即重启程序）或者使用<code>reload(moduleName)</code>重新加载模块（不用重启）</p>
+<h3 id="1-查看模块加载路径"><a href="#1-查看模块加载路径" class="headerlink" title="1. 查看模块加载路径"></a>1. 查看模块加载路径</h3><blockquote>
+<p>python解析器会从脚本执行目录、所有已安装内置模块和第三方模块中寻找导入的模块，按照sys.path中的路径顺序进行查找</p>
+</blockquote>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 查看sys.path</span></span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">import</span> sys</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>sys.path</span><br><span class="line">[<span class="string">&#x27;&#x27;</span>, <span class="string">&#x27;/usr/lib64/python27.zip&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/plat-linux2&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-tk&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-old&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-dynload&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/site-packages&#x27;</span>, <span class="string">&#x27;/usr/lib/python2.7/site-packages&#x27;</span>]</span><br><span class="line"><span class="comment"># 这里的列表中的第一个&#x27;&#x27;代表着当前目录，如果是使用文件执行，则是显示的脚本所在目录</span></span><br><span class="line"><span class="comment"># 可以通过sys.path.append(&#x27;/Users/michael/my_py_scripts&#x27;)临时添加搜索目录</span></span><br><span class="line"><span class="comment"># 或将目录添加到shell环境变量PYTHONPATH中</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="2-自定义模块加载"><a href="#2-自定义模块加载" class="headerlink" title="2. 自定义模块加载"></a>2. 自定义模块加载</h3><ol>
+<li>导入一个叫<code>spam</code>的模块时，解释器先在当前目录中搜索名为<code>spam.py</code>的文件，import语句导入<code>spam.py</code>文件时，顺序执行其中的语句</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">目录结构</span><br><span class="line">projects/</span><br><span class="line">    test.py   # 内容 import spam</span><br><span class="line">    spam.py   # 内容 print(&quot;this is spam.py&quot;)</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">#</span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam.py</span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li><strong>目录下存在<code>spam</code>包时，则优先调用<code>spam</code>包，不加载<code>spam.py</code>。加载包内文件时，先执行<code>__init__.py</code>再加载包内文件内容</strong></li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">目录结构</span><br><span class="line">projects/</span><br><span class="line">    test.py   # 内容 import spam</span><br><span class="line">    spam.py   # 内容 print(&quot;this is spam.py&quot;)</span><br><span class="line">    spam/ </span><br><span class="line">        __init__.py  # 内容 print(&quot;this is spam/__init__.py&quot;)</span><br><span class="line">        sub.py        # 内容 print(&quot;this is spam/sub.py&quot;)</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam/__init__.py</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">修改test.py</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">echo</span> <span class="string">&quot;import spam.sub&quot;</span> &gt; test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam/__init__.py</span><br><span class="line">this is spam/sub.py</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="3-查看第三方模块的所在路径"><a href="#3-查看第三方模块的所在路径" class="headerlink" title="3. 查看第三方模块的所在路径"></a>3. 查看第三方模块的所在路径</h3><p>哪如果想知道导入的第三方模块具体文件在哪里咋办呢？</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">import</span> imp</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>imp.find_module(<span class="string">&quot;paramiko&quot;</span>)</span><br><span class="line">(<span class="literal">None</span>, <span class="string">&#x27;/usr/local/lib/python3.6/site-packages/paramiko&#x27;</span>, (<span class="string">&#x27;&#x27;</span>, <span class="string">&#x27;&#x27;</span>, <span class="number">5</span>))</span><br></pre></td></tr></table></figure>
+
+]]></content>
+      <tags>
+        <tag>python</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>python包安装与卸载</title>
     <url>/2022/08/17/python%E5%8C%85%E5%AE%89%E8%A3%85%E4%B8%8E%E5%8D%B8%E8%BD%BD/</url>
     <content><![CDATA[<h3 id="1-python包安装方式"><a href="#1-python包安装方式" class="headerlink" title="1. python包安装方式"></a>1. python包安装方式</h3><ol>
@@ -768,45 +807,6 @@
 <h4 id="4-2-安装模块"><a href="#4-2-安装模块" class="headerlink" title="4.2 安装模块"></a>4.2 安装模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">easy_install module</span><br><span class="line">easy_install module==version   # 安装指定版本</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">指定镜像源安装</span></span><br><span class="line">esay_install -i `镜像源` module </span><br></pre></td></tr></table></figure>
 
 <h4 id="4-3-卸载模块"><a href="#4-3-卸载模块" class="headerlink" title="4.3 卸载模块"></a>4.3 卸载模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">easy_install -m module</span><br></pre></td></tr></table></figure>
-
-]]></content>
-      <tags>
-        <tag>python</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>python模块加载顺序</title>
-    <url>/2022/08/17/python%E6%A8%A1%E5%9D%97%E5%8A%A0%E8%BD%BD%E9%A1%BA%E5%BA%8F/</url>
-    <content><![CDATA[<blockquote>
-<p>结论：工程自定义包 -&gt; 工程py文件 -&gt; 系统路径 </p>
-<p>所以如果在工程中自己创建了跟系统&#x2F;第三方模块重名的模块时，则无法加载系统&#x2F;第三方模块</p>
-</blockquote>
-<p>python出于性能考虑，每个模块在每个解释器会话中只导入一遍，所以如果程序运行过程中，你修改了自定义模块，那么需要重启解释器（即重启程序）或者使用<code>reload(moduleName)</code>重新加载模块（不用重启）</p>
-<h3 id="1-查看模块加载路径"><a href="#1-查看模块加载路径" class="headerlink" title="1. 查看模块加载路径"></a>1. 查看模块加载路径</h3><blockquote>
-<p>python解析器会从脚本执行目录、所有已安装内置模块和第三方模块中寻找导入的模块，按照sys.path中的路径顺序进行查找</p>
-</blockquote>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 查看sys.path</span></span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">import</span> sys</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>sys.path</span><br><span class="line">[<span class="string">&#x27;&#x27;</span>, <span class="string">&#x27;/usr/lib64/python27.zip&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/plat-linux2&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-tk&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-old&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-dynload&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/site-packages&#x27;</span>, <span class="string">&#x27;/usr/lib/python2.7/site-packages&#x27;</span>]</span><br><span class="line"><span class="comment"># 这里的列表中的第一个&#x27;&#x27;代表着当前目录，如果是使用文件执行，则是显示的脚本所在目录</span></span><br><span class="line"><span class="comment"># 可以通过sys.path.append(&#x27;/Users/michael/my_py_scripts&#x27;)临时添加搜索目录</span></span><br><span class="line"><span class="comment"># 或将目录添加到shell环境变量PYTHONPATH中</span></span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="2-自定义模块加载"><a href="#2-自定义模块加载" class="headerlink" title="2. 自定义模块加载"></a>2. 自定义模块加载</h3><ol>
-<li>导入一个叫<code>spam</code>的模块时，解释器先在当前目录中搜索名为<code>spam.py</code>的文件，import语句导入<code>spam.py</code>文件时，顺序执行其中的语句</li>
-</ol>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">目录结构</span><br><span class="line">projects/</span><br><span class="line">    test.py   # 内容 import spam</span><br><span class="line">    spam.py   # 内容 print(&quot;this is spam.py&quot;)</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">#</span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam.py</span><br></pre></td></tr></table></figure>
-
-<ol start="2">
-<li><strong>目录下存在<code>spam</code>包时，则优先调用<code>spam</code>包，不加载<code>spam.py</code>。加载包内文件时，先执行<code>__init__.py</code>再加载包内文件内容</strong></li>
-</ol>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">目录结构</span><br><span class="line">projects/</span><br><span class="line">    test.py   # 内容 import spam</span><br><span class="line">    spam.py   # 内容 print(&quot;this is spam.py&quot;)</span><br><span class="line">    spam/ </span><br><span class="line">        __init__.py  # 内容 print(&quot;this is spam/__init__.py&quot;)</span><br><span class="line">        sub.py        # 内容 print(&quot;this is spam/sub.py&quot;)</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam/__init__.py</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">修改test.py</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">echo</span> <span class="string">&quot;import spam.sub&quot;</span> &gt; test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam/__init__.py</span><br><span class="line">this is spam/sub.py</span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="3-查看第三方模块的所在路径"><a href="#3-查看第三方模块的所在路径" class="headerlink" title="3. 查看第三方模块的所在路径"></a>3. 查看第三方模块的所在路径</h3><p>哪如果想知道导入的第三方模块具体文件在哪里咋办呢？</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">import</span> imp</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>imp.find_module(<span class="string">&quot;paramiko&quot;</span>)</span><br><span class="line">(<span class="literal">None</span>, <span class="string">&#x27;/usr/local/lib/python3.6/site-packages/paramiko&#x27;</span>, (<span class="string">&#x27;&#x27;</span>, <span class="string">&#x27;&#x27;</span>, <span class="number">5</span>))</span><br></pre></td></tr></table></figure>
 
 ]]></content>
       <tags>
