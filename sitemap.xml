@@ -2,6 +2,17 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>http://example.com/2022/12/05/Java%E4%B8%AD%E7%9A%84BIO%E3%80%81NIO%E3%80%81AIO/</loc>
+    
+    <lastmod>2023-01-03T14:45:59.477Z</lastmod>
+    
+    <date>1670222790000</date>
+    <title>Java中的BIO、NIO、AIO | IceVitalemon's Blog</title>
+    
+    <desc>1. I&#x2F;O Input&#x2F;Output的缩写，简单的理解为数据的输入输出，通常有网络IO、磁盘IO。而IO的类型又分为同步&#x2F;异步IO、阻塞&#x2F;非阻塞I&#x2F;O，组合成具体的IO模型。IO属于操作系统层面上的知识，Java只是在操作系统提供的系统调用上封装了操作接口。</desc>
+  </url>
+  
+  <url>
     <loc>http://example.com/2022/12/05/SpringBoot%E4%B8%AD%E4%BD%BF%E7%94%A8Zookeeper%E8%BF%9B%E8%A1%8C%E6%9C%8D%E5%8A%A1%E5%8F%91%E7%8E%B0/</loc>
     
     <lastmod>2023-01-03T14:36:04.001Z</lastmod>
@@ -153,17 +164,6 @@
     <title>MySQL储存过程游标使用踩坑（NOT FOUND） | IceVitalemon's Blog</title>
     
     <desc>1. 具体问题在使用游标的过程中，通常都会使用未找到（NOT FOUND或者SQLSTATE ‘02000’）的条件来标识游标的结束。</desc>
-  </url>
-  
-  <url>
-    <loc>http://example.com/2022/12/05/Java%E4%B8%AD%E7%9A%84BIO%E3%80%81NIO%E3%80%81AIO/</loc>
-    
-    <lastmod>2022-12-05T07:15:41.369Z</lastmod>
-    
-    <date>1670222790000</date>
-    <title>Java中的BIO、NIO、AIO | IceVitalemon's Blog</title>
-    
-    <desc>1. I&#x2F;O Input&#x2F;Output的缩写，简单的理解为数据的输入输出，通常有网络IO、磁盘IO。而IO的类型又分为同步&#x2F;异步IO、阻塞&#x2F;非阻塞I&#x2F;O，组合成具体的IO模型。IO属于操作系统层面上的知识，Java只是在操作系统提供的系统调用上封装了操作接口。</desc>
   </url>
   
   <url>
