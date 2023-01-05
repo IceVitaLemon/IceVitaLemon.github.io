@@ -308,6 +308,276 @@
       </tags>
   </entry>
   <entry>
+    <title>LVS负载均衡实战</title>
+    <url>/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/</url>
+    <content><![CDATA[<h3 id="1-前言"><a href="#1-前言" class="headerlink" title="1. 前言"></a>1. 前言</h3><p>LVS的作用就是用作<strong>四层</strong>的<strong>负载均衡</strong>，四层是指<code>TCP/IP</code>七层协议中的传输层。目的是请求按一定的<strong>调度策略</strong>把用户的请求分发到多台后端设备上。区别于nginx，nginx是七层的负载均衡，能够看到http协议，而LVS只能看到四层的协议，即TCP协议等，所以无法通过Http cookie处理session。</p>
+<h3 id="2-简介"><a href="#2-简介" class="headerlink" title="2. 简介"></a>2. 简介</h3><p><a href="http://www.linuxvirtualserver.org/">LVS（Linux Virtual Server）</a>即Linux虚拟服务器，由章文嵩博士开发并已贡献给开源社区，用于构建高性能、高可用的Linux服务器集群，具有良好的可靠性、可扩展性和可操作性。</p>
+<blockquote>
+<p>LVS的高可用需要结合Keepalived，不然的话其实只有一个前端负载均衡节点负责着绑定到LVS上的IP流量，所以当这个前端负载均衡节点挂了之后，IP流量就无法分发到后端真实工作服务器上。Keepalived的作用就是保证前端负载均衡节点的高可用。</p>
+</blockquote>
+<h4 id="2-1-LVS的组成"><a href="#2-1-LVS的组成" class="headerlink" title="2.1 LVS的组成"></a>2.1 LVS的组成</h4><p>LVS主要由<code>ipvs</code>和<code>ipvsadm</code>两部分组成。</p>
+<ol>
+<li><code>ipvs(ip virtual server)</code>是工作在Linux内核态的四层负载均衡，是真正实现调度的程序，基于内核底层<code>netfilter</code>实现，通过<code>netfilter</code>的处理链上的钩子实现包的处理和转发。</li>
+<li><code>ipvsadm</code>工作在用户空间，负责与ipvs之间的交互，为ipvs框架编写规则，定义谁是前端负载均衡节点，谁是后端的真实服务器</li>
+</ol>
+<h4 id="2-2-LVS的三种工作模式"><a href="#2-2-LVS的三种工作模式" class="headerlink" title="2.2 LVS的三种工作模式"></a>2.2 LVS的三种工作模式</h4><ul>
+<li><p>VS&#x2F;NAT（Virtual Server via Network Address Translation）</p>
+<ul>
+<li>通过网络地址转换NAT实现</li>
+<li>调度器重写请求报文的目标地址，将请求分派到后端的真实服务器</li>
+<li>真实服务器将响应报文交给调度器，响应报文的源地址被重写，再转发给客户</li>
+<li>请求和响应都经过调度器</li>
+</ul>
+</li>
+<li><p>VS&#x2F;TUN（Virtual Server via IP Tunneling）</p>
+<ul>
+<li>通过IP隧道实现</li>
+<li>请求报文到达调度器之后，通过IP隧道转发到后端真实服务器</li>
+<li>真实服务器将响应报文直接返回给客户</li>
+<li>调度器只处理请求报文</li>
+</ul>
+</li>
+<li><p>VS&#x2F;DR（Virtual Server via Direct Routing）</p>
+<ul>
+<li>通过改写请求报文的MCA地址实现</li>
+<li>请求报文到达调度器之后，改写报文的MAC地址，发送到后端真实服务器</li>
+<li>真实服务器将响应报文直接返回给客户</li>
+<li>调度器只处理请求报文</li>
+</ul>
+</li>
+</ul>
+<h5 id="2-2-1-三种模式的主要区别"><a href="#2-2-1-三种模式的主要区别" class="headerlink" title="2.2.1 三种模式的主要区别"></a>2.2.1 三种模式的主要区别</h5><table>
+<thead>
+<tr>
+<th>模式与特点</th>
+<th>NAT模式</th>
+<th>TUN模式</th>
+<th>DR模式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>服务器要求</td>
+<td>服务器节点可以使用任何操作系统</td>
+<td>必须支持IP隧道</td>
+<td>服务器节点支持虚拟网卡设备，能够禁用设备的ARP响应</td>
+</tr>
+<tr>
+<td>网络要求</td>
+<td>拥有私有IP地址的局域网络</td>
+<td>拥有合法IP地址的局域网或广域网</td>
+<td>拥有合法IP地址的局域网，服务器节点与调度器必须在同一个网段</td>
+</tr>
+<tr>
+<td>支持节点数</td>
+<td>10到20个，根据调度器的处理能力而定</td>
+<td>较高，可以支持100个服务节点</td>
+<td>较高，可以支持100个服务节点</td>
+</tr>
+<tr>
+<td>网关</td>
+<td>调度器为服务器节点网关</td>
+<td>服务器节点同自己的网关或者路由器连接，不经过负载均衡器</td>
+<td>服务器节点同自己的网关或者路由器连接，不经过负载均衡器</td>
+</tr>
+<tr>
+<td>IP要求</td>
+<td>仅需要一个合法的IP地址作为调度器的VIP地址</td>
+<td>除了VIP地址外，每个服务器需要有能够路由到客户端的IP地址</td>
+<td>除了VIP地址外，每个服务器需要有能够路由到客户端的IP地址</td>
+</tr>
+<tr>
+<td>特点</td>
+<td>地址转换</td>
+<td>封装IP</td>
+<td>修改MAC地址</td>
+</tr>
+</tbody></table>
+<h4 id="2-3-调度算法"><a href="#2-3-调度算法" class="headerlink" title="2.3 调度算法"></a>2.3 调度算法</h4><blockquote>
+<p>只做简单介绍，其中缩写英文用于在ipvsadm命令中指定集群调度算法</p>
+</blockquote>
+<ul>
+<li>轮询算法 <code>rr</code>（Round Robin）</li>
+<li>加权轮询算法 <code>wrr</code> （Weighted Round Robin）</li>
+<li>源地址哈希算法 <code>sh</code> （Source Hashing）</li>
+<li>目标地址哈希算法 <code>dh</code> （Destination Hashing）</li>
+<li>最少连接算法 <code>lc</code> （Least Connections）</li>
+<li>加权最少连接算法 <code>wlc</code> （Weighted Least Connection）</li>
+<li>最短期望延迟算法 <code>sed</code> （Shortest Expected Delay Scheduling）</li>
+<li>最少队列算法 <code>nq</code> （Never Queue Scheduling）</li>
+<li>基于局部的最少连接算法 <code>lblc</code> （Locality-Based Least Connections）</li>
+<li>带复制的基于局部的最少连接算法 <code>lblcr</code> （Locality-Based Least Connections with Replication）</li>
+<li>FO算法 <code>fo</code> （Weighted Fail Over）</li>
+<li>OVF算法 <code>ovf</code> （Overflow-connection）</li>
+</ul>
+<h3 id="3-工作原理"><a href="#3-工作原理" class="headerlink" title="3. 工作原理"></a>3. 工作原理</h3><blockquote>
+<p>重点理解报文包源和目的IP地址、源和目的MAC地址的变化</p>
+</blockquote>
+<h4 id="3-1-别称约定"><a href="#3-1-别称约定" class="headerlink" title="3.1 别称约定"></a>3.1 别称约定</h4><ul>
+<li>服务器<ul>
+<li>DS (Director Server)，指的是前端负载均衡器节点，即调度器</li>
+<li>RS (Real Server)，后端真实的工作服务器</li>
+</ul>
+</li>
+<li>IP地址<ul>
+<li>CIP (Client IP)，访问客户端的 IP 地址</li>
+<li>VIP (Virtual IP)，虚拟的 IP 地址，向外部直接面向用户请求，作为用户请求的目标的 IP 地址</li>
+<li>DIP (Director IP)，主要用于和内部主机通讯的 IP 地址</li>
+<li>RIP (Real Server IP)，后端服务器的 IP 地址</li>
+</ul>
+</li>
+<li>netfilter的五个阶段<ul>
+<li>PREROUTING</li>
+<li>INPUT</li>
+<li>OUTPUT</li>
+<li>FORWARD</li>
+<li>POSTROUTING</li>
+</ul>
+</li>
+</ul>
+<h4 id="3-2-LVS-x2F-NAT和FULLNAT"><a href="#3-2-LVS-x2F-NAT和FULLNAT" class="headerlink" title="3.2 LVS&#x2F;NAT和FULLNAT"></a>3.2 LVS&#x2F;NAT和FULLNAT</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_NAT.png" alt="LVS_NAT"></p>
+<blockquote>
+<p>还有一种工作模式是LVS&#x2F;FULLNAT。在DS将请求报文转发给RS时（即第三步），LVS&#x2F;NAT模式只修改目标IP为RIP，而LVS&#x2F;FULLNAT则同时将CIP和VIP分别修改为DIP和RIP。NAT模式DS和RS都需要在同一个子网（因为RS的网关为DS），FULLNAT模式DS和RS只要能通信可以不在同一个子网。</p>
+</blockquote>
+<ol>
+<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
+<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
+<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，则修改数据包的目标IP地址为RS的RIP地址，然后将数据包发送至<code>POSTROUTING</code>调用链。此时，请求报文的<strong>源IP为CIP，目标IP为RIP</strong></li>
+<li><code>POSTROUTING</code>链通过路由，将数据包发送给RS</li>
+<li>RS接收到请求报文，开始构建响应报文返回给DS（因为DS是RS的网关，所以一定得经过DS）。此时响应报文的<strong>源IP为RIP，目标IP为CIP</strong></li>
+<li>DS在将响应报文发送给Client前，会将源IP地址修改为自己的VIP地址，然后发送给Client。此时报文的<strong>源IP为VIP，目标IP为CIP</strong></li>
+</ol>
+<h4 id="3-3-LVS-x2F-TUN"><a href="#3-3-LVS-x2F-TUN" class="headerlink" title="3.3 LVS&#x2F;TUN"></a>3.3 LVS&#x2F;TUN</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_TUN.png" alt="LVS_TUN"></p>
+<blockquote>
+<p>通过IP隧道时，在原有的IP报文外再次封装多一层IP首部，内层IP首部（源为CIP，目的为VIP），外层IP首部（源为DIP，目的为RIP）</p>
+</blockquote>
+<ol>
+<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
+<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
+<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，将整个请求包作为数据封装到一个新的IP报文中，新的封装报文<strong>源IP为DIP，目的IP为RIP</strong>。然后将新报文发送到<code>POSTROUTING</code>调用链</li>
+<li><code>POSTROUTING</code>根据新封装报文的目的IP地址将报文路由到RS，此时新报文<strong>源IP为DIP，目的IP为RIP</strong></li>
+<li>RS接收到报文之后，拆除掉外层的IP首部，会发现里面还有一层IP首部，而且目标IP是自己的lo接口VIP。此时，RS处理请求，将响应报文通过lo接口送给eth0网卡(与外网相接)，然后将报文路由到Client。此时<strong>源IP为VIP，目的IP为CIP</strong></li>
+<li>响应报文最终路由到Client</li>
+</ol>
+<h4 id="3-3-LVS-x2F-DR"><a href="#3-3-LVS-x2F-DR" class="headerlink" title="3.3 LVS&#x2F;DR"></a>3.3 LVS&#x2F;DR</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_DR.png" alt="LVS_DR"></p>
+<blockquote>
+<p>DS与RS必须在同一个物理网络中</p>
+</blockquote>
+<ol>
+<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
+<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
+<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，则将请求报文中的<strong>源MAC地址修改为DIP的MAC地址，将目标MAC地址修改为RIP的MAC地址</strong>，然后将数据包发送至<code>POSTROUTING</code>调用链。此时的源IP和目的IP均未修改，仅修改了源MAC地址和目的MAC地址</li>
+<li>由于DS和RS在同一个网络中，所以是通过数据链路层来传输。<code>POSTROUTING</code>检查目标MAC地址为RIP的MAC地址，那么此时数据包将会通过交换机发送至RS（因为在同一个网段，所以不会发送到网关，而是发送到内部网络中）</li>
+<li>RS接收到报文之后，发现MAC地址为自己的MAC地址，接收此报文并转交给上层协议。处理完成后，响应报文通过lo接口的VIP传送给eth0网卡向外发出。此时，响应报文的<strong>源IP为VIP，目的IP为CIP</strong></li>
+<li>响应报文最终路由到Client</li>
+</ol>
+<blockquote>
+<p>其中第3、5步是最为关键的，三个问题：</p>
+<ul>
+<li>DS如何知道RS的MAC地址</li>
+<li>RS如何接收目标IP为VIP的报文</li>
+<li>如何保证RS在源IP为VIP的情况下，将响应报文发送至外网</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>第一个问题：DS如何知道RS的MAC地址？</p>
+<ul>
+<li>这个问题比较简单，因为DS必须要知道管理的RS的RIP地址，所以用ARP协议发送一个带有RIP的广播包。RS接收到这个广播包之后，打开并查看其中的IP是自己的RIP，就发送一个响应包，目的MAC地址是DS网卡接口的，而源MAC地址是RS网卡接口的。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>第二个问题：RS如何接收目标IP为VIP的报文</p>
+<ul>
+<li>要解决这个问题需要借助回环接口。在回环接口上配置VIP，在eth0上设置arp_ignore&#x3D;1。</li>
+<li>首先，RS通过请求报文中的目的MAC地址接收到报文后，会将其交给上层协议，即网络层，然后回判断目的IP地址是不是自己。正常情况下，这里的目的IP地址是VIP，但是我RS的网络接口地址是RIP，对不上，会不处理。</li>
+<li>于是需要配一个VIP地址到接口上。配到哪里呢？如果是配到eth0上，那在内部网络中使用ARP协议查找DS时，RS的eth0接口也会将自己的MAC地址返回，那不是发生IP冲突了？因此需要回环接口。<strong>回环接口是个逻辑接口，没有MAC地址，不会接收到ARP请求，因此也不会发送ARP响应，但是能够接收到IP数据报文</strong>。所以应该将VIP配置在回环接口上，但是有一个问题是，在默认arp_ignore&#x3D;0（代表回应任何网络接口上对任何本地IP地址的ARP查询请求）的情况下，eth0接口收到了对回环接口上的VIP地址的ARP请求，会将自己eth0接口的MAC地址响应出去，同样会发生IP冲突。所以需要将arg_ignore设置为1，即只响应目标IP地址为绑定在本接口的IP地址的ARP查询请求。如果有多张网卡，多张网卡都需要设置为1。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>第三个问题：如何保证RS在源IP为VIP的情况下，将响应报文发送至外网</p>
+<ul>
+<li>为什么会有这个问题呢？因为linux默认是使用IP报文的源IP作为ARP查询请求中的源IP地址，那么当RS发出ARP查询请求寻找能到达Client的网关MAC地址时，内部网络中的交换机会记录ARP查询请求中VIP地址和MAC地址作为以后转发接口使用，这样就会跟DS中配置的VIP网卡的MAC地址冲突了。</li>
+<li>咋办呢？配置eth0接口的arp_announce为2。arp_announce &#x3D; 0 (默认)表示在任意网络接口上的任何本地地址；arp_announce&#x3D; 2 表示对查询目标使用最适当的本地地址，此模式下将忽略这个IP数据包的源地址并尝试选择与能跟该地址通信的本地地址。优先选择所有网络接口的子网中外出访问子网中包含该目标 IP 地址的本地地址；如果没有合适的地址被发现，将选择当前的发送网络接口或其他的有可能接受到该 ARP 回应的网络接口来进行发送。</li>
+</ul>
+</blockquote>
+<h3 id="4-实战"><a href="#4-实战" class="headerlink" title="4. 实战"></a>4. 实战</h3><blockquote>
+<p>主要了解ipvsadm命令的使用，以及实际的路由规则</p>
+</blockquote>
+<h4 id="4-1-环境信息"><a href="#4-1-环境信息" class="headerlink" title="4.1 环境信息"></a>4.1 环境信息</h4><ul>
+<li>操作系统：Centos 7</li>
+<li>内核版本： 3.10.0-1160.el7.x86_64</li>
+<li>LVS工作模式：NAT</li>
+<li>网络信息</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>主机地址</th>
+<th>Director Server 01</th>
+<th>Real Server 01</th>
+<th>Real Server 02</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>IP</td>
+<td>172.23.118.10（内网IP）<br />192.23.118.13（VIP，对外访问）</td>
+<td>172.23.118.11（RIP）</td>
+<td>172.23.118.12（RIP）</td>
+</tr>
+<tr>
+<td>端口</td>
+<td>80</td>
+<td>80</td>
+<td>80</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>需要事先将RS的默认网关设置为DS的内网地址172.23.118.10</strong>（反正要保证RS对客户端的响应能够先到达DS）</p>
+<p>其实这里DS的内网IP和VIP可以设置成同一个，但是通常在生产环境中，为了对外提供LVS集群服务，需要一个外网IP作为VIP</p>
+<p>我这里把DS的VIP绑定在了另外一个网卡上</p>
+</blockquote>
+<h4 id="4-2-LVS安装"><a href="#4-2-LVS安装" class="headerlink" title="4.2 LVS安装"></a>4.2 LVS安装</h4><p>Linux内核2.4版本以上基本都支持LVS，即已经有了<code>ipvs</code>，所以要想使用LVS只需要再装一个LVS管理工具<code>ipvsadm</code>。</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">sudo yum install ipvsadm -y</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-3-Nginx安装"><a href="#4-3-Nginx安装" class="headerlink" title="4.3 Nginx安装"></a>4.3 Nginx安装</h4><p>安装nginx主要是为了方便测试请求被路由到那台服务器上</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">所有机器上执行</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装nginx</span></span><br><span class="line">sudo yum install nginx -y</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">启动nginx服务，默认80端口</span></span><br><span class="line">sudo servcie start nginx</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在DS上执行</span></span><br><span class="line">echo &#x27;DS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS01上执行</span></span><br><span class="line">echo &#x27;RS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS02上执行</span></span><br><span class="line">echo &#x27;RS02&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-4-关闭linux防火墙"><a href="#4-4-关闭linux防火墙" class="headerlink" title="4.4 关闭linux防火墙"></a>4.4 关闭linux防火墙</h4><p>不然无法从DS访问到RS的80端口。在生产环境下，通常只放开需要的端口。</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">关闭linux防火墙</span></span><br><span class="line">sudo systemctl stop firewalld</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-5-配置LVS"><a href="#4-5-配置LVS" class="headerlink" title="4.5 配置LVS"></a>4.5 配置LVS</h4><p>开始设置LVS集群</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">ipvsadm常用配置参数</span></span><br><span class="line">-A     添加虚拟服务VIP</span><br><span class="line">-D     删除虚拟服务VIP</span><br><span class="line">-L     查看虚拟服务VIP</span><br><span class="line">-C     清除所有虚拟服务VIP</span><br><span class="line"></span><br><span class="line">-t     指定虚拟服务及端口 VIP:Port</span><br><span class="line">-r     指定真实服务及端口 RS:Port </span><br><span class="line">-s     指定算法，rr（轮询）、wrr（加权轮询）、lc（最少连接）、sh（源地址散列）、dh(目标地址散列) 等等</span><br><span class="line">-w     指定权重</span><br><span class="line">-m     指定转发模式为NAT</span><br><span class="line">-g     指定转发模式为DR</span><br><span class="line">-i     指定转发模式为IP隧道</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在DS01上执行</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">开启IP数据包转发功能</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">以下命令只是暂时开启转发，重启后会失效</span></span><br><span class="line">echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">清除先前所有的ipvs配置信息</span></span><br><span class="line">sudo ipvsadm -C</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">添加一个LVS集群并且指定调度算法</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-A:添加集群 -t:VIP和端口 -s:调度算法</span></span><br><span class="line">sudo ipvsadm -A -t 192.23.118.13:80 -s rr</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">向LVS集群中添加真实服务器</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-a:添加真实服务器 -t:VIP和端口 -r:RIP和端口 -m:NAT模式 -w:转发权重</span></span><br><span class="line">sudo ipvsadm -a -t 192.23.118.13:80 -r 172.23.118.11:80 -m -w 1</span><br><span class="line">sudo ipvsadm -a -t 192.23.118.13:80 -r 172.23.118.12:80 -m -w 1</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">可以查看路由信息</span></span><br><span class="line">sudo watch ipvsadm -L -n -c</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-6-结果"><a href="#4-6-结果" class="headerlink" title="4.6 结果"></a>4.6 结果</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看LVS集群信息</span></span><br><span class="line">[junhao@localhost ~]$ sudo ipvsadm --list</span><br><span class="line">IP Virtual Server version 1.2.1 (size=4096)</span><br><span class="line">Prot LocalAddress:Port Scheduler Flags</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">RemoteAddress:Port           Forward Weight ActiveConn InActConn</span></span><br><span class="line">TCP  192.23.118.13:http rr</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.23.118.11:http           Masq    1      0          0</span>         </span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.23.118.12:http           Masq    1      0          0</span> </span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">访问LVS集群VIP</span></span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS01</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS01</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-7-操作过程中的一些问题"><a href="#4-7-操作过程中的一些问题" class="headerlink" title="4.7 操作过程中的一些问题"></a>4.7 操作过程中的一些问题</h4><ul>
+<li>在RS中会无法访问VIP（即内网中无法访问VIP）</li>
+</ul>
+<p>其实问题的本质跟着请求的源地址和目的地址走一遍就知道了，在RS1中发出请求（RIP1，VIP）。请求是能够到达DS的，LVS进行负载均衡后请求变为（RIP1，RIP），<strong>注意这里LVS只改变了目标地址，不改变源地址</strong>，请求被分配到随便一台真实服务器，RS1、RS2都可以。然后真实服务器接收到请求，处理之后根据源地址RIP1发出响应，<strong>注意这里因为RS1和RS2都在一个网段，所以响应发出后不会经过网关，即DS，而是在内网中发到RS1</strong>。然后没经过DS处理的响应（RIP，RIP1）就回到RS1中，然后<strong>RS1发现响应的源地址和目标地址与自己发出的请求（RIP1，VIP）不一致，就会把这个响应丢弃，而期望的响应是（VIP，RIP1）</strong>。所以在RS1中就无法访问VIP。</p>
+<ul>
+<li>IP转发的配置好像没用</li>
+</ul>
+<p>在实际操作过程中，试着把ip_forward设置成0再curl，但是也能通，没啥问题，这是因为把VIP绑定在了网卡上，所以肯定是能接收到的。然后试着把VIP解绑，即不绑定在任何网卡上，但是这个时候网络就不通了，即使ip_forward设置成1也不行，不清楚原因。</p>
+]]></content>
+      <categories>
+        <category>计算机网络</category>
+      </categories>
+      <tags>
+        <tag>LVS</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Java中的BIO、NIO、AIO</title>
     <url>/2022/12/05/Java%E4%B8%AD%E7%9A%84BIO%E3%80%81NIO%E3%80%81AIO/</url>
     <content><![CDATA[<h3 id="1-I-x2F-O"><a href="#1-I-x2F-O" class="headerlink" title="1. I&#x2F;O"></a>1. I&#x2F;O</h3><blockquote>
@@ -1116,276 +1386,6 @@
       </tags>
   </entry>
   <entry>
-    <title>LVS负载均衡实战</title>
-    <url>/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/</url>
-    <content><![CDATA[<h3 id="1-前言"><a href="#1-前言" class="headerlink" title="1. 前言"></a>1. 前言</h3><p>LVS的作用就是用作<strong>四层</strong>的<strong>负载均衡</strong>，四层是指<code>TCP/IP</code>七层协议中的传输层。目的是请求按一定的<strong>调度策略</strong>把用户的请求分发到多台后端设备上。区别于nginx，nginx是七层的负载均衡，能够看到http协议，而LVS只能看到四层的协议，即TCP协议等，所以无法通过Http cookie处理session。</p>
-<h3 id="2-简介"><a href="#2-简介" class="headerlink" title="2. 简介"></a>2. 简介</h3><p><a href="http://www.linuxvirtualserver.org/">LVS（Linux Virtual Server）</a>即Linux虚拟服务器，由章文嵩博士开发并已贡献给开源社区，用于构建高性能、高可用的Linux服务器集群，具有良好的可靠性、可扩展性和可操作性。</p>
-<blockquote>
-<p>LVS的高可用需要结合Keepalived，不然的话其实只有一个前端负载均衡节点负责着绑定到LVS上的IP流量，所以当这个前端负载均衡节点挂了之后，IP流量就无法分发到后端真实工作服务器上。Keepalived的作用就是保证前端负载均衡节点的高可用。</p>
-</blockquote>
-<h4 id="2-1-LVS的组成"><a href="#2-1-LVS的组成" class="headerlink" title="2.1 LVS的组成"></a>2.1 LVS的组成</h4><p>LVS主要由<code>ipvs</code>和<code>ipvsadm</code>两部分组成。</p>
-<ol>
-<li><code>ipvs(ip virtual server)</code>是工作在Linux内核态的四层负载均衡，是真正实现调度的程序，基于内核底层<code>netfilter</code>实现，通过<code>netfilter</code>的处理链上的钩子实现包的处理和转发。</li>
-<li><code>ipvsadm</code>工作在用户空间，负责与ipvs之间的交互，为ipvs框架编写规则，定义谁是前端负载均衡节点，谁是后端的真实服务器</li>
-</ol>
-<h4 id="2-2-LVS的三种工作模式"><a href="#2-2-LVS的三种工作模式" class="headerlink" title="2.2 LVS的三种工作模式"></a>2.2 LVS的三种工作模式</h4><ul>
-<li><p>VS&#x2F;NAT（Virtual Server via Network Address Translation）</p>
-<ul>
-<li>通过网络地址转换NAT实现</li>
-<li>调度器重写请求报文的目标地址，将请求分派到后端的真实服务器</li>
-<li>真实服务器将响应报文交给调度器，响应报文的源地址被重写，再转发给客户</li>
-<li>请求和响应都经过调度器</li>
-</ul>
-</li>
-<li><p>VS&#x2F;TUN（Virtual Server via IP Tunneling）</p>
-<ul>
-<li>通过IP隧道实现</li>
-<li>请求报文到达调度器之后，通过IP隧道转发到后端真实服务器</li>
-<li>真实服务器将响应报文直接返回给客户</li>
-<li>调度器只处理请求报文</li>
-</ul>
-</li>
-<li><p>VS&#x2F;DR（Virtual Server via Direct Routing）</p>
-<ul>
-<li>通过改写请求报文的MCA地址实现</li>
-<li>请求报文到达调度器之后，改写报文的MAC地址，发送到后端真实服务器</li>
-<li>真实服务器将响应报文直接返回给客户</li>
-<li>调度器只处理请求报文</li>
-</ul>
-</li>
-</ul>
-<h5 id="2-2-1-三种模式的主要区别"><a href="#2-2-1-三种模式的主要区别" class="headerlink" title="2.2.1 三种模式的主要区别"></a>2.2.1 三种模式的主要区别</h5><table>
-<thead>
-<tr>
-<th>模式与特点</th>
-<th>NAT模式</th>
-<th>TUN模式</th>
-<th>DR模式</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>服务器要求</td>
-<td>服务器节点可以使用任何操作系统</td>
-<td>必须支持IP隧道</td>
-<td>服务器节点支持虚拟网卡设备，能够禁用设备的ARP响应</td>
-</tr>
-<tr>
-<td>网络要求</td>
-<td>拥有私有IP地址的局域网络</td>
-<td>拥有合法IP地址的局域网或广域网</td>
-<td>拥有合法IP地址的局域网，服务器节点与调度器必须在同一个网段</td>
-</tr>
-<tr>
-<td>支持节点数</td>
-<td>10到20个，根据调度器的处理能力而定</td>
-<td>较高，可以支持100个服务节点</td>
-<td>较高，可以支持100个服务节点</td>
-</tr>
-<tr>
-<td>网关</td>
-<td>调度器为服务器节点网关</td>
-<td>服务器节点同自己的网关或者路由器连接，不经过负载均衡器</td>
-<td>服务器节点同自己的网关或者路由器连接，不经过负载均衡器</td>
-</tr>
-<tr>
-<td>IP要求</td>
-<td>仅需要一个合法的IP地址作为调度器的VIP地址</td>
-<td>除了VIP地址外，每个服务器需要有能够路由到客户端的IP地址</td>
-<td>除了VIP地址外，每个服务器需要有能够路由到客户端的IP地址</td>
-</tr>
-<tr>
-<td>特点</td>
-<td>地址转换</td>
-<td>封装IP</td>
-<td>修改MAC地址</td>
-</tr>
-</tbody></table>
-<h4 id="2-3-调度算法"><a href="#2-3-调度算法" class="headerlink" title="2.3 调度算法"></a>2.3 调度算法</h4><blockquote>
-<p>只做简单介绍，其中缩写英文用于在ipvsadm命令中指定集群调度算法</p>
-</blockquote>
-<ul>
-<li>轮询算法 <code>rr</code>（Round Robin）</li>
-<li>加权轮询算法 <code>wrr</code> （Weighted Round Robin）</li>
-<li>源地址哈希算法 <code>sh</code> （Source Hashing）</li>
-<li>目标地址哈希算法 <code>dh</code> （Destination Hashing）</li>
-<li>最少连接算法 <code>lc</code> （Least Connections）</li>
-<li>加权最少连接算法 <code>wlc</code> （Weighted Least Connection）</li>
-<li>最短期望延迟算法 <code>sed</code> （Shortest Expected Delay Scheduling）</li>
-<li>最少队列算法 <code>nq</code> （Never Queue Scheduling）</li>
-<li>基于局部的最少连接算法 <code>lblc</code> （Locality-Based Least Connections）</li>
-<li>带复制的基于局部的最少连接算法 <code>lblcr</code> （Locality-Based Least Connections with Replication）</li>
-<li>FO算法 <code>fo</code> （Weighted Fail Over）</li>
-<li>OVF算法 <code>ovf</code> （Overflow-connection）</li>
-</ul>
-<h3 id="3-工作原理"><a href="#3-工作原理" class="headerlink" title="3. 工作原理"></a>3. 工作原理</h3><blockquote>
-<p>重点理解报文包源和目的IP地址、源和目的MAC地址的变化</p>
-</blockquote>
-<h4 id="3-1-别称约定"><a href="#3-1-别称约定" class="headerlink" title="3.1 别称约定"></a>3.1 别称约定</h4><ul>
-<li>服务器<ul>
-<li>DS (Director Server)，指的是前端负载均衡器节点，即调度器</li>
-<li>RS (Real Server)，后端真实的工作服务器</li>
-</ul>
-</li>
-<li>IP地址<ul>
-<li>CIP (Client IP)，访问客户端的 IP 地址</li>
-<li>VIP (Virtual IP)，虚拟的 IP 地址，向外部直接面向用户请求，作为用户请求的目标的 IP 地址</li>
-<li>DIP (Director IP)，主要用于和内部主机通讯的 IP 地址</li>
-<li>RIP (Real Server IP)，后端服务器的 IP 地址</li>
-</ul>
-</li>
-<li>netfilter的五个阶段<ul>
-<li>PREROUTING</li>
-<li>INPUT</li>
-<li>OUTPUT</li>
-<li>FORWARD</li>
-<li>POSTROUTING</li>
-</ul>
-</li>
-</ul>
-<h4 id="3-2-LVS-x2F-NAT和FULLNAT"><a href="#3-2-LVS-x2F-NAT和FULLNAT" class="headerlink" title="3.2 LVS&#x2F;NAT和FULLNAT"></a>3.2 LVS&#x2F;NAT和FULLNAT</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_NAT.png" alt="LVS_NAT"></p>
-<blockquote>
-<p>还有一种工作模式是LVS&#x2F;FULLNAT。在DS将请求报文转发给RS时（即第三步），LVS&#x2F;NAT模式只修改目标IP为RIP，而LVS&#x2F;FULLNAT则同时将CIP和VIP分别修改为DIP和RIP。NAT模式DS和RS都需要在同一个子网（因为RS的网关为DS），FULLNAT模式DS和RS只要能通信可以不在同一个子网。</p>
-</blockquote>
-<ol>
-<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
-<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
-<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，则修改数据包的目标IP地址为RS的RIP地址，然后将数据包发送至<code>POSTROUTING</code>调用链。此时，请求报文的<strong>源IP为CIP，目标IP为RIP</strong></li>
-<li><code>POSTROUTING</code>链通过路由，将数据包发送给RS</li>
-<li>RS接收到请求报文，开始构建响应报文返回给DS（因为DS是RS的网关，所以一定得经过DS）。此时响应报文的<strong>源IP为RIP，目标IP为CIP</strong></li>
-<li>DS在将响应报文发送给Client前，会将源IP地址修改为自己的VIP地址，然后发送给Client。此时报文的<strong>源IP为VIP，目标IP为CIP</strong></li>
-</ol>
-<h4 id="3-3-LVS-x2F-TUN"><a href="#3-3-LVS-x2F-TUN" class="headerlink" title="3.3 LVS&#x2F;TUN"></a>3.3 LVS&#x2F;TUN</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_TUN.png" alt="LVS_TUN"></p>
-<blockquote>
-<p>通过IP隧道时，在原有的IP报文外再次封装多一层IP首部，内层IP首部（源为CIP，目的为VIP），外层IP首部（源为DIP，目的为RIP）</p>
-</blockquote>
-<ol>
-<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
-<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
-<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，将整个请求包作为数据封装到一个新的IP报文中，新的封装报文<strong>源IP为DIP，目的IP为RIP</strong>。然后将新报文发送到<code>POSTROUTING</code>调用链</li>
-<li><code>POSTROUTING</code>根据新封装报文的目的IP地址将报文路由到RS，此时新报文<strong>源IP为DIP，目的IP为RIP</strong></li>
-<li>RS接收到报文之后，拆除掉外层的IP首部，会发现里面还有一层IP首部，而且目标IP是自己的lo接口VIP。此时，RS处理请求，将响应报文通过lo接口送给eth0网卡(与外网相接)，然后将报文路由到Client。此时<strong>源IP为VIP，目的IP为CIP</strong></li>
-<li>响应报文最终路由到Client</li>
-</ol>
-<h4 id="3-3-LVS-x2F-DR"><a href="#3-3-LVS-x2F-DR" class="headerlink" title="3.3 LVS&#x2F;DR"></a>3.3 LVS&#x2F;DR</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_DR.png" alt="LVS_DR"></p>
-<blockquote>
-<p>DS与RS必须在同一个物理网络中</p>
-</blockquote>
-<ol>
-<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
-<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
-<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，则将请求报文中的<strong>源MAC地址修改为DIP的MAC地址，将目标MAC地址修改为RIP的MAC地址</strong>，然后将数据包发送至<code>POSTROUTING</code>调用链。此时的源IP和目的IP均未修改，仅修改了源MAC地址和目的MAC地址</li>
-<li>由于DS和RS在同一个网络中，所以是通过数据链路层来传输。<code>POSTROUTING</code>检查目标MAC地址为RIP的MAC地址，那么此时数据包将会通过交换机发送至RS（因为在同一个网段，所以不会发送到网关，而是发送到内部网络中）</li>
-<li>RS接收到报文之后，发现MAC地址为自己的MAC地址，接收此报文并转交给上层协议。处理完成后，响应报文通过lo接口的VIP传送给eth0网卡向外发出。此时，响应报文的<strong>源IP为VIP，目的IP为CIP</strong></li>
-<li>响应报文最终路由到Client</li>
-</ol>
-<blockquote>
-<p>其中第3、5步是最为关键的，三个问题：</p>
-<ul>
-<li>DS如何知道RS的MAC地址</li>
-<li>RS如何接收目标IP为VIP的报文</li>
-<li>如何保证RS在源IP为VIP的情况下，将响应报文发送至外网</li>
-</ul>
-</blockquote>
-<blockquote>
-<p>第一个问题：DS如何知道RS的MAC地址？</p>
-<ul>
-<li>这个问题比较简单，因为DS必须要知道管理的RS的RIP地址，所以用ARP协议发送一个带有RIP的广播包。RS接收到这个广播包之后，打开并查看其中的IP是自己的RIP，就发送一个响应包，目的MAC地址是DS网卡接口的，而源MAC地址是RS网卡接口的。</li>
-</ul>
-</blockquote>
-<blockquote>
-<p>第二个问题：RS如何接收目标IP为VIP的报文</p>
-<ul>
-<li>要解决这个问题需要借助回环接口。在回环接口上配置VIP，在eth0上设置arp_ignore&#x3D;1。</li>
-<li>首先，RS通过请求报文中的目的MAC地址接收到报文后，会将其交给上层协议，即网络层，然后回判断目的IP地址是不是自己。正常情况下，这里的目的IP地址是VIP，但是我RS的网络接口地址是RIP，对不上，会不处理。</li>
-<li>于是需要配一个VIP地址到接口上。配到哪里呢？如果是配到eth0上，那在内部网络中使用ARP协议查找DS时，RS的eth0接口也会将自己的MAC地址返回，那不是发生IP冲突了？因此需要回环接口。<strong>回环接口是个逻辑接口，没有MAC地址，不会接收到ARP请求，因此也不会发送ARP响应，但是能够接收到IP数据报文</strong>。所以应该将VIP配置在回环接口上，但是有一个问题是，在默认arp_ignore&#x3D;0（代表回应任何网络接口上对任何本地IP地址的ARP查询请求）的情况下，eth0接口收到了对回环接口上的VIP地址的ARP请求，会将自己eth0接口的MAC地址响应出去，同样会发生IP冲突。所以需要将arg_ignore设置为1，即只响应目标IP地址为绑定在本接口的IP地址的ARP查询请求。如果有多张网卡，多张网卡都需要设置为1。</li>
-</ul>
-</blockquote>
-<blockquote>
-<p>第三个问题：如何保证RS在源IP为VIP的情况下，将响应报文发送至外网</p>
-<ul>
-<li>为什么会有这个问题呢？因为linux默认是使用IP报文的源IP作为ARP查询请求中的源IP地址，那么当RS发出ARP查询请求寻找能到达Client的网关MAC地址时，内部网络中的交换机会记录ARP查询请求中VIP地址和MAC地址作为以后转发接口使用，这样就会跟DS中配置的VIP网卡的MAC地址冲突了。</li>
-<li>咋办呢？配置eth0接口的arp_announce为2。arp_announce &#x3D; 0 (默认)表示在任意网络接口上的任何本地地址；arp_announce&#x3D; 2 表示对查询目标使用最适当的本地地址，此模式下将忽略这个IP数据包的源地址并尝试选择与能跟该地址通信的本地地址。优先选择所有网络接口的子网中外出访问子网中包含该目标 IP 地址的本地地址；如果没有合适的地址被发现，将选择当前的发送网络接口或其他的有可能接受到该 ARP 回应的网络接口来进行发送。</li>
-</ul>
-</blockquote>
-<h3 id="4-实战"><a href="#4-实战" class="headerlink" title="4. 实战"></a>4. 实战</h3><blockquote>
-<p>主要了解ipvsadm命令的使用，以及实际的路由规则</p>
-</blockquote>
-<h4 id="4-1-环境信息"><a href="#4-1-环境信息" class="headerlink" title="4.1 环境信息"></a>4.1 环境信息</h4><ul>
-<li>操作系统：Centos 7</li>
-<li>内核版本： 3.10.0-1160.el7.x86_64</li>
-<li>LVS工作模式：NAT</li>
-<li>网络信息</li>
-</ul>
-<table>
-<thead>
-<tr>
-<th>主机地址</th>
-<th>Director Server 01</th>
-<th>Real Server 01</th>
-<th>Real Server 02</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>IP</td>
-<td>172.23.118.10（内网IP）<br />192.23.118.13（VIP，对外访问）</td>
-<td>172.23.118.11（RIP）</td>
-<td>172.23.118.12（RIP）</td>
-</tr>
-<tr>
-<td>端口</td>
-<td>80</td>
-<td>80</td>
-<td>80</td>
-</tr>
-</tbody></table>
-<blockquote>
-<p><strong>需要事先将RS的默认网关设置为DS的内网地址172.23.118.10</strong>（反正要保证RS对客户端的响应能够先到达DS）</p>
-<p>其实这里DS的内网IP和VIP可以设置成同一个，但是通常在生产环境中，为了对外提供LVS集群服务，需要一个外网IP作为VIP</p>
-<p>我这里把DS的VIP绑定在了另外一个网卡上</p>
-</blockquote>
-<h4 id="4-2-LVS安装"><a href="#4-2-LVS安装" class="headerlink" title="4.2 LVS安装"></a>4.2 LVS安装</h4><p>Linux内核2.4版本以上基本都支持LVS，即已经有了<code>ipvs</code>，所以要想使用LVS只需要再装一个LVS管理工具<code>ipvsadm</code>。</p>
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">sudo yum install ipvsadm -y</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-3-Nginx安装"><a href="#4-3-Nginx安装" class="headerlink" title="4.3 Nginx安装"></a>4.3 Nginx安装</h4><p>安装nginx主要是为了方便测试请求被路由到那台服务器上</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">所有机器上执行</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装nginx</span></span><br><span class="line">sudo yum install nginx -y</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">启动nginx服务，默认80端口</span></span><br><span class="line">sudo servcie start nginx</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在DS上执行</span></span><br><span class="line">echo &#x27;DS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS01上执行</span></span><br><span class="line">echo &#x27;RS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS02上执行</span></span><br><span class="line">echo &#x27;RS02&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-4-关闭linux防火墙"><a href="#4-4-关闭linux防火墙" class="headerlink" title="4.4 关闭linux防火墙"></a>4.4 关闭linux防火墙</h4><p>不然无法从DS访问到RS的80端口。在生产环境下，通常只放开需要的端口。</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">关闭linux防火墙</span></span><br><span class="line">sudo systemctl stop firewalld</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-5-配置LVS"><a href="#4-5-配置LVS" class="headerlink" title="4.5 配置LVS"></a>4.5 配置LVS</h4><p>开始设置LVS集群</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">ipvsadm常用配置参数</span></span><br><span class="line">-A     添加虚拟服务VIP</span><br><span class="line">-D     删除虚拟服务VIP</span><br><span class="line">-L     查看虚拟服务VIP</span><br><span class="line">-C     清除所有虚拟服务VIP</span><br><span class="line"></span><br><span class="line">-t     指定虚拟服务及端口 VIP:Port</span><br><span class="line">-r     指定真实服务及端口 RS:Port </span><br><span class="line">-s     指定算法，rr（轮询）、wrr（加权轮询）、lc（最少连接）、sh（源地址散列）、dh(目标地址散列) 等等</span><br><span class="line">-w     指定权重</span><br><span class="line">-m     指定转发模式为NAT</span><br><span class="line">-g     指定转发模式为DR</span><br><span class="line">-i     指定转发模式为IP隧道</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在DS01上执行</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">开启IP数据包转发功能</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">以下命令只是暂时开启转发，重启后会失效</span></span><br><span class="line">echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">清除先前所有的ipvs配置信息</span></span><br><span class="line">sudo ipvsadm -C</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">添加一个LVS集群并且指定调度算法</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-A:添加集群 -t:VIP和端口 -s:调度算法</span></span><br><span class="line">sudo ipvsadm -A -t 192.23.118.13:80 -s rr</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">向LVS集群中添加真实服务器</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-a:添加真实服务器 -t:VIP和端口 -r:RIP和端口 -m:NAT模式 -w:转发权重</span></span><br><span class="line">sudo ipvsadm -a -t 192.23.118.13:80 -r 172.23.118.11:80 -m -w 1</span><br><span class="line">sudo ipvsadm -a -t 192.23.118.13:80 -r 172.23.118.12:80 -m -w 1</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">可以查看路由信息</span></span><br><span class="line">sudo watch ipvsadm -L -n -c</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-6-结果"><a href="#4-6-结果" class="headerlink" title="4.6 结果"></a>4.6 结果</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看LVS集群信息</span></span><br><span class="line">[junhao@localhost ~]$ sudo ipvsadm --list</span><br><span class="line">IP Virtual Server version 1.2.1 (size=4096)</span><br><span class="line">Prot LocalAddress:Port Scheduler Flags</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">RemoteAddress:Port           Forward Weight ActiveConn InActConn</span></span><br><span class="line">TCP  192.23.118.13:http rr</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.23.118.11:http           Masq    1      0          0</span>         </span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.23.118.12:http           Masq    1      0          0</span> </span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">访问LVS集群VIP</span></span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS01</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS01</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-7-操作过程中的一些问题"><a href="#4-7-操作过程中的一些问题" class="headerlink" title="4.7 操作过程中的一些问题"></a>4.7 操作过程中的一些问题</h4><ul>
-<li>在RS中会无法访问VIP（即内网中无法访问VIP）</li>
-</ul>
-<p>其实问题的本质跟着请求的源地址和目的地址走一遍就知道了，在RS1中发出请求（RIP1，VIP）。请求是能够到达DS的，LVS进行负载均衡后请求变为（RIP1，RIP），<strong>注意这里LVS只改变了目标地址，不改变源地址</strong>，请求被分配到随便一台真实服务器，RS1、RS2都可以。然后真实服务器接收到请求，处理之后根据源地址RIP1发出响应，<strong>注意这里因为RS1和RS2都在一个网段，所以响应发出后不会经过网关，即DS，而是在内网中发到RS1</strong>。然后没经过DS处理的响应（RIP，RIP1）就回到RS1中，然后<strong>RS1发现响应的源地址和目标地址与自己发出的请求（RIP1，VIP）不一致，就会把这个响应丢弃，而期望的响应是（VIP，RIP1）</strong>。所以在RS1中就无法访问VIP。</p>
-<ul>
-<li>IP转发的配置好像没用</li>
-</ul>
-<p>在实际操作过程中，试着把ip_forward设置成0再curl，但是也能通，没啥问题，这是因为把VIP绑定在了网卡上，所以肯定是能接收到的。然后试着把VIP解绑，即不绑定在任何网卡上，但是这个时候网络就不通了，即使ip_forward设置成1也不行，不清楚原因。</p>
-]]></content>
-      <categories>
-        <category>计算机网络</category>
-      </categories>
-      <tags>
-        <tag>LVS</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>Linux中的login shell和non-login shell</title>
     <url>/2022/10/10/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell/</url>
     <content><![CDATA[<h3 id="1-简要介绍"><a href="#1-简要介绍" class="headerlink" title="1. 简要介绍"></a>1. 简要介绍</h3><p>Shell是用于为用户提供与Linux内核交互的工具，比如sh、bash、zch等都是shell。当我们使用Linux的时候，一进入系统就有一堆的变量可以使用，那么这些变量从哪里来呢？在Linux启动的时候，会按一定的顺序读取配置文件，并且将这些配置文件中的环境变量设置到当前的shell中，所以我们才能使用这些环境变量中目录里面的命令。</p>
@@ -1774,65 +1774,6 @@
       </categories>
       <tags>
         <tag>MySQL</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>python包安装与卸载</title>
-    <url>/2022/08/17/python%E5%8C%85%E5%AE%89%E8%A3%85%E4%B8%8E%E5%8D%B8%E8%BD%BD/</url>
-    <content><![CDATA[<h3 id="1-python包安装方式"><a href="#1-python包安装方式" class="headerlink" title="1. python包安装方式"></a>1. python包安装方式</h3><ol>
-<li><p>setup.py方式</p>
-</li>
-<li><p>pip方式（推荐）</p>
-</li>
-<li><p>easy_install方式</p>
-</li>
-</ol>
-<blockquote>
-<p> python常用的包管理器是pip和easy_install，他们会从PyPI源里面搜索模块并自动下载安装，通常pip在安装python时会一并安装，而easy_install会在安装setuptools之后安装好</p>
-</blockquote>
-<blockquote>
-<p>PyPI是Python官方的第三方模块仓库，供所有开发者下载或上传代码</p>
-</blockquote>
-<blockquote>
-<p>事前约定：安装模块名是<code>module</code>，模块名可以到PyPI源里面寻找，<code>version</code>代指模块版本号</p>
-</blockquote>
-<h3 id="2-setup-py方式"><a href="#2-setup-py方式" class="headerlink" title="2. setup.py方式"></a>2. setup.py方式</h3><blockquote>
-<p>setup.py是源码安装，通常用于离线环境中，在PyPI上下载源码后解压，里面会有setup.py文件，编译构建通常需要setuptools和wheel模块。</p>
-</blockquote>
-<h4 id="2-1-安装模块"><a href="#2-1-安装模块" class="headerlink" title="2.1 安装模块"></a>2.1 安装模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">构建</span></span><br><span class="line">python setup.py build</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装, 不执行build直接执行install也行，因为install会先build再安装</span></span><br><span class="line">python setup.py install</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">记录安装文件路径</span></span><br><span class="line">python setup.py install --record=install.log</span><br></pre></td></tr></table></figure>
-
-<h4 id="2-2-卸载模块"><a href="#2-2-卸载模块" class="headerlink" title="2.2 卸载模块"></a>2.2 卸载模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">因为setup.py安装不像pip等包管理器管理，因此卸载的时候需要在安装的时候记录文件路径，卸载的时候直接删除文件</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">确保install.log文件中没有`/*`路径，不然问题贼大</span></span><br><span class="line">cat install.log | xargs rm -rf</span><br></pre></td></tr></table></figure>
-
-<h4 id="2-3-打包模块"><a href="#2-3-打包模块" class="headerlink" title="2.3 打包模块"></a>2.3 打包模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">打包的文件都在目录下的dist文件夹中</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">tar.gz格式，就是简单的将源文件打包，未编译构建</span></span><br><span class="line">python setup.py sdist</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">egg格式，也是将源文件打包，未编译构建，但是扩展名变成egg。这个格式由setuptools模块引入。</span></span><br><span class="line">python setup.py bdist_egg</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">whl格式(推荐)，wheel包，也是压缩文件，经过编译构建后，能够分发到各个平台。由wheel模块引入，需要先安装wheel模块。</span></span><br><span class="line">python setup.py bdist_wheel</span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="3-pip方式"><a href="#3-pip方式" class="headerlink" title="3. pip方式"></a>3. pip方式</h3><blockquote>
-<p>pip也能以磁盘文件中安装模块，指定模块名时指定文件路径即可（whl或gee格式）</p>
-</blockquote>
-<blockquote>
-<p>pip命令还有pip3，pip3指的是python3的pip。不确定pip安装的是python2还是python3模块的时候，可以使用pip3指定为python3的模块，或者使用<code>python -m pip list</code>根据使用的python指定pip版本</p>
-</blockquote>
-<h4 id="3-1-安装模块"><a href="#3-1-安装模块" class="headerlink" title="3.1 安装模块"></a>3.1 安装模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">pip install module</span><br><span class="line">pip install module==version     # 安装指定版本</span><br><span class="line">python2 -m pip install module</span><br><span class="line">python3 -m pip isntall module</span><br></pre></td></tr></table></figure>
-
-<h4 id="3-2-卸载模块"><a href="#3-2-卸载模块" class="headerlink" title="3.2 卸载模块"></a>3.2 卸载模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">pip uninstall module</span><br><span class="line">python2 -m pip uninstall module</span><br><span class="line">python3 -m pip uninstall module</span><br></pre></td></tr></table></figure>
-
-<h4 id="3-3-镜像源"><a href="#3-3-镜像源" class="headerlink" title="3.3 镜像源"></a>3.3 镜像源</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">可以使用 &#x27;-i&#x27; 参数指定镜像源，加速下载，或在pip.conf文件中永久修改镜像源</span><br><span class="line">阿里云         https://mirrors.aliyun.com/pypi/simple/</span><br><span class="line">中国科技大学    https://pypi.mirrors.ustc.edu.cn/simple/</span><br><span class="line">豆瓣(douban)   http://pypi.douban.com/simple/</span><br><span class="line">清华大学        https://pypi.tuna.tsinghua.edu.cn/simple/</span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="4-easy-install方式"><a href="#4-easy-install方式" class="headerlink" title="4. easy_install方式"></a>4. easy_install方式</h3><h4 id="4-1-安装easy-install"><a href="#4-1-安装easy-install" class="headerlink" title="4.1 安装easy_install"></a>4.1 安装easy_install</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">1. 通过引导程序ez_setup.py安装</span></span><br><span class="line">wget http://peak.telecommunity.com/dist/ez_setup.py</span><br><span class="line">python ez_setup.py</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">2. 安装setuptools后自动安装（pip或setup.py方法安装）</span></span><br></pre></td></tr></table></figure>
-
-<h4 id="4-2-安装模块"><a href="#4-2-安装模块" class="headerlink" title="4.2 安装模块"></a>4.2 安装模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">easy_install module</span><br><span class="line">easy_install module==version   # 安装指定版本</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">指定镜像源安装</span></span><br><span class="line">esay_install -i `镜像源` module </span><br></pre></td></tr></table></figure>
-
-<h4 id="4-3-卸载模块"><a href="#4-3-卸载模块" class="headerlink" title="4.3 卸载模块"></a>4.3 卸载模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">easy_install -m module</span><br></pre></td></tr></table></figure>
-
-]]></content>
-      <categories>
-        <category>Python基础知识</category>
-      </categories>
-      <tags>
-        <tag>python</tag>
       </tags>
   </entry>
   <entry>
@@ -2333,6 +2274,65 @@
       </tags>
   </entry>
   <entry>
+    <title>python包安装与卸载</title>
+    <url>/2022/08/17/python%E5%8C%85%E5%AE%89%E8%A3%85%E4%B8%8E%E5%8D%B8%E8%BD%BD/</url>
+    <content><![CDATA[<h3 id="1-python包安装方式"><a href="#1-python包安装方式" class="headerlink" title="1. python包安装方式"></a>1. python包安装方式</h3><ol>
+<li><p>setup.py方式</p>
+</li>
+<li><p>pip方式（推荐）</p>
+</li>
+<li><p>easy_install方式</p>
+</li>
+</ol>
+<blockquote>
+<p> python常用的包管理器是pip和easy_install，他们会从PyPI源里面搜索模块并自动下载安装，通常pip在安装python时会一并安装，而easy_install会在安装setuptools之后安装好</p>
+</blockquote>
+<blockquote>
+<p>PyPI是Python官方的第三方模块仓库，供所有开发者下载或上传代码</p>
+</blockquote>
+<blockquote>
+<p>事前约定：安装模块名是<code>module</code>，模块名可以到PyPI源里面寻找，<code>version</code>代指模块版本号</p>
+</blockquote>
+<h3 id="2-setup-py方式"><a href="#2-setup-py方式" class="headerlink" title="2. setup.py方式"></a>2. setup.py方式</h3><blockquote>
+<p>setup.py是源码安装，通常用于离线环境中，在PyPI上下载源码后解压，里面会有setup.py文件，编译构建通常需要setuptools和wheel模块。</p>
+</blockquote>
+<h4 id="2-1-安装模块"><a href="#2-1-安装模块" class="headerlink" title="2.1 安装模块"></a>2.1 安装模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">构建</span></span><br><span class="line">python setup.py build</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装, 不执行build直接执行install也行，因为install会先build再安装</span></span><br><span class="line">python setup.py install</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">记录安装文件路径</span></span><br><span class="line">python setup.py install --record=install.log</span><br></pre></td></tr></table></figure>
+
+<h4 id="2-2-卸载模块"><a href="#2-2-卸载模块" class="headerlink" title="2.2 卸载模块"></a>2.2 卸载模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">因为setup.py安装不像pip等包管理器管理，因此卸载的时候需要在安装的时候记录文件路径，卸载的时候直接删除文件</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">确保install.log文件中没有`/*`路径，不然问题贼大</span></span><br><span class="line">cat install.log | xargs rm -rf</span><br></pre></td></tr></table></figure>
+
+<h4 id="2-3-打包模块"><a href="#2-3-打包模块" class="headerlink" title="2.3 打包模块"></a>2.3 打包模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">打包的文件都在目录下的dist文件夹中</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">tar.gz格式，就是简单的将源文件打包，未编译构建</span></span><br><span class="line">python setup.py sdist</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">egg格式，也是将源文件打包，未编译构建，但是扩展名变成egg。这个格式由setuptools模块引入。</span></span><br><span class="line">python setup.py bdist_egg</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">whl格式(推荐)，wheel包，也是压缩文件，经过编译构建后，能够分发到各个平台。由wheel模块引入，需要先安装wheel模块。</span></span><br><span class="line">python setup.py bdist_wheel</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="3-pip方式"><a href="#3-pip方式" class="headerlink" title="3. pip方式"></a>3. pip方式</h3><blockquote>
+<p>pip也能以磁盘文件中安装模块，指定模块名时指定文件路径即可（whl或gee格式）</p>
+</blockquote>
+<blockquote>
+<p>pip命令还有pip3，pip3指的是python3的pip。不确定pip安装的是python2还是python3模块的时候，可以使用pip3指定为python3的模块，或者使用<code>python -m pip list</code>根据使用的python指定pip版本</p>
+</blockquote>
+<h4 id="3-1-安装模块"><a href="#3-1-安装模块" class="headerlink" title="3.1 安装模块"></a>3.1 安装模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">pip install module</span><br><span class="line">pip install module==version     # 安装指定版本</span><br><span class="line">python2 -m pip install module</span><br><span class="line">python3 -m pip isntall module</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-2-卸载模块"><a href="#3-2-卸载模块" class="headerlink" title="3.2 卸载模块"></a>3.2 卸载模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">pip uninstall module</span><br><span class="line">python2 -m pip uninstall module</span><br><span class="line">python3 -m pip uninstall module</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-3-镜像源"><a href="#3-3-镜像源" class="headerlink" title="3.3 镜像源"></a>3.3 镜像源</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">可以使用 &#x27;-i&#x27; 参数指定镜像源，加速下载，或在pip.conf文件中永久修改镜像源</span><br><span class="line">阿里云         https://mirrors.aliyun.com/pypi/simple/</span><br><span class="line">中国科技大学    https://pypi.mirrors.ustc.edu.cn/simple/</span><br><span class="line">豆瓣(douban)   http://pypi.douban.com/simple/</span><br><span class="line">清华大学        https://pypi.tuna.tsinghua.edu.cn/simple/</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="4-easy-install方式"><a href="#4-easy-install方式" class="headerlink" title="4. easy_install方式"></a>4. easy_install方式</h3><h4 id="4-1-安装easy-install"><a href="#4-1-安装easy-install" class="headerlink" title="4.1 安装easy_install"></a>4.1 安装easy_install</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">1. 通过引导程序ez_setup.py安装</span></span><br><span class="line">wget http://peak.telecommunity.com/dist/ez_setup.py</span><br><span class="line">python ez_setup.py</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">2. 安装setuptools后自动安装（pip或setup.py方法安装）</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="4-2-安装模块"><a href="#4-2-安装模块" class="headerlink" title="4.2 安装模块"></a>4.2 安装模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">easy_install module</span><br><span class="line">easy_install module==version   # 安装指定版本</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">指定镜像源安装</span></span><br><span class="line">esay_install -i `镜像源` module </span><br></pre></td></tr></table></figure>
+
+<h4 id="4-3-卸载模块"><a href="#4-3-卸载模块" class="headerlink" title="4.3 卸载模块"></a>4.3 卸载模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">easy_install -m module</span><br></pre></td></tr></table></figure>
+
+]]></content>
+      <categories>
+        <category>Python基础知识</category>
+      </categories>
+      <tags>
+        <tag>python</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>python模块加载顺序</title>
     <url>/2022/08/17/python%E6%A8%A1%E5%9D%97%E5%8A%A0%E8%BD%BD%E9%A1%BA%E5%BA%8F/</url>
     <content><![CDATA[<blockquote>
@@ -2536,7 +2536,7 @@
 <h3 id="3-3-抓包-TCP-三次握手"><a href="#3-3-抓包-TCP-三次握手" class="headerlink" title="3.3 抓包 TCP 三次握手"></a>3.3 抓包 TCP 三次握手</h3><h4 id="3-3-1-TCP-三次握手过程"><a href="#3-3-1-TCP-三次握手过程" class="headerlink" title="3.3.1 TCP 三次握手过程"></a>3.3.1 TCP 三次握手过程</h4><blockquote>
 <p>要分析抓到数据包，首先需要了解其原理</p>
 </blockquote>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/aHR0cDovL2ltZy5ibG9nLmNzZG4ubmV0LzIwMTcwNjA1MTEwNDA1NjY2" alt="三次握手"></p>
+<p><img src="/aHR0cDovL2ltZy5ibG9nLmNzZG4ubmV0LzIwMTcwNjA1MTEwNDA1NjY2" alt="三次握手"></p>
 <ol>
 <li>TCP服务器进程先创建传输控制块TCB，时刻准备接受客户进程的连接请求，此时服务器就进入了LISTEN（监听）状态；</li>
 <li>TCP客户进程也是先创建传输控制块TCB，然后向服务器发出连接请求报文，这是报文首部中的同部位 SYN&#x3D;1，同时选择一个初始序列号 seq&#x3D;x ，此时，TCP客户端进程进入了 SYN-SENT（同步已发送状态）状态。<strong>TCP规定，SYN报文段（SYN&#x3D;1的报文段）不能携带数据，但需要消耗掉一个序号</strong>；</li>
