@@ -1386,6 +1386,37 @@
       </tags>
   </entry>
   <entry>
+    <title>MySQL储存过程游标使用踩坑（NOT FOUND）</title>
+    <url>/2022/08/30/MySQL%E5%82%A8%E5%AD%98%E8%BF%87%E7%A8%8B%E6%B8%B8%E6%A0%87%E4%BD%BF%E7%94%A8%E8%B8%A9%E5%9D%91%EF%BC%88NOT-FOUND%EF%BC%89/</url>
+    <content><![CDATA[<h3 id="1-具体问题"><a href="#1-具体问题" class="headerlink" title="1. 具体问题"></a>1. 具体问题</h3><p>在使用游标的过程中，通常都会使用未找到（NOT FOUND或者SQLSTATE ‘02000’）的条件来标识游标的结束。</p>
+<p>即定义一个变量finished初始化为FALSE，并且定义一个事件处理程序处理NOT FOUND异常（FETCH时，游标已经达到末尾）将变量finished设置为TRUE，并通过检查变量finished来结束循环。</p>
+<h3 id="2-问题原因"><a href="#2-问题原因" class="headerlink" title="2. 问题原因"></a>2. 问题原因</h3><p>坑就在这个NOT FOUNT异常，作用范围是整个储存过程。当FETCH获取下一行数据为空时，会抛出NOT FOUND异常。但是！但是！当使用普通的SELECT语句时，查询为空也会抛出NOT FOUND异常，就会触发设定好的NOT FOUND异常处理程序，所以如果遍历游标的循环体内如果存在查询为空，会导致循环提前退出。</p>
+<h3 id="3-复现"><a href="#3-复现" class="headerlink" title="3. 复现"></a>3. 复现</h3><h4 id="3-1-相关的表"><a href="#3-1-相关的表" class="headerlink" title="3.1 相关的表"></a>3.1 相关的表</h4><ul>
+<li>inst（inst_id, tenant_id, user_id）</li>
+<li>data_resource(resource_id, inst_id)</li>
+</ul>
+<h4 id="3-2-错误示例"><a href="#3-2-错误示例" class="headerlink" title="3.2 错误示例"></a>3.2 错误示例</h4><p>这里在游标循环里面使用inst_id查询了关联表data_resource，但是当data_resource表中没有这条数据的时候就会出现NOT FOUND异常，将finished设置为TRUE，提前结束游标循环。如，本来是要显示inst_id为1、2、3这三行，但是当inst_id&#x3D;2时，data_resource表查询为空，就只显示inst_id为1这一行。</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">    DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">    DECLARE v_tenant_id BIGINT;</span><br><span class="line">    DECLARE v_user_id BIGINT;</span><br><span class="line">    DECLARE v_resource_id BIGINT;</span><br><span class="line">    -- 定义游标循环结束条件</span><br><span class="line">    DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">    -- 定义游标</span><br><span class="line">    DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">    -- 定义NOT FOUND结束处理程序</span><br><span class="line">    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">    </span><br><span class="line">    -- 开始使用游标</span><br><span class="line">    OPEN my_cursor;</span><br><span class="line">        foreach_inst: LOOP</span><br><span class="line">        FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 判断游标是否已经达到末尾</span><br><span class="line">            IF finished = TRUE THEN</span><br><span class="line">                LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">            END IF;</span><br><span class="line">            -- 显示当前行</span><br><span class="line">            SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 问题行！！！！</span><br><span class="line">            SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">            -- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">        -- 回到标签foreach_inst</span><br><span class="line">        END LOOP foreach_inst;</span><br><span class="line">    -- 关闭游标</span><br><span class="line">    CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="3-3-正确示例"><a href="#3-3-正确示例" class="headerlink" title="3.3 正确示例"></a>3.3 正确示例</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">    DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">    DECLARE v_tenant_id BIGINT;</span><br><span class="line">    DECLARE v_user_id BIGINT;</span><br><span class="line">    DECLARE v_resource_id BIGINT;</span><br><span class="line">    -- 定义游标循环结束条件</span><br><span class="line">    DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">    -- 定义游标</span><br><span class="line">    DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">    -- 定义NOT FOUND结束处理程序</span><br><span class="line">    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">    </span><br><span class="line">    -- 开始使用游标</span><br><span class="line">    OPEN my_cursor;</span><br><span class="line">        foreach_inst: LOOP</span><br><span class="line">        FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 判断游标是否已经达到末尾</span><br><span class="line">            IF finished = TRUE THEN</span><br><span class="line">                LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">            END IF;</span><br><span class="line">            -- 显示当前行</span><br><span class="line">            SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 问题行！！！！</span><br><span class="line">            -- SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">            SET v_resource_id = (SELECT resource_id FROM data_resource WHERE inst_id = v_inst_id);</span><br><span class="line">            -- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">        -- 回到标签foreach_inst</span><br><span class="line">        END LOOP foreach_inst;</span><br><span class="line">    -- 关闭游标</span><br><span class="line">    CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="4-解决办法"><a href="#4-解决办法" class="headerlink" title="4. 解决办法"></a>4. 解决办法</h3><ul>
+<li>保证循环中的查询不会出现 NOT FOUND 异常</li>
+<li>使用<code>SET variable = (SELECT cloumn FROM table);</code> 来设置变量，替代<code>SELECT cloumn INTO variable FROM table;</code> 的方式</li>
+</ul>
+]]></content>
+      <categories>
+        <category>日常踩坑</category>
+      </categories>
+      <tags>
+        <tag>MySQL</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Linux中的login shell和non-login shell</title>
     <url>/2022/10/10/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell/</url>
     <content><![CDATA[<h3 id="1-简要介绍"><a href="#1-简要介绍" class="headerlink" title="1. 简要介绍"></a>1. 简要介绍</h3><p>Shell是用于为用户提供与Linux内核交互的工具，比如sh、bash、zch等都是shell。当我们使用Linux的时候，一进入系统就有一堆的变量可以使用，那么这些变量从哪里来呢？在Linux启动的时候，会按一定的顺序读取配置文件，并且将这些配置文件中的环境变量设置到当前的shell中，所以我们才能使用这些环境变量中目录里面的命令。</p>
@@ -1460,37 +1491,6 @@
       </categories>
       <tags>
         <tag>Linux</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>MySQL储存过程游标使用踩坑（NOT FOUND）</title>
-    <url>/2022/08/30/MySQL%E5%82%A8%E5%AD%98%E8%BF%87%E7%A8%8B%E6%B8%B8%E6%A0%87%E4%BD%BF%E7%94%A8%E8%B8%A9%E5%9D%91%EF%BC%88NOT-FOUND%EF%BC%89/</url>
-    <content><![CDATA[<h3 id="1-具体问题"><a href="#1-具体问题" class="headerlink" title="1. 具体问题"></a>1. 具体问题</h3><p>在使用游标的过程中，通常都会使用未找到（NOT FOUND或者SQLSTATE ‘02000’）的条件来标识游标的结束。</p>
-<p>即定义一个变量finished初始化为FALSE，并且定义一个事件处理程序处理NOT FOUND异常（FETCH时，游标已经达到末尾）将变量finished设置为TRUE，并通过检查变量finished来结束循环。</p>
-<h3 id="2-问题原因"><a href="#2-问题原因" class="headerlink" title="2. 问题原因"></a>2. 问题原因</h3><p>坑就在这个NOT FOUNT异常，作用范围是整个储存过程。当FETCH获取下一行数据为空时，会抛出NOT FOUND异常。但是！但是！当使用普通的SELECT语句时，查询为空也会抛出NOT FOUND异常，就会触发设定好的NOT FOUND异常处理程序，所以如果遍历游标的循环体内如果存在查询为空，会导致循环提前退出。</p>
-<h3 id="3-复现"><a href="#3-复现" class="headerlink" title="3. 复现"></a>3. 复现</h3><h4 id="3-1-相关的表"><a href="#3-1-相关的表" class="headerlink" title="3.1 相关的表"></a>3.1 相关的表</h4><ul>
-<li>inst（inst_id, tenant_id, user_id）</li>
-<li>data_resource(resource_id, inst_id)</li>
-</ul>
-<h4 id="3-2-错误示例"><a href="#3-2-错误示例" class="headerlink" title="3.2 错误示例"></a>3.2 错误示例</h4><p>这里在游标循环里面使用inst_id查询了关联表data_resource，但是当data_resource表中没有这条数据的时候就会出现NOT FOUND异常，将finished设置为TRUE，提前结束游标循环。如，本来是要显示inst_id为1、2、3这三行，但是当inst_id&#x3D;2时，data_resource表查询为空，就只显示inst_id为1这一行。</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">    DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">    DECLARE v_tenant_id BIGINT;</span><br><span class="line">    DECLARE v_user_id BIGINT;</span><br><span class="line">    DECLARE v_resource_id BIGINT;</span><br><span class="line">    -- 定义游标循环结束条件</span><br><span class="line">    DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">    -- 定义游标</span><br><span class="line">    DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">    -- 定义NOT FOUND结束处理程序</span><br><span class="line">    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">    </span><br><span class="line">    -- 开始使用游标</span><br><span class="line">    OPEN my_cursor;</span><br><span class="line">        foreach_inst: LOOP</span><br><span class="line">        FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 判断游标是否已经达到末尾</span><br><span class="line">            IF finished = TRUE THEN</span><br><span class="line">                LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">            END IF;</span><br><span class="line">            -- 显示当前行</span><br><span class="line">            SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 问题行！！！！</span><br><span class="line">            SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">            -- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">        -- 回到标签foreach_inst</span><br><span class="line">        END LOOP foreach_inst;</span><br><span class="line">    -- 关闭游标</span><br><span class="line">    CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="3-3-正确示例"><a href="#3-3-正确示例" class="headerlink" title="3.3 正确示例"></a>3.3 正确示例</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">    DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">    DECLARE v_tenant_id BIGINT;</span><br><span class="line">    DECLARE v_user_id BIGINT;</span><br><span class="line">    DECLARE v_resource_id BIGINT;</span><br><span class="line">    -- 定义游标循环结束条件</span><br><span class="line">    DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">    -- 定义游标</span><br><span class="line">    DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">    -- 定义NOT FOUND结束处理程序</span><br><span class="line">    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">    </span><br><span class="line">    -- 开始使用游标</span><br><span class="line">    OPEN my_cursor;</span><br><span class="line">        foreach_inst: LOOP</span><br><span class="line">        FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 判断游标是否已经达到末尾</span><br><span class="line">            IF finished = TRUE THEN</span><br><span class="line">                LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">            END IF;</span><br><span class="line">            -- 显示当前行</span><br><span class="line">            SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 问题行！！！！</span><br><span class="line">            -- SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">            SET v_resource_id = (SELECT resource_id FROM data_resource WHERE inst_id = v_inst_id);</span><br><span class="line">            -- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">        -- 回到标签foreach_inst</span><br><span class="line">        END LOOP foreach_inst;</span><br><span class="line">    -- 关闭游标</span><br><span class="line">    CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="4-解决办法"><a href="#4-解决办法" class="headerlink" title="4. 解决办法"></a>4. 解决办法</h3><ul>
-<li>保证循环中的查询不会出现 NOT FOUND 异常</li>
-<li>使用<code>SET variable = (SELECT cloumn FROM table);</code> 来设置变量，替代<code>SELECT cloumn INTO variable FROM table;</code> 的方式</li>
-</ul>
-]]></content>
-      <categories>
-        <category>日常踩坑</category>
-      </categories>
-      <tags>
-        <tag>MySQL</tag>
       </tags>
   </entry>
   <entry>
@@ -2121,6 +2121,65 @@
       </tags>
   </entry>
   <entry>
+    <title>python包安装与卸载</title>
+    <url>/2022/08/17/python%E5%8C%85%E5%AE%89%E8%A3%85%E4%B8%8E%E5%8D%B8%E8%BD%BD/</url>
+    <content><![CDATA[<h3 id="1-python包安装方式"><a href="#1-python包安装方式" class="headerlink" title="1. python包安装方式"></a>1. python包安装方式</h3><ol>
+<li><p>setup.py方式</p>
+</li>
+<li><p>pip方式（推荐）</p>
+</li>
+<li><p>easy_install方式</p>
+</li>
+</ol>
+<blockquote>
+<p> python常用的包管理器是pip和easy_install，他们会从PyPI源里面搜索模块并自动下载安装，通常pip在安装python时会一并安装，而easy_install会在安装setuptools之后安装好</p>
+</blockquote>
+<blockquote>
+<p>PyPI是Python官方的第三方模块仓库，供所有开发者下载或上传代码</p>
+</blockquote>
+<blockquote>
+<p>事前约定：安装模块名是<code>module</code>，模块名可以到PyPI源里面寻找，<code>version</code>代指模块版本号</p>
+</blockquote>
+<h3 id="2-setup-py方式"><a href="#2-setup-py方式" class="headerlink" title="2. setup.py方式"></a>2. setup.py方式</h3><blockquote>
+<p>setup.py是源码安装，通常用于离线环境中，在PyPI上下载源码后解压，里面会有setup.py文件，编译构建通常需要setuptools和wheel模块。</p>
+</blockquote>
+<h4 id="2-1-安装模块"><a href="#2-1-安装模块" class="headerlink" title="2.1 安装模块"></a>2.1 安装模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">构建</span></span><br><span class="line">python setup.py build</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装, 不执行build直接执行install也行，因为install会先build再安装</span></span><br><span class="line">python setup.py install</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">记录安装文件路径</span></span><br><span class="line">python setup.py install --record=install.log</span><br></pre></td></tr></table></figure>
+
+<h4 id="2-2-卸载模块"><a href="#2-2-卸载模块" class="headerlink" title="2.2 卸载模块"></a>2.2 卸载模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">因为setup.py安装不像pip等包管理器管理，因此卸载的时候需要在安装的时候记录文件路径，卸载的时候直接删除文件</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">确保install.log文件中没有`/*`路径，不然问题贼大</span></span><br><span class="line">cat install.log | xargs rm -rf</span><br></pre></td></tr></table></figure>
+
+<h4 id="2-3-打包模块"><a href="#2-3-打包模块" class="headerlink" title="2.3 打包模块"></a>2.3 打包模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">打包的文件都在目录下的dist文件夹中</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">tar.gz格式，就是简单的将源文件打包，未编译构建</span></span><br><span class="line">python setup.py sdist</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">egg格式，也是将源文件打包，未编译构建，但是扩展名变成egg。这个格式由setuptools模块引入。</span></span><br><span class="line">python setup.py bdist_egg</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">whl格式(推荐)，wheel包，也是压缩文件，经过编译构建后，能够分发到各个平台。由wheel模块引入，需要先安装wheel模块。</span></span><br><span class="line">python setup.py bdist_wheel</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="3-pip方式"><a href="#3-pip方式" class="headerlink" title="3. pip方式"></a>3. pip方式</h3><blockquote>
+<p>pip也能以磁盘文件中安装模块，指定模块名时指定文件路径即可（whl或gee格式）</p>
+</blockquote>
+<blockquote>
+<p>pip命令还有pip3，pip3指的是python3的pip。不确定pip安装的是python2还是python3模块的时候，可以使用pip3指定为python3的模块，或者使用<code>python -m pip list</code>根据使用的python指定pip版本</p>
+</blockquote>
+<h4 id="3-1-安装模块"><a href="#3-1-安装模块" class="headerlink" title="3.1 安装模块"></a>3.1 安装模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">pip install module</span><br><span class="line">pip install module==version     # 安装指定版本</span><br><span class="line">python2 -m pip install module</span><br><span class="line">python3 -m pip isntall module</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-2-卸载模块"><a href="#3-2-卸载模块" class="headerlink" title="3.2 卸载模块"></a>3.2 卸载模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">pip uninstall module</span><br><span class="line">python2 -m pip uninstall module</span><br><span class="line">python3 -m pip uninstall module</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-3-镜像源"><a href="#3-3-镜像源" class="headerlink" title="3.3 镜像源"></a>3.3 镜像源</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">可以使用 &#x27;-i&#x27; 参数指定镜像源，加速下载，或在pip.conf文件中永久修改镜像源</span><br><span class="line">阿里云         https://mirrors.aliyun.com/pypi/simple/</span><br><span class="line">中国科技大学    https://pypi.mirrors.ustc.edu.cn/simple/</span><br><span class="line">豆瓣(douban)   http://pypi.douban.com/simple/</span><br><span class="line">清华大学        https://pypi.tuna.tsinghua.edu.cn/simple/</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="4-easy-install方式"><a href="#4-easy-install方式" class="headerlink" title="4. easy_install方式"></a>4. easy_install方式</h3><h4 id="4-1-安装easy-install"><a href="#4-1-安装easy-install" class="headerlink" title="4.1 安装easy_install"></a>4.1 安装easy_install</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">1. 通过引导程序ez_setup.py安装</span></span><br><span class="line">wget http://peak.telecommunity.com/dist/ez_setup.py</span><br><span class="line">python ez_setup.py</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">2. 安装setuptools后自动安装（pip或setup.py方法安装）</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="4-2-安装模块"><a href="#4-2-安装模块" class="headerlink" title="4.2 安装模块"></a>4.2 安装模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">easy_install module</span><br><span class="line">easy_install module==version   # 安装指定版本</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">指定镜像源安装</span></span><br><span class="line">esay_install -i `镜像源` module </span><br></pre></td></tr></table></figure>
+
+<h4 id="4-3-卸载模块"><a href="#4-3-卸载模块" class="headerlink" title="4.3 卸载模块"></a>4.3 卸载模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">easy_install -m module</span><br></pre></td></tr></table></figure>
+
+]]></content>
+      <categories>
+        <category>Python</category>
+      </categories>
+      <tags>
+        <tag>Python</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>SpringBoot中使用Zookeeper进行服务发现</title>
     <url>/2022/12/05/SpringBoot%E4%B8%AD%E4%BD%BF%E7%94%A8Zookeeper%E8%BF%9B%E8%A1%8C%E6%9C%8D%E5%8A%A1%E5%8F%91%E7%8E%B0/</url>
     <content><![CDATA[<h2 id="1-什么是服务发现"><a href="#1-什么是服务发现" class="headerlink" title="1. 什么是服务发现"></a>1. 什么是服务发现</h2><p>首先引入三个角色，分别是服务提供者、服务消费者、服务中介。一个 HTTP 服务器既可以是服务提供者，也可以是服务消费者。</p>
@@ -2274,91 +2333,6 @@
       </tags>
   </entry>
   <entry>
-    <title>python包安装与卸载</title>
-    <url>/2022/08/17/python%E5%8C%85%E5%AE%89%E8%A3%85%E4%B8%8E%E5%8D%B8%E8%BD%BD/</url>
-    <content><![CDATA[<h3 id="1-python包安装方式"><a href="#1-python包安装方式" class="headerlink" title="1. python包安装方式"></a>1. python包安装方式</h3><ol>
-<li><p>setup.py方式</p>
-</li>
-<li><p>pip方式（推荐）</p>
-</li>
-<li><p>easy_install方式</p>
-</li>
-</ol>
-<blockquote>
-<p> python常用的包管理器是pip和easy_install，他们会从PyPI源里面搜索模块并自动下载安装，通常pip在安装python时会一并安装，而easy_install会在安装setuptools之后安装好</p>
-</blockquote>
-<blockquote>
-<p>PyPI是Python官方的第三方模块仓库，供所有开发者下载或上传代码</p>
-</blockquote>
-<blockquote>
-<p>事前约定：安装模块名是<code>module</code>，模块名可以到PyPI源里面寻找，<code>version</code>代指模块版本号</p>
-</blockquote>
-<h3 id="2-setup-py方式"><a href="#2-setup-py方式" class="headerlink" title="2. setup.py方式"></a>2. setup.py方式</h3><blockquote>
-<p>setup.py是源码安装，通常用于离线环境中，在PyPI上下载源码后解压，里面会有setup.py文件，编译构建通常需要setuptools和wheel模块。</p>
-</blockquote>
-<h4 id="2-1-安装模块"><a href="#2-1-安装模块" class="headerlink" title="2.1 安装模块"></a>2.1 安装模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">构建</span></span><br><span class="line">python setup.py build</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装, 不执行build直接执行install也行，因为install会先build再安装</span></span><br><span class="line">python setup.py install</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">记录安装文件路径</span></span><br><span class="line">python setup.py install --record=install.log</span><br></pre></td></tr></table></figure>
-
-<h4 id="2-2-卸载模块"><a href="#2-2-卸载模块" class="headerlink" title="2.2 卸载模块"></a>2.2 卸载模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">因为setup.py安装不像pip等包管理器管理，因此卸载的时候需要在安装的时候记录文件路径，卸载的时候直接删除文件</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">确保install.log文件中没有`/*`路径，不然问题贼大</span></span><br><span class="line">cat install.log | xargs rm -rf</span><br></pre></td></tr></table></figure>
-
-<h4 id="2-3-打包模块"><a href="#2-3-打包模块" class="headerlink" title="2.3 打包模块"></a>2.3 打包模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">打包的文件都在目录下的dist文件夹中</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">tar.gz格式，就是简单的将源文件打包，未编译构建</span></span><br><span class="line">python setup.py sdist</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">egg格式，也是将源文件打包，未编译构建，但是扩展名变成egg。这个格式由setuptools模块引入。</span></span><br><span class="line">python setup.py bdist_egg</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">whl格式(推荐)，wheel包，也是压缩文件，经过编译构建后，能够分发到各个平台。由wheel模块引入，需要先安装wheel模块。</span></span><br><span class="line">python setup.py bdist_wheel</span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="3-pip方式"><a href="#3-pip方式" class="headerlink" title="3. pip方式"></a>3. pip方式</h3><blockquote>
-<p>pip也能以磁盘文件中安装模块，指定模块名时指定文件路径即可（whl或gee格式）</p>
-</blockquote>
-<blockquote>
-<p>pip命令还有pip3，pip3指的是python3的pip。不确定pip安装的是python2还是python3模块的时候，可以使用pip3指定为python3的模块，或者使用<code>python -m pip list</code>根据使用的python指定pip版本</p>
-</blockquote>
-<h4 id="3-1-安装模块"><a href="#3-1-安装模块" class="headerlink" title="3.1 安装模块"></a>3.1 安装模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">pip install module</span><br><span class="line">pip install module==version     # 安装指定版本</span><br><span class="line">python2 -m pip install module</span><br><span class="line">python3 -m pip isntall module</span><br></pre></td></tr></table></figure>
-
-<h4 id="3-2-卸载模块"><a href="#3-2-卸载模块" class="headerlink" title="3.2 卸载模块"></a>3.2 卸载模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">pip uninstall module</span><br><span class="line">python2 -m pip uninstall module</span><br><span class="line">python3 -m pip uninstall module</span><br></pre></td></tr></table></figure>
-
-<h4 id="3-3-镜像源"><a href="#3-3-镜像源" class="headerlink" title="3.3 镜像源"></a>3.3 镜像源</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">可以使用 &#x27;-i&#x27; 参数指定镜像源，加速下载，或在pip.conf文件中永久修改镜像源</span><br><span class="line">阿里云         https://mirrors.aliyun.com/pypi/simple/</span><br><span class="line">中国科技大学    https://pypi.mirrors.ustc.edu.cn/simple/</span><br><span class="line">豆瓣(douban)   http://pypi.douban.com/simple/</span><br><span class="line">清华大学        https://pypi.tuna.tsinghua.edu.cn/simple/</span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="4-easy-install方式"><a href="#4-easy-install方式" class="headerlink" title="4. easy_install方式"></a>4. easy_install方式</h3><h4 id="4-1-安装easy-install"><a href="#4-1-安装easy-install" class="headerlink" title="4.1 安装easy_install"></a>4.1 安装easy_install</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">1. 通过引导程序ez_setup.py安装</span></span><br><span class="line">wget http://peak.telecommunity.com/dist/ez_setup.py</span><br><span class="line">python ez_setup.py</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">2. 安装setuptools后自动安装（pip或setup.py方法安装）</span></span><br></pre></td></tr></table></figure>
-
-<h4 id="4-2-安装模块"><a href="#4-2-安装模块" class="headerlink" title="4.2 安装模块"></a>4.2 安装模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">easy_install module</span><br><span class="line">easy_install module==version   # 安装指定版本</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">指定镜像源安装</span></span><br><span class="line">esay_install -i `镜像源` module </span><br></pre></td></tr></table></figure>
-
-<h4 id="4-3-卸载模块"><a href="#4-3-卸载模块" class="headerlink" title="4.3 卸载模块"></a>4.3 卸载模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">easy_install -m module</span><br></pre></td></tr></table></figure>
-
-]]></content>
-      <categories>
-        <category>Python</category>
-      </categories>
-      <tags>
-        <tag>Python</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>关于一些好看的写作规范</title>
-    <url>/2022/11/02/%E5%85%B3%E4%BA%8E%E4%B8%80%E4%BA%9B%E5%A5%BD%E7%9C%8B%E7%9A%84%E5%86%99%E4%BD%9C%E8%A7%84%E8%8C%83/</url>
-    <content><![CDATA[<p>主要是统一一下自己的写作规范，尽可能好看一点</p>
-<ul>
-<li><p>尽可能使用markdown的标准语法，不要引入太多html或者是其他插件的语法</p>
-</li>
-<li><p>关于文章目录，所有最高层级的标题使用markdown的三级标题</p>
-</li>
-<li><p>关于不同标题层级之间的换行，在不同层级之间要空出一行，如果不空的话，文章看起来密密麻麻，父层级和第一个子层级之间可以不空出一行，但是子层级和子层级之间需要空出一行</p>
-</li>
-<li><p>句子中的英文，有的时候句子里面会写英文的单词，如果是：这是一个Test句子。中文与英文之间没有间隔，看起来就会很密，字一多起来，看起来头疼。所以在英文前后加上一个空格，如：这是一个 Test 句子（当然，页面渲染结果可以使用 hexo-pangu 这个插件来自动处理）。另外，这些英文尽可能首字母大小，看起来会舒服很多，但是也不一定全大写，自己看情况。</p>
-</li>
-<li><p>对于文本中的代码，不用说也知道，用&#96;&#96;&#96;引入代码块，再把代码黏贴进去，尽可能标注上代码类型，Java、Python 或 Shell 等。代码和文本不进行区分简直是反人类，这种博客看都不想看。</p>
-</li>
-<li><p>关于博客中最后的引用连接，最好写上标题名字，然后用超链接的方式，如<a href="https://learn.lianglianglee.com/%E4%B8%93%E6%A0%8F/Kafka%E6%A0%B8%E5%BF%83%E6%8A%80%E6%9C%AF%E4%B8%8E%E5%AE%9E%E6%88%98/18%20%20Kafka%E4%B8%AD%E4%BD%8D%E7%A7%BB%E6%8F%90%E4%BA%A4%E9%82%A3%E4%BA%9B%E4%BA%8B%E5%84%BF.md">Kafka中位移提交那些事儿</a>，如果连接失效了，就没办法了，所以自己最好在印象笔记里面存一份。</p>
-</li>
-</ul>
-]]></content>
-      <categories>
-        <category>日常踩坑</category>
-      </categories>
-      <tags>
-        <tag>日常</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>python模块加载顺序</title>
     <url>/2022/08/17/python%E6%A8%A1%E5%9D%97%E5%8A%A0%E8%BD%BD%E9%A1%BA%E5%BA%8F/</url>
     <content><![CDATA[<blockquote>
@@ -2398,6 +2372,32 @@
       </categories>
       <tags>
         <tag>Python</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>关于一些好看的写作规范</title>
+    <url>/2022/11/02/%E5%85%B3%E4%BA%8E%E4%B8%80%E4%BA%9B%E5%A5%BD%E7%9C%8B%E7%9A%84%E5%86%99%E4%BD%9C%E8%A7%84%E8%8C%83/</url>
+    <content><![CDATA[<p>主要是统一一下自己的写作规范，尽可能好看一点</p>
+<ul>
+<li><p>尽可能使用markdown的标准语法，不要引入太多html或者是其他插件的语法</p>
+</li>
+<li><p>关于文章目录，所有最高层级的标题使用markdown的三级标题</p>
+</li>
+<li><p>关于不同标题层级之间的换行，在不同层级之间要空出一行，如果不空的话，文章看起来密密麻麻，父层级和第一个子层级之间可以不空出一行，但是子层级和子层级之间需要空出一行</p>
+</li>
+<li><p>句子中的英文，有的时候句子里面会写英文的单词，如果是：这是一个Test句子。中文与英文之间没有间隔，看起来就会很密，字一多起来，看起来头疼。所以在英文前后加上一个空格，如：这是一个 Test 句子（当然，页面渲染结果可以使用 hexo-pangu 这个插件来自动处理）。另外，这些英文尽可能首字母大小，看起来会舒服很多，但是也不一定全大写，自己看情况。</p>
+</li>
+<li><p>对于文本中的代码，不用说也知道，用&#96;&#96;&#96;引入代码块，再把代码黏贴进去，尽可能标注上代码类型，Java、Python 或 Shell 等。代码和文本不进行区分简直是反人类，这种博客看都不想看。</p>
+</li>
+<li><p>关于博客中最后的引用连接，最好写上标题名字，然后用超链接的方式，如<a href="https://learn.lianglianglee.com/%E4%B8%93%E6%A0%8F/Kafka%E6%A0%B8%E5%BF%83%E6%8A%80%E6%9C%AF%E4%B8%8E%E5%AE%9E%E6%88%98/18%20%20Kafka%E4%B8%AD%E4%BD%8D%E7%A7%BB%E6%8F%90%E4%BA%A4%E9%82%A3%E4%BA%9B%E4%BA%8B%E5%84%BF.md">Kafka中位移提交那些事儿</a>，如果连接失效了，就没办法了，所以自己最好在印象笔记里面存一份。</p>
+</li>
+</ul>
+]]></content>
+      <categories>
+        <category>日常踩坑</category>
+      </categories>
+      <tags>
+        <tag>日常</tag>
       </tags>
   </entry>
   <entry>
@@ -3883,6 +3883,57 @@
 <h3 id="ACL-访问控制"><a href="#ACL-访问控制" class="headerlink" title="ACL 访问控制"></a>ACL 访问控制</h3>]]></content>
   </entry>
   <entry>
+    <title>记一次WSDL使用</title>
+    <url>/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/</url>
+    <content><![CDATA[<h3 id="1-起因"><a href="#1-起因" class="headerlink" title="1. 起因"></a>1. 起因</h3><p>突然要求对接公司集团的一个接口，给了一个 <code>http://192.168.1.1:7001/services/NotifyService?wsdl</code> 这种地址过来，然后还给了个说明文档，介绍用 XML 的格式发送报文。</p>
+<p>一开始觉得跟 restful 接口差不多，就没多大留意。然后按照说明文档构建了 XML 格式的报文，跟下面的例子差不多。觉得没啥问题了，用 Postman 一测试，哎，怎么返回失败呢？首先是网络，检查了一下是通的。哪说明是调用接口的方式出了问题。</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">ReqRoot</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">ReqTime</span>&gt;</span>2022-10-27 10:03:02<span class="tag">&lt;/<span class="name">ReqTime</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">BillNo</span>&gt;</span></span><br><span class="line">            000000</span><br><span class="line">        <span class="tag">&lt;/<span class="name">BillNo</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Content</span>&gt;</span>消息成功发送<span class="tag">&lt;/<span class="name">Content</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">SendUser</span>&gt;</span>user<span class="tag">&lt;/<span class="name">SendUser</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Address</span>&gt;</span>mobile<span class="tag">&lt;/<span class="name">Address</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">ReqRoot</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="2-经过"><a href="#2-经过" class="headerlink" title="2. 经过"></a>2. 经过</h3><p>既然调用失败，那就百度一下为什么调用失败。看到给的链接后面有个 <code>wsdl</code> 的东西，感觉不太对劲，于是乎搜索了一下 <code>wsdl</code>。问了一下同事，说这是历史久远的接口。</p>
+<h4 id="2-1-什么是WSDL？"><a href="#2-1-什么是WSDL？" class="headerlink" title="2.1 什么是WSDL？"></a>2.1 什么是WSDL？</h4><blockquote>
+<p>WSDL 是一种使用 XML 编写的文档。这种文档可描述某个 Web service。它可规定服务的位置，以及此服务提供的操作（或方法）。</p>
+</blockquote>
+<blockquote>
+<p>在 2001 年 3 月，WSDL 1.1 被 IBM、微软作为一个 W3C 记录（W3C note）提交到有关 XML 协议的 W3C XML 活动，用于描述网络服务。（W3C 记录仅供讨论。一项 W3C 记录的发布并不代表它已被 W3C 或 W3C 团队亦或任何 W3C 成员认可。）</p>
+</blockquote>
+<ul>
+<li>WSDL（Web Services Description Language）指网络服务描述语言</li>
+<li>WSDL 使用 XML 编写</li>
+<li>WSDL 是一种 XML 文档</li>
+<li>WSDL 用于描述网络服务</li>
+<li>WSDL 也可用于定位网络服务</li>
+<li>WSDL 还不是 W3C 标准</li>
+</ul>
+<h4 id="2-2-怎么使用"><a href="#2-2-怎么使用" class="headerlink" title="2.2 怎么使用"></a>2.2 怎么使用</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">可以用下面的这个链接进行测试，这是一个中国电视节目预告 Web 服务</span><br><span class="line">http://www.webxml.com.cn/webservices/ChinaTVprogramWebService.asmx?wsdl</span><br></pre></td></tr></table></figure>
+
+<p>我主要关注的是怎么用这个接口，起码能保证业务上的功能正常再去关注这是什么东西。于是乎开始搜索怎么才能让接口调用成功。</p>
+<p>突然发现这个接口是能够直接在浏览器上面打开的，不过其实打开了，也看不出什么东西，因为是一堆的 XML 文本。大概知道的就是这个文本里面定义了有哪些接口，还有接口的调用方式。</p>
+<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/wsdl%E7%BD%91%E9%A1%B5.png" alt="image-20221124152448072"></p>
+<p>然后在网上找啊找，都没怎么找到比较好的方式去调用，但是起码别人是能调通的。观察发现怎么有一个应用叫 SoapUI 能够生成请求的报文体呢（截图截全一点对大家都好）。于是乎自己下载了一个下来看一下。</p>
+<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/soapui.png" alt="image-20221124153100317"></p>
+<p>界面上就是上面的样子，填入 wsdl 的链接就能够比较直观的看到有哪些能够调用的方法，在对应的方法里面创建请求还会帮你填充好一些 SOAP 协议相关的东西（之前就是缺少了这一部分）。如果把请求部分填充完整，是能够使用 SoapUI 请求成功。</p>
+<h4 id="2-3-使用-Postman-调用"><a href="#2-3-使用-Postman-调用" class="headerlink" title="2.3 使用 Postman 调用"></a>2.3 使用 Postman 调用</h4><p>既然能够使用 SoapUI 请求成功，那么就要尝试一下怎样才能使用 Postman 请求成功了。简单分为以下三步：</p>
+<ul>
+<li>将请求的 Content-Type 设置为 text&#x2F;xml</li>
+<li>请求头部加上SOAPAction，值可以置为空</li>
+<li>将 SoapUI 中接口自动生成的部分填入到请求体的 Body 中，然后填充必要的内容。（接口中给定的文档是 XML 文本，因此需要使用<code>&lt;![CDATA[your_data]]&gt;</code>的格式，your_data替换为接口文档中的格式）（CDATA 代表字符数据，其中的数据可以包含 XML 标记，但是还是会被当做字符串）</li>
+</ul>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version=<span class="string">&quot;1.0&quot;</span> encoding=<span class="string">&quot;UTF-8&quot;</span>?&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">soapenv:Envelope</span> <span class="attr">xmlns:soapenv</span>=<span class="string">&quot;http://schemas.xmlsoap.org/soap/envelope/&quot;</span> <span class="attr">xmlns:dom</span>=<span class="string">&quot;http://domain.webservice.itsm.ffcs.com&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">soapenv:Header</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">soapenv:Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">dom:sendMsgNew</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">dom:request</span>&gt;</span></span><br><span class="line">                &lt;![CDATA[</span><br><span class="line">                &lt;ReqRoot&gt;</span><br><span class="line">                    &lt;Body&gt;</span><br><span class="line">                        &lt;ReqTime&gt;2022-10-27 10:03:02&lt;/ReqTime&gt;</span><br><span class="line">                        &lt;BillNo&gt;</span><br><span class="line">                            000000</span><br><span class="line">                        &lt;/BillNo&gt;</span><br><span class="line">                        &lt;Content&gt;消息成功发送&lt;/Content&gt;</span><br><span class="line">                        &lt;SendUser&gt;user&lt;/SendUser&gt;</span><br><span class="line">                        &lt;Address&gt;mobile&lt;/Address&gt;</span><br><span class="line">                    &lt;/Body&gt;</span><br><span class="line">                &lt;/ReqRoot&gt;</span><br><span class="line">               ]]&gt;</span><br><span class="line">            <span class="tag">&lt;/<span class="name">dom:request</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">dom:sendMsgNew</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">soapenv:Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">soapenv:Envelope</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="3-总结"><a href="#3-总结" class="headerlink" title="3. 总结"></a>3. 总结</h3><p>其实就是 WSDL 与 Soap 的相关知识，但是其实现在很少用，等什么时候有空了再详细看看吧。</p>
+]]></content>
+      <categories>
+        <category>日常踩坑</category>
+      </categories>
+      <tags>
+        <tag>日常</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>网络抓包工具使用</title>
     <url>/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/</url>
     <content><![CDATA[<h2 id="1-网络抓包原理"><a href="#1-网络抓包原理" class="headerlink" title="1. 网络抓包原理"></a>1. 网络抓包原理</h2><blockquote>
@@ -4066,56 +4117,5 @@
       <categories>
         <category>计算机网络</category>
       </categories>
-  </entry>
-  <entry>
-    <title>记一次WSDL使用</title>
-    <url>/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/</url>
-    <content><![CDATA[<h3 id="1-起因"><a href="#1-起因" class="headerlink" title="1. 起因"></a>1. 起因</h3><p>突然要求对接公司集团的一个接口，给了一个 <code>http://192.168.1.1:7001/services/NotifyService?wsdl</code> 这种地址过来，然后还给了个说明文档，介绍用 XML 的格式发送报文。</p>
-<p>一开始觉得跟 restful 接口差不多，就没多大留意。然后按照说明文档构建了 XML 格式的报文，跟下面的例子差不多。觉得没啥问题了，用 Postman 一测试，哎，怎么返回失败呢？首先是网络，检查了一下是通的。哪说明是调用接口的方式出了问题。</p>
-<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">ReqRoot</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">ReqTime</span>&gt;</span>2022-10-27 10:03:02<span class="tag">&lt;/<span class="name">ReqTime</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">BillNo</span>&gt;</span></span><br><span class="line">            000000</span><br><span class="line">        <span class="tag">&lt;/<span class="name">BillNo</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Content</span>&gt;</span>消息成功发送<span class="tag">&lt;/<span class="name">Content</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">SendUser</span>&gt;</span>user<span class="tag">&lt;/<span class="name">SendUser</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Address</span>&gt;</span>mobile<span class="tag">&lt;/<span class="name">Address</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">ReqRoot</span>&gt;</span></span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="2-经过"><a href="#2-经过" class="headerlink" title="2. 经过"></a>2. 经过</h3><p>既然调用失败，那就百度一下为什么调用失败。看到给的链接后面有个 <code>wsdl</code> 的东西，感觉不太对劲，于是乎搜索了一下 <code>wsdl</code>。问了一下同事，说这是历史久远的接口。</p>
-<h4 id="2-1-什么是WSDL？"><a href="#2-1-什么是WSDL？" class="headerlink" title="2.1 什么是WSDL？"></a>2.1 什么是WSDL？</h4><blockquote>
-<p>WSDL 是一种使用 XML 编写的文档。这种文档可描述某个 Web service。它可规定服务的位置，以及此服务提供的操作（或方法）。</p>
-</blockquote>
-<blockquote>
-<p>在 2001 年 3 月，WSDL 1.1 被 IBM、微软作为一个 W3C 记录（W3C note）提交到有关 XML 协议的 W3C XML 活动，用于描述网络服务。（W3C 记录仅供讨论。一项 W3C 记录的发布并不代表它已被 W3C 或 W3C 团队亦或任何 W3C 成员认可。）</p>
-</blockquote>
-<ul>
-<li>WSDL（Web Services Description Language）指网络服务描述语言</li>
-<li>WSDL 使用 XML 编写</li>
-<li>WSDL 是一种 XML 文档</li>
-<li>WSDL 用于描述网络服务</li>
-<li>WSDL 也可用于定位网络服务</li>
-<li>WSDL 还不是 W3C 标准</li>
-</ul>
-<h4 id="2-2-怎么使用"><a href="#2-2-怎么使用" class="headerlink" title="2.2 怎么使用"></a>2.2 怎么使用</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">可以用下面的这个链接进行测试，这是一个中国电视节目预告 Web 服务</span><br><span class="line">http://www.webxml.com.cn/webservices/ChinaTVprogramWebService.asmx?wsdl</span><br></pre></td></tr></table></figure>
-
-<p>我主要关注的是怎么用这个接口，起码能保证业务上的功能正常再去关注这是什么东西。于是乎开始搜索怎么才能让接口调用成功。</p>
-<p>突然发现这个接口是能够直接在浏览器上面打开的，不过其实打开了，也看不出什么东西，因为是一堆的 XML 文本。大概知道的就是这个文本里面定义了有哪些接口，还有接口的调用方式。</p>
-<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/wsdl%E7%BD%91%E9%A1%B5.png" alt="image-20221124152448072"></p>
-<p>然后在网上找啊找，都没怎么找到比较好的方式去调用，但是起码别人是能调通的。观察发现怎么有一个应用叫 SoapUI 能够生成请求的报文体呢（截图截全一点对大家都好）。于是乎自己下载了一个下来看一下。</p>
-<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/soapui.png" alt="image-20221124153100317"></p>
-<p>界面上就是上面的样子，填入 wsdl 的链接就能够比较直观的看到有哪些能够调用的方法，在对应的方法里面创建请求还会帮你填充好一些 SOAP 协议相关的东西（之前就是缺少了这一部分）。如果把请求部分填充完整，是能够使用 SoapUI 请求成功。</p>
-<h4 id="2-3-使用-Postman-调用"><a href="#2-3-使用-Postman-调用" class="headerlink" title="2.3 使用 Postman 调用"></a>2.3 使用 Postman 调用</h4><p>既然能够使用 SoapUI 请求成功，那么就要尝试一下怎样才能使用 Postman 请求成功了。简单分为以下三步：</p>
-<ul>
-<li>将请求的 Content-Type 设置为 text&#x2F;xml</li>
-<li>请求头部加上SOAPAction，值可以置为空</li>
-<li>将 SoapUI 中接口自动生成的部分填入到请求体的 Body 中，然后填充必要的内容。（接口中给定的文档是 XML 文本，因此需要使用<code>&lt;![CDATA[your_data]]&gt;</code>的格式，your_data替换为接口文档中的格式）（CDATA 代表字符数据，其中的数据可以包含 XML 标记，但是还是会被当做字符串）</li>
-</ul>
-<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version=<span class="string">&quot;1.0&quot;</span> encoding=<span class="string">&quot;UTF-8&quot;</span>?&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">soapenv:Envelope</span> <span class="attr">xmlns:soapenv</span>=<span class="string">&quot;http://schemas.xmlsoap.org/soap/envelope/&quot;</span> <span class="attr">xmlns:dom</span>=<span class="string">&quot;http://domain.webservice.itsm.ffcs.com&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">soapenv:Header</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">soapenv:Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">dom:sendMsgNew</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">dom:request</span>&gt;</span></span><br><span class="line">                &lt;![CDATA[</span><br><span class="line">                &lt;ReqRoot&gt;</span><br><span class="line">                    &lt;Body&gt;</span><br><span class="line">                        &lt;ReqTime&gt;2022-10-27 10:03:02&lt;/ReqTime&gt;</span><br><span class="line">                        &lt;BillNo&gt;</span><br><span class="line">                            000000</span><br><span class="line">                        &lt;/BillNo&gt;</span><br><span class="line">                        &lt;Content&gt;消息成功发送&lt;/Content&gt;</span><br><span class="line">                        &lt;SendUser&gt;user&lt;/SendUser&gt;</span><br><span class="line">                        &lt;Address&gt;mobile&lt;/Address&gt;</span><br><span class="line">                    &lt;/Body&gt;</span><br><span class="line">                &lt;/ReqRoot&gt;</span><br><span class="line">               ]]&gt;</span><br><span class="line">            <span class="tag">&lt;/<span class="name">dom:request</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">dom:sendMsgNew</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">soapenv:Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">soapenv:Envelope</span>&gt;</span></span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="3-总结"><a href="#3-总结" class="headerlink" title="3. 总结"></a>3. 总结</h3><p>其实就是 WSDL 与 Soap 的相关知识，但是其实现在很少用，等什么时候有空了再详细看看吧。</p>
-]]></content>
-      <categories>
-        <category>日常踩坑</category>
-      </categories>
-      <tags>
-        <tag>日常</tag>
-      </tags>
   </entry>
 </search>

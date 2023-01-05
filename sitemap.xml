@@ -9,7 +9,7 @@
     <date>1660736171000</date>
     <title>python模块加载顺序 | IceVitalemon's Blog</title>
     
-    <desc></desc>
+    <desc>结论：工程自定义包 -&gt; 工程py文件 -&gt; 系统路径 所以如果在工程中自己创建了跟系统&#x2F;第三方模块重名的模块时，则无法加载系统&#x2F;第三方模块 python出于性能考虑，每个模块在每个解释器会话中只导入一遍，所以如果程序运行过程中，你修改了自定义模块，那么需要重启解释器（即重启程序）或者使用reload(moduleName)重新加载模块（不用重启）</desc>
   </url>
   
   <url>
@@ -20,7 +20,7 @@
     <date>1660735232000</date>
     <title>python包安装与卸载 | IceVitalemon's Blog</title>
     
-    <desc></desc>
+    <desc>1. python包安装方式 setup.py方式 pip方式（推荐） easy_install方式</desc>
   </url>
   
   <url>
@@ -31,7 +31,7 @@
     <date>1670224989000</date>
     <title>Kafka知识总结 | IceVitalemon's Blog</title>
     
-    <desc></desc>
+    <desc>1. 基本概念 主要是分清Broker、主题Topic、分区Partition、副本Replica之间的概念</desc>
   </url>
   
   <url>
@@ -42,7 +42,7 @@
     <date>1670222790000</date>
     <title>Java中的BIO、NIO、AIO | IceVitalemon's Blog</title>
     
-    <desc></desc>
+    <desc>1. I&#x2F;O Input&#x2F;Output的缩写，简单的理解为数据的输入输出，通常有网络IO、磁盘IO。而IO的类型又分为同步&#x2F;异步IO、阻塞&#x2F;非阻塞I&#x2F;O，组合成具体的IO模型。IO属于操作系统层面上的知识，Java只是在操作系统提供的系统调用上封装了操作接口。</desc>
   </url>
   
   <url>
@@ -64,7 +64,7 @@
     <date>1663149431000</date>
     <title>Spring validation使用及校验异常处理 | IceVitalemon's Blog</title>
     
-    <desc></desc>
+    <desc>1. 作用 Spring validation能够用来校验前端传到后端的参数，并且当参数不符合规则时抛出异常信息</desc>
   </url>
   
   <url>
@@ -97,7 +97,7 @@
     <date>1662343640000</date>
     <title>基础知识回顾 | IceVitalemon's Blog</title>
     
-    <desc></desc>
+    <desc>JAVA基础知识集合（未施工）</desc>
   </url>
   
   <url>
@@ -119,7 +119,7 @@
     <date>1667373212000</date>
     <title>关于一些好看的写作规范 | IceVitalemon's Blog</title>
     
-    <desc></desc>
+    <desc>主要是统一一下自己的写作规范，尽可能好看一点 尽可能使用markdown的标准语法，不要引入太多html或者是其他插件的语法 关于文章目录，所有最高层级的标题使用markdown的三级标题 关于不同标题层级之间的换行，在不同层级之间要空出一行，如果不空的话，文章看起来密密麻麻，父层级和第一个子层级之间可以不空出一行，但是子层级和子层级之间需要空出一行 句子中的英文，有的时候句子里面会写英文的单词，</desc>
   </url>
   
   <url>
@@ -130,7 +130,7 @@
     <date>1670225043000</date>
     <title>MySQL知识总结 | IceVitalemon's Blog</title>
     
-    <desc></desc>
+    <desc>1. MyISAM和InnoDB的区别 MyISAM 不支持事务、崩溃恢复 不支持行锁，只支持表锁 不支持外键 主键索引中叶子节点储存的不是数据记录，而是记录的内存地址，因此MyISAM的数据文件分为索引文件和数据文件 InnoDB 支持事务，崩溃恢复，有redo log 支持表锁、行级锁，通过MVCC和Next-key Lock在可重复读的隔离级别下解决幻读的问题 支持外键 InnoDB的主键索</desc>
   </url>
   
   <url>
@@ -141,7 +141,7 @@
     <date>1667296764000</date>
     <title>记一次WSDL使用 | IceVitalemon's Blog</title>
     
-    <desc></desc>
+    <desc>1. 起因突然要求对接公司集团的一个接口，给了一个 http://192.168.1.1:7001/services/NotifyService?wsdl 这种地址过来，然后还给了个说明文档，介绍用 XML 的格式发送报文。</desc>
   </url>
   
   <url>
@@ -152,7 +152,7 @@
     <date>1665385093000</date>
     <title>Linux中的login shell和non-login shell | IceVitalemon's Blog</title>
     
-    <desc></desc>
+    <desc>1. 简要介绍Shell是用于为用户提供与Linux内核交互的工具，比如sh、bash、zch等都是shell。当我们使用Linux的时候，一进入系统就有一堆的变量可以使用，那么这些变量从哪里来呢？在Linux启动的时候，会按一定的顺序读取配置文件，并且将这些配置文件中的环境变量设置到当前的shell中，所以我们才能使用这些环境变量中目录里面的命令。</desc>
   </url>
   
   <url>
@@ -163,7 +163,7 @@
     <date>1660807965000</date>
     <title>LVS负载均衡实战 | IceVitalemon's Blog</title>
     
-    <desc></desc>
+    <desc>1. 前言LVS的作用就是用作四层的负载均衡，四层是指TCP/IP七层协议中的传输层。目的是请求按一定的调度策略把用户的请求分发到多台后端设备上。区别于nginx，nginx是七层的负载均衡，能够看到http协议，而LVS只能看到四层的协议，即TCP协议等，所以无法通过Http cookie处理session。</desc>
   </url>
   
   <url>
@@ -174,7 +174,7 @@
     <date>1661845435000</date>
     <title>MySQL储存过程游标使用踩坑（NOT FOUND） | IceVitalemon's Blog</title>
     
-    <desc></desc>
+    <desc>1. 具体问题在使用游标的过程中，通常都会使用未找到（NOT FOUND或者SQLSTATE ‘02000’）的条件来标识游标的结束。</desc>
   </url>
   
   <url>
