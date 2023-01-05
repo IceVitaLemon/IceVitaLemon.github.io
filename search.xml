@@ -509,384 +509,6 @@
       </tags>
   </entry>
   <entry>
-    <title>LVS负载均衡实战</title>
-    <url>/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/</url>
-    <content><![CDATA[<h3 id="1-前言"><a href="#1-前言" class="headerlink" title="1. 前言"></a>1. 前言</h3><p>LVS的作用就是用作<strong>四层</strong>的<strong>负载均衡</strong>，四层是指<code>TCP/IP</code>七层协议中的传输层。目的是请求按一定的<strong>调度策略</strong>把用户的请求分发到多台后端设备上。区别于nginx，nginx是七层的负载均衡，能够看到http协议，而LVS只能看到四层的协议，即TCP协议等，所以无法通过Http cookie处理session。</p>
-<h3 id="2-简介"><a href="#2-简介" class="headerlink" title="2. 简介"></a>2. 简介</h3><p><a href="http://www.linuxvirtualserver.org/">LVS（Linux Virtual Server）</a>即Linux虚拟服务器，由章文嵩博士开发并已贡献给开源社区，用于构建高性能、高可用的Linux服务器集群，具有良好的可靠性、可扩展性和可操作性。</p>
-<blockquote>
-<p>LVS的高可用需要结合Keepalived，不然的话其实只有一个前端负载均衡节点负责着绑定到LVS上的IP流量，所以当这个前端负载均衡节点挂了之后，IP流量就无法分发到后端真实工作服务器上。Keepalived的作用就是保证前端负载均衡节点的高可用。</p>
-</blockquote>
-<h4 id="2-1-LVS的组成"><a href="#2-1-LVS的组成" class="headerlink" title="2.1 LVS的组成"></a>2.1 LVS的组成</h4><p>LVS主要由<code>ipvs</code>和<code>ipvsadm</code>两部分组成。</p>
-<ol>
-<li><code>ipvs(ip virtual server)</code>是工作在Linux内核态的四层负载均衡，是真正实现调度的程序，基于内核底层<code>netfilter</code>实现，通过<code>netfilter</code>的处理链上的钩子实现包的处理和转发。</li>
-<li><code>ipvsadm</code>工作在用户空间，负责与ipvs之间的交互，为ipvs框架编写规则，定义谁是前端负载均衡节点，谁是后端的真实服务器</li>
-</ol>
-<h4 id="2-2-LVS的三种工作模式"><a href="#2-2-LVS的三种工作模式" class="headerlink" title="2.2 LVS的三种工作模式"></a>2.2 LVS的三种工作模式</h4><ul>
-<li><p>VS&#x2F;NAT（Virtual Server via Network Address Translation）</p>
-<ul>
-<li>通过网络地址转换NAT实现</li>
-<li>调度器重写请求报文的目标地址，将请求分派到后端的真实服务器</li>
-<li>真实服务器将响应报文交给调度器，响应报文的源地址被重写，再转发给客户</li>
-<li>请求和响应都经过调度器</li>
-</ul>
-</li>
-<li><p>VS&#x2F;TUN（Virtual Server via IP Tunneling）</p>
-<ul>
-<li>通过IP隧道实现</li>
-<li>请求报文到达调度器之后，通过IP隧道转发到后端真实服务器</li>
-<li>真实服务器将响应报文直接返回给客户</li>
-<li>调度器只处理请求报文</li>
-</ul>
-</li>
-<li><p>VS&#x2F;DR（Virtual Server via Direct Routing）</p>
-<ul>
-<li>通过改写请求报文的MCA地址实现</li>
-<li>请求报文到达调度器之后，改写报文的MAC地址，发送到后端真实服务器</li>
-<li>真实服务器将响应报文直接返回给客户</li>
-<li>调度器只处理请求报文</li>
-</ul>
-</li>
-</ul>
-<h5 id="2-2-1-三种模式的主要区别"><a href="#2-2-1-三种模式的主要区别" class="headerlink" title="2.2.1 三种模式的主要区别"></a>2.2.1 三种模式的主要区别</h5><table>
-<thead>
-<tr>
-<th>模式与特点</th>
-<th>NAT模式</th>
-<th>TUN模式</th>
-<th>DR模式</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>服务器要求</td>
-<td>服务器节点可以使用任何操作系统</td>
-<td>必须支持IP隧道</td>
-<td>服务器节点支持虚拟网卡设备，能够禁用设备的ARP响应</td>
-</tr>
-<tr>
-<td>网络要求</td>
-<td>拥有私有IP地址的局域网络</td>
-<td>拥有合法IP地址的局域网或广域网</td>
-<td>拥有合法IP地址的局域网，服务器节点与调度器必须在同一个网段</td>
-</tr>
-<tr>
-<td>支持节点数</td>
-<td>10到20个，根据调度器的处理能力而定</td>
-<td>较高，可以支持100个服务节点</td>
-<td>较高，可以支持100个服务节点</td>
-</tr>
-<tr>
-<td>网关</td>
-<td>调度器为服务器节点网关</td>
-<td>服务器节点同自己的网关或者路由器连接，不经过负载均衡器</td>
-<td>服务器节点同自己的网关或者路由器连接，不经过负载均衡器</td>
-</tr>
-<tr>
-<td>IP要求</td>
-<td>仅需要一个合法的IP地址作为调度器的VIP地址</td>
-<td>除了VIP地址外，每个服务器需要有能够路由到客户端的IP地址</td>
-<td>除了VIP地址外，每个服务器需要有能够路由到客户端的IP地址</td>
-</tr>
-<tr>
-<td>特点</td>
-<td>地址转换</td>
-<td>封装IP</td>
-<td>修改MAC地址</td>
-</tr>
-</tbody></table>
-<h4 id="2-3-调度算法"><a href="#2-3-调度算法" class="headerlink" title="2.3 调度算法"></a>2.3 调度算法</h4><blockquote>
-<p>只做简单介绍，其中缩写英文用于在ipvsadm命令中指定集群调度算法</p>
-</blockquote>
-<ul>
-<li>轮询算法 <code>rr</code>（Round Robin）</li>
-<li>加权轮询算法 <code>wrr</code> （Weighted Round Robin）</li>
-<li>源地址哈希算法 <code>sh</code> （Source Hashing）</li>
-<li>目标地址哈希算法 <code>dh</code> （Destination Hashing）</li>
-<li>最少连接算法 <code>lc</code> （Least Connections）</li>
-<li>加权最少连接算法 <code>wlc</code> （Weighted Least Connection）</li>
-<li>最短期望延迟算法 <code>sed</code> （Shortest Expected Delay Scheduling）</li>
-<li>最少队列算法 <code>nq</code> （Never Queue Scheduling）</li>
-<li>基于局部的最少连接算法 <code>lblc</code> （Locality-Based Least Connections）</li>
-<li>带复制的基于局部的最少连接算法 <code>lblcr</code> （Locality-Based Least Connections with Replication）</li>
-<li>FO算法 <code>fo</code> （Weighted Fail Over）</li>
-<li>OVF算法 <code>ovf</code> （Overflow-connection）</li>
-</ul>
-<h3 id="3-工作原理"><a href="#3-工作原理" class="headerlink" title="3. 工作原理"></a>3. 工作原理</h3><blockquote>
-<p>重点理解报文包源和目的IP地址、源和目的MAC地址的变化</p>
-</blockquote>
-<h4 id="3-1-别称约定"><a href="#3-1-别称约定" class="headerlink" title="3.1 别称约定"></a>3.1 别称约定</h4><ul>
-<li>服务器<ul>
-<li>DS (Director Server)，指的是前端负载均衡器节点，即调度器</li>
-<li>RS (Real Server)，后端真实的工作服务器</li>
-</ul>
-</li>
-<li>IP地址<ul>
-<li>CIP (Client IP)，访问客户端的 IP 地址</li>
-<li>VIP (Virtual IP)，虚拟的 IP 地址，向外部直接面向用户请求，作为用户请求的目标的 IP 地址</li>
-<li>DIP (Director IP)，主要用于和内部主机通讯的 IP 地址</li>
-<li>RIP (Real Server IP)，后端服务器的 IP 地址</li>
-</ul>
-</li>
-<li>netfilter的五个阶段<ul>
-<li>PREROUTING</li>
-<li>INPUT</li>
-<li>OUTPUT</li>
-<li>FORWARD</li>
-<li>POSTROUTING</li>
-</ul>
-</li>
-</ul>
-<h4 id="3-2-LVS-x2F-NAT和FULLNAT"><a href="#3-2-LVS-x2F-NAT和FULLNAT" class="headerlink" title="3.2 LVS&#x2F;NAT和FULLNAT"></a>3.2 LVS&#x2F;NAT和FULLNAT</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_NAT.png" alt="LVS_NAT"></p>
-<blockquote>
-<p>还有一种工作模式是LVS&#x2F;FULLNAT。在DS将请求报文转发给RS时（即第三步），LVS&#x2F;NAT模式只修改目标IP为RIP，而LVS&#x2F;FULLNAT则同时将CIP和VIP分别修改为DIP和RIP。NAT模式DS和RS都需要在同一个子网（因为RS的网关为DS），FULLNAT模式DS和RS只要能通信可以不在同一个子网。</p>
-</blockquote>
-<ol>
-<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
-<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
-<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，则修改数据包的目标IP地址为RS的RIP地址，然后将数据包发送至<code>POSTROUTING</code>调用链。此时，请求报文的<strong>源IP为CIP，目标IP为RIP</strong></li>
-<li><code>POSTROUTING</code>链通过路由，将数据包发送给RS</li>
-<li>RS接收到请求报文，开始构建响应报文返回给DS（因为DS是RS的网关，所以一定得经过DS）。此时响应报文的<strong>源IP为RIP，目标IP为CIP</strong></li>
-<li>DS在将响应报文发送给Client前，会将源IP地址修改为自己的VIP地址，然后发送给Client。此时报文的<strong>源IP为VIP，目标IP为CIP</strong></li>
-</ol>
-<h4 id="3-3-LVS-x2F-TUN"><a href="#3-3-LVS-x2F-TUN" class="headerlink" title="3.3 LVS&#x2F;TUN"></a>3.3 LVS&#x2F;TUN</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_TUN.png" alt="LVS_TUN"></p>
-<blockquote>
-<p>通过IP隧道时，在原有的IP报文外再次封装多一层IP首部，内层IP首部（源为CIP，目的为VIP），外层IP首部（源为DIP，目的为RIP）</p>
-</blockquote>
-<ol>
-<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
-<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
-<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，将整个请求包作为数据封装到一个新的IP报文中，新的封装报文<strong>源IP为DIP，目的IP为RIP</strong>。然后将新报文发送到<code>POSTROUTING</code>调用链</li>
-<li><code>POSTROUTING</code>根据新封装报文的目的IP地址将报文路由到RS，此时新报文<strong>源IP为DIP，目的IP为RIP</strong></li>
-<li>RS接收到报文之后，拆除掉外层的IP首部，会发现里面还有一层IP首部，而且目标IP是自己的lo接口VIP。此时，RS处理请求，将响应报文通过lo接口送给eth0网卡(与外网相接)，然后将报文路由到Client。此时<strong>源IP为VIP，目的IP为CIP</strong></li>
-<li>响应报文最终路由到Client</li>
-</ol>
-<h4 id="3-3-LVS-x2F-DR"><a href="#3-3-LVS-x2F-DR" class="headerlink" title="3.3 LVS&#x2F;DR"></a>3.3 LVS&#x2F;DR</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_DR.png" alt="LVS_DR"></p>
-<blockquote>
-<p>DS与RS必须在同一个物理网络中</p>
-</blockquote>
-<ol>
-<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
-<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
-<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，则将请求报文中的<strong>源MAC地址修改为DIP的MAC地址，将目标MAC地址修改为RIP的MAC地址</strong>，然后将数据包发送至<code>POSTROUTING</code>调用链。此时的源IP和目的IP均未修改，仅修改了源MAC地址和目的MAC地址</li>
-<li>由于DS和RS在同一个网络中，所以是通过数据链路层来传输。<code>POSTROUTING</code>检查目标MAC地址为RIP的MAC地址，那么此时数据包将会通过交换机发送至RS（因为在同一个网段，所以不会发送到网关，而是发送到内部网络中）</li>
-<li>RS接收到报文之后，发现MAC地址为自己的MAC地址，接收此报文并转交给上层协议。处理完成后，响应报文通过lo接口的VIP传送给eth0网卡向外发出。此时，响应报文的<strong>源IP为VIP，目的IP为CIP</strong></li>
-<li>响应报文最终路由到Client</li>
-</ol>
-<blockquote>
-<p>其中第3、5步是最为关键的，三个问题：</p>
-<ul>
-<li>DS如何知道RS的MAC地址</li>
-<li>RS如何接收目标IP为VIP的报文</li>
-<li>如何保证RS在源IP为VIP的情况下，将响应报文发送至外网</li>
-</ul>
-</blockquote>
-<blockquote>
-<p>第一个问题：DS如何知道RS的MAC地址？</p>
-<ul>
-<li>这个问题比较简单，因为DS必须要知道管理的RS的RIP地址，所以用ARP协议发送一个带有RIP的广播包。RS接收到这个广播包之后，打开并查看其中的IP是自己的RIP，就发送一个响应包，目的MAC地址是DS网卡接口的，而源MAC地址是RS网卡接口的。</li>
-</ul>
-</blockquote>
-<blockquote>
-<p>第二个问题：RS如何接收目标IP为VIP的报文</p>
-<ul>
-<li>要解决这个问题需要借助回环接口。在回环接口上配置VIP，在eth0上设置arp_ignore&#x3D;1。</li>
-<li>首先，RS通过请求报文中的目的MAC地址接收到报文后，会将其交给上层协议，即网络层，然后回判断目的IP地址是不是自己。正常情况下，这里的目的IP地址是VIP，但是我RS的网络接口地址是RIP，对不上，会不处理。</li>
-<li>于是需要配一个VIP地址到接口上。配到哪里呢？如果是配到eth0上，那在内部网络中使用ARP协议查找DS时，RS的eth0接口也会将自己的MAC地址返回，那不是发生IP冲突了？因此需要回环接口。<strong>回环接口是个逻辑接口，没有MAC地址，不会接收到ARP请求，因此也不会发送ARP响应，但是能够接收到IP数据报文</strong>。所以应该将VIP配置在回环接口上，但是有一个问题是，在默认arp_ignore&#x3D;0（代表回应任何网络接口上对任何本地IP地址的ARP查询请求）的情况下，eth0接口收到了对回环接口上的VIP地址的ARP请求，会将自己eth0接口的MAC地址响应出去，同样会发生IP冲突。所以需要将arg_ignore设置为1，即只响应目标IP地址为绑定在本接口的IP地址的ARP查询请求。如果有多张网卡，多张网卡都需要设置为1。</li>
-</ul>
-</blockquote>
-<blockquote>
-<p>第三个问题：如何保证RS在源IP为VIP的情况下，将响应报文发送至外网</p>
-<ul>
-<li>为什么会有这个问题呢？因为linux默认是使用IP报文的源IP作为ARP查询请求中的源IP地址，那么当RS发出ARP查询请求寻找能到达Client的网关MAC地址时，内部网络中的交换机会记录ARP查询请求中VIP地址和MAC地址作为以后转发接口使用，这样就会跟DS中配置的VIP网卡的MAC地址冲突了。</li>
-<li>咋办呢？配置eth0接口的arp_announce为2。arp_announce &#x3D; 0 (默认)表示在任意网络接口上的任何本地地址；arp_announce&#x3D; 2 表示对查询目标使用最适当的本地地址，此模式下将忽略这个IP数据包的源地址并尝试选择与能跟该地址通信的本地地址。优先选择所有网络接口的子网中外出访问子网中包含该目标 IP 地址的本地地址；如果没有合适的地址被发现，将选择当前的发送网络接口或其他的有可能接受到该 ARP 回应的网络接口来进行发送。</li>
-</ul>
-</blockquote>
-<h3 id="4-实战"><a href="#4-实战" class="headerlink" title="4. 实战"></a>4. 实战</h3><blockquote>
-<p>主要了解ipvsadm命令的使用，以及实际的路由规则</p>
-</blockquote>
-<h4 id="4-1-环境信息"><a href="#4-1-环境信息" class="headerlink" title="4.1 环境信息"></a>4.1 环境信息</h4><ul>
-<li>操作系统：Centos 7</li>
-<li>内核版本： 3.10.0-1160.el7.x86_64</li>
-<li>LVS工作模式：NAT</li>
-<li>网络信息</li>
-</ul>
-<table>
-<thead>
-<tr>
-<th>主机地址</th>
-<th>Director Server 01</th>
-<th>Real Server 01</th>
-<th>Real Server 02</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>IP</td>
-<td>172.23.118.10（内网IP）<br />192.23.118.13（VIP，对外访问）</td>
-<td>172.23.118.11（RIP）</td>
-<td>172.23.118.12（RIP）</td>
-</tr>
-<tr>
-<td>端口</td>
-<td>80</td>
-<td>80</td>
-<td>80</td>
-</tr>
-</tbody></table>
-<blockquote>
-<p><strong>需要事先将RS的默认网关设置为DS的内网地址172.23.118.10</strong>（反正要保证RS对客户端的响应能够先到达DS）</p>
-<p>其实这里DS的内网IP和VIP可以设置成同一个，但是通常在生产环境中，为了对外提供LVS集群服务，需要一个外网IP作为VIP</p>
-<p>我这里把DS的VIP绑定在了另外一个网卡上</p>
-</blockquote>
-<h4 id="4-2-LVS安装"><a href="#4-2-LVS安装" class="headerlink" title="4.2 LVS安装"></a>4.2 LVS安装</h4><p>Linux内核2.4版本以上基本都支持LVS，即已经有了<code>ipvs</code>，所以要想使用LVS只需要再装一个LVS管理工具<code>ipvsadm</code>。</p>
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">sudo yum install ipvsadm -y</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-3-Nginx安装"><a href="#4-3-Nginx安装" class="headerlink" title="4.3 Nginx安装"></a>4.3 Nginx安装</h4><p>安装nginx主要是为了方便测试请求被路由到那台服务器上</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">所有机器上执行</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装nginx</span></span><br><span class="line">sudo yum install nginx -y</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">启动nginx服务，默认80端口</span></span><br><span class="line">sudo servcie start nginx</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在DS上执行</span></span><br><span class="line">echo &#x27;DS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS01上执行</span></span><br><span class="line">echo &#x27;RS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS02上执行</span></span><br><span class="line">echo &#x27;RS02&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-4-关闭linux防火墙"><a href="#4-4-关闭linux防火墙" class="headerlink" title="4.4 关闭linux防火墙"></a>4.4 关闭linux防火墙</h4><p>不然无法从DS访问到RS的80端口。在生产环境下，通常只放开需要的端口。</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">关闭linux防火墙</span></span><br><span class="line">sudo systemctl stop firewalld</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-5-配置LVS"><a href="#4-5-配置LVS" class="headerlink" title="4.5 配置LVS"></a>4.5 配置LVS</h4><p>开始设置LVS集群</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">ipvsadm常用配置参数</span></span><br><span class="line">-A     添加虚拟服务VIP</span><br><span class="line">-D     删除虚拟服务VIP</span><br><span class="line">-L     查看虚拟服务VIP</span><br><span class="line">-C     清除所有虚拟服务VIP</span><br><span class="line"></span><br><span class="line">-t     指定虚拟服务及端口 VIP:Port</span><br><span class="line">-r     指定真实服务及端口 RS:Port </span><br><span class="line">-s     指定算法，rr（轮询）、wrr（加权轮询）、lc（最少连接）、sh（源地址散列）、dh(目标地址散列) 等等</span><br><span class="line">-w     指定权重</span><br><span class="line">-m     指定转发模式为NAT</span><br><span class="line">-g     指定转发模式为DR</span><br><span class="line">-i     指定转发模式为IP隧道</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在DS01上执行</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">开启IP数据包转发功能</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">以下命令只是暂时开启转发，重启后会失效</span></span><br><span class="line">echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">清除先前所有的ipvs配置信息</span></span><br><span class="line">sudo ipvsadm -C</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">添加一个LVS集群并且指定调度算法</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-A:添加集群 -t:VIP和端口 -s:调度算法</span></span><br><span class="line">sudo ipvsadm -A -t 192.23.118.13:80 -s rr</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">向LVS集群中添加真实服务器</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-a:添加真实服务器 -t:VIP和端口 -r:RIP和端口 -m:NAT模式 -w:转发权重</span></span><br><span class="line">sudo ipvsadm -a -t 192.23.118.13:80 -r 172.23.118.11:80 -m -w 1</span><br><span class="line">sudo ipvsadm -a -t 192.23.118.13:80 -r 172.23.118.12:80 -m -w 1</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">可以查看路由信息</span></span><br><span class="line">sudo watch ipvsadm -L -n -c</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-6-结果"><a href="#4-6-结果" class="headerlink" title="4.6 结果"></a>4.6 结果</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看LVS集群信息</span></span><br><span class="line">[junhao@localhost ~]$ sudo ipvsadm --list</span><br><span class="line">IP Virtual Server version 1.2.1 (size=4096)</span><br><span class="line">Prot LocalAddress:Port Scheduler Flags</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">RemoteAddress:Port           Forward Weight ActiveConn InActConn</span></span><br><span class="line">TCP  192.23.118.13:http rr</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.23.118.11:http           Masq    1      0          0</span>         </span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.23.118.12:http           Masq    1      0          0</span> </span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">访问LVS集群VIP</span></span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS01</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS01</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-7-操作过程中的一些问题"><a href="#4-7-操作过程中的一些问题" class="headerlink" title="4.7 操作过程中的一些问题"></a>4.7 操作过程中的一些问题</h4><ul>
-<li>在RS中会无法访问VIP（即内网中无法访问VIP）</li>
-</ul>
-<p>其实问题的本质跟着请求的源地址和目的地址走一遍就知道了，在RS1中发出请求（RIP1，VIP）。请求是能够到达DS的，LVS进行负载均衡后请求变为（RIP1，RIP），<strong>注意这里LVS只改变了目标地址，不改变源地址</strong>，请求被分配到随便一台真实服务器，RS1、RS2都可以。然后真实服务器接收到请求，处理之后根据源地址RIP1发出响应，<strong>注意这里因为RS1和RS2都在一个网段，所以响应发出后不会经过网关，即DS，而是在内网中发到RS1</strong>。然后没经过DS处理的响应（RIP，RIP1）就回到RS1中，然后<strong>RS1发现响应的源地址和目标地址与自己发出的请求（RIP1，VIP）不一致，就会把这个响应丢弃，而期望的响应是（VIP，RIP1）</strong>。所以在RS1中就无法访问VIP。</p>
-<ul>
-<li>IP转发的配置好像没用</li>
-</ul>
-<p>在实际操作过程中，试着把ip_forward设置成0再curl，但是也能通，没啥问题，这是因为把VIP绑定在了网卡上，所以肯定是能接收到的。然后试着把VIP解绑，即不绑定在任何网卡上，但是这个时候网络就不通了，即使ip_forward设置成1也不行，不清楚原因。</p>
-]]></content>
-      <categories>
-        <category>计算机网络</category>
-      </categories>
-      <tags>
-        <tag>LVS</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>Linux中的login shell和non-login shell</title>
-    <url>/2022/10/10/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell/</url>
-    <content><![CDATA[<h3 id="1-简要介绍"><a href="#1-简要介绍" class="headerlink" title="1. 简要介绍"></a>1. 简要介绍</h3><p>Shell是用于为用户提供与Linux内核交互的工具，比如sh、bash、zch等都是shell。当我们使用Linux的时候，一进入系统就有一堆的变量可以使用，那么这些变量从哪里来呢？在Linux启动的时候，会按一定的顺序读取配置文件，并且将这些配置文件中的环境变量设置到当前的shell中，所以我们才能使用这些环境变量中目录里面的命令。</p>
-<p>因此我们就需要了解两个问题：</p>
-<ul>
-<li>Linux会按什么顺序读取哪些配置文件？</li>
-<li>login shell和non-login shell有什么区别？</li>
-</ul>
-<h3 id="2-login-shell和non-login-shell的区别"><a href="#2-login-shell和non-login-shell的区别" class="headerlink" title="2. login shell和non-login shell的区别"></a>2. login shell和non-login shell的区别</h3><ul>
-<li><strong>login shell</strong>：取得bash时需要完整的登录流程，就称为login shell。如：<ul>
-<li>登录到ubuntu之后需要输入用户名和密码才能操作用户界面，这就是一个login shell</li>
-<li>登录tty1~tty6时，也需要输入用户名和密码，这也是login sehll</li>
-</ul>
-</li>
-<li><strong>non-login shell</strong>：取得bash时不需要重复登录。如：<ul>
-<li>登录到ubuntu用户操作界面之后，通过鼠标打开的终端Terminal，就不需要输入用户名和密码，因此这就是non-login shell</li>
-<li>或者在原本bash环境下再次使用bash这个命令，会建立一个新的bash子进程，也不用输入账号密码，哪这个bash子程序也是non-login shell</li>
-</ul>
-</li>
-</ul>
-<h3 id="3-login-shell"><a href="#3-login-shell" class="headerlink" title="3. login shell"></a>3. login shell</h3><blockquote>
-<p>一般来说，login shell只会读取下面两个配置文件：</p>
-<ul>
-<li><strong>&#x2F;etc&#x2F;profile</strong>：系统整体的配置，一般尽量不要修改这个文件</li>
-<li><strong><del>&#x2F;.bash_profile或</del>&#x2F;.bash_login或~&#x2F;.profile</strong>：属于用户个人配置（从~目录就能看出），需要修改自己的数据，就写入这些文件。（bash的login shell配置只会读取上面三个文件的其中一个，而读取的顺序则是依照上面的顺序）</li>
-</ul>
-</blockquote>
-<h4 id="3-1-x2F-etc-x2F-profile公共配置内容"><a href="#3-1-x2F-etc-x2F-profile公共配置内容" class="headerlink" title="3.1 &#x2F;etc&#x2F;profile公共配置内容"></a>3.1 &#x2F;etc&#x2F;profile公共配置内容</h4><p><code>/etc/profile</code>文件中主要配置的环境变量包括：</p>
-<ul>
-<li>PATH：会根据UID来决定PATH变量中包不包含sbin的系统命令目录</li>
-<li>MAIL：将用户配置的mailbox配置到<code>/var/spool/mail/账户名</code></li>
-<li>USER：根据用户的账号配置这个变量内容</li>
-<li>HOSTNAME：根据主机的hostname配置</li>
-<li>HISTSIZE：历史命令的记录条数</li>
-</ul>
-<p>此外，<code>/etc/profile</code>文件还会按以下顺序读取外部配置文件：</p>
-<ol>
-<li><code>/etc/inputrc</code>：主要配置bash的热键、[tab]键需不需要有声音等</li>
-<li><code>/etc/profile.d/*.sh</code>：只要在<code>/etc/profile.d/</code>目录内，并且文件扩展名为 .sh，用户具有读的权限，那么该文件就会被&#x2F;etc&#x2F;profile读取。主要包括：bash操作界面的颜色，ll与ls命令的命令别名、which的命令别名等。<strong>如果需要给所有用户配置一些共享的命令别名时，可以在这个目录底下创建扩展名为.sh的文件，并将需要的数据写入</strong></li>
-<li><code>/etc/sysconfig/i18n</code>：这个文件是被<code>/etc/profile.d/lang.sh</code>文件调用，配置LANG变量，也就是bash默认使用什么语言</li>
-</ol>
-<h4 id="3-2-用户配置内容"><a href="#3-2-用户配置内容" class="headerlink" title="3.2 用户配置内容"></a>3.2 用户配置内容</h4><p>我们可以看下<code>~/.bash_profile</code>中的内容：</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">[junhao@localhost ~]$ cat ~/.bash_profile</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">.bash_profile</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Get the aliases and <span class="built_in">functions</span></span></span><br><span class="line">if [ -f ~/.bashrc ]; then</span><br><span class="line">    . ~/.bashrc</span><br><span class="line">fi</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">User specific environment and startup programs</span></span><br><span class="line"></span><br><span class="line">PATH=$PATH:$HOME/.local/bin:$HOME/bin</span><br><span class="line"></span><br><span class="line">export PATH</span><br><span class="line">[junhao@localhost ~]$ </span><br></pre></td></tr></table></figure>
-
-<blockquote>
-<p>可以看到if判断语句中的一段，判断home目录下的文件<code>~/.bashrc</code>是不是存在，如果存在则读入<code>~/.bashrc</code>中的配置。</p>
-<p>至于<code>~/.bash_login</code> 或<code>~/.profile</code>文件，前面提到过，bash的login shell只会读取上面三个文件中的其中一个，哪个文件存在就读取哪个文件，而最后读取的都是<code>~/.bashrc</code>中的配置。</p>
-</blockquote>
-<p>我们再看看<code>~/.bashrc</code>文件中的内容：</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">[junhao@localhost ~]$ cat ~/.bashrc</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">.bashrc</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Source global definitions</span></span><br><span class="line">if [ -f /etc/bashrc ]; then</span><br><span class="line">    . /etc/bashrc</span><br><span class="line">fi</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Uncomment the following line <span class="keyword">if</span> you don<span class="string">&#x27;t like systemctl&#x27;</span>s auto-paging feature:</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">export</span> SYSTEMD_PAGER=</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">User specific aliases and <span class="built_in">functions</span></span></span><br><span class="line">[junhao@localhost ~]$ </span><br></pre></td></tr></table></figure>
-
-<p>可以看到在<code>~/.bashrc</code>文件中，最后会读取<code>/etc/bashrc</code>文件中的配置，而<code>/etc/bashrc</code>也会读取<code>/etc/profile.d/*.sh</code>中的配置。</p>
-<h4 id="3-3-总结"><a href="#3-3-总结" class="headerlink" title="3.3 总结"></a>3.3 总结</h4><p><img src="/2022/10/10/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell/login_shell.png" alt="login shell 的配置文件读取流程"></p>
-<p>实线的方向是主线流程，虚线的方向则是被调用的配置文件，从上面的流程图可以看出，最终读取的配置文件是<code>~/.bashrc</code>，所以可以将用户特定的配置写入<code>~/.bashrc</code>文件中，而所有用户共用的配置写入<code>/etc/bashrc</code>文件中。</p>
-<h3 id="4-non-login-shell"><a href="#4-non-login-shell" class="headerlink" title="4. non-login shell"></a>4. non-login shell</h3><blockquote>
-<p>当获取non-login shell的时候，bash的配置文件仅仅会读取<code>~/.bashrc</code>文件中的内容</p>
-</blockquote>
-<p><code>~/.bashrc</code>中会调用<code>/etc/bashrc</code>，而<code>/etc/bashrc</code>主要负责：</p>
-<ul>
-<li>根据UID设置umask的值</li>
-<li>根据UID设置命令行提示即PS1变量</li>
-<li>调用<code>/etc/profile.d/*.sh</code>中的配置</li>
-</ul>
-<h3 id="5-其他相关的配置文件"><a href="#5-其他相关的配置文件" class="headerlink" title="5. 其他相关的配置文件"></a>5. 其他相关的配置文件</h3><ul>
-<li><code>/etc/man.config</code>：配置man相关属性</li>
-<li><code>~/.bash_history</code>：历史命令相关</li>
-<li><code>~/.bash_logout</code>：注销bash时，需要执行的操作</li>
-</ul>
-]]></content>
-      <categories>
-        <category>Linux基础知识</category>
-      </categories>
-      <tags>
-        <tag>Linux</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>MySQL储存过程游标使用踩坑（NOT FOUND）</title>
-    <url>/2022/08/30/MySQL%E5%82%A8%E5%AD%98%E8%BF%87%E7%A8%8B%E6%B8%B8%E6%A0%87%E4%BD%BF%E7%94%A8%E8%B8%A9%E5%9D%91%EF%BC%88NOT-FOUND%EF%BC%89/</url>
-    <content><![CDATA[<h3 id="1-具体问题"><a href="#1-具体问题" class="headerlink" title="1. 具体问题"></a>1. 具体问题</h3><p>在使用游标的过程中，通常都会使用未找到（NOT FOUND或者SQLSTATE ‘02000’）的条件来标识游标的结束。</p>
-<p>即定义一个变量finished初始化为FALSE，并且定义一个事件处理程序处理NOT FOUND异常（FETCH时，游标已经达到末尾）将变量finished设置为TRUE，并通过检查变量finished来结束循环。</p>
-<h3 id="2-问题原因"><a href="#2-问题原因" class="headerlink" title="2. 问题原因"></a>2. 问题原因</h3><p>坑就在这个NOT FOUNT异常，作用范围是整个储存过程。当FETCH获取下一行数据为空时，会抛出NOT FOUND异常。但是！但是！当使用普通的SELECT语句时，查询为空也会抛出NOT FOUND异常，就会触发设定好的NOT FOUND异常处理程序，所以如果遍历游标的循环体内如果存在查询为空，会导致循环提前退出。</p>
-<h3 id="3-复现"><a href="#3-复现" class="headerlink" title="3. 复现"></a>3. 复现</h3><h4 id="3-1-相关的表"><a href="#3-1-相关的表" class="headerlink" title="3.1 相关的表"></a>3.1 相关的表</h4><ul>
-<li>inst（inst_id, tenant_id, user_id）</li>
-<li>data_resource(resource_id, inst_id)</li>
-</ul>
-<h4 id="3-2-错误示例"><a href="#3-2-错误示例" class="headerlink" title="3.2 错误示例"></a>3.2 错误示例</h4><p>这里在游标循环里面使用inst_id查询了关联表data_resource，但是当data_resource表中没有这条数据的时候就会出现NOT FOUND异常，将finished设置为TRUE，提前结束游标循环。如，本来是要显示inst_id为1、2、3这三行，但是当inst_id&#x3D;2时，data_resource表查询为空，就只显示inst_id为1这一行。</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">    DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">    DECLARE v_tenant_id BIGINT;</span><br><span class="line">    DECLARE v_user_id BIGINT;</span><br><span class="line">    DECLARE v_resource_id BIGINT;</span><br><span class="line">    -- 定义游标循环结束条件</span><br><span class="line">    DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">    -- 定义游标</span><br><span class="line">    DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">    -- 定义NOT FOUND结束处理程序</span><br><span class="line">    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">    </span><br><span class="line">    -- 开始使用游标</span><br><span class="line">    OPEN my_cursor;</span><br><span class="line">        foreach_inst: LOOP</span><br><span class="line">        FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 判断游标是否已经达到末尾</span><br><span class="line">            IF finished = TRUE THEN</span><br><span class="line">                LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">            END IF;</span><br><span class="line">            -- 显示当前行</span><br><span class="line">            SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 问题行！！！！</span><br><span class="line">            SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">            -- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">        -- 回到标签foreach_inst</span><br><span class="line">        END LOOP foreach_inst;</span><br><span class="line">    -- 关闭游标</span><br><span class="line">    CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="3-3-正确示例"><a href="#3-3-正确示例" class="headerlink" title="3.3 正确示例"></a>3.3 正确示例</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">    DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">    DECLARE v_tenant_id BIGINT;</span><br><span class="line">    DECLARE v_user_id BIGINT;</span><br><span class="line">    DECLARE v_resource_id BIGINT;</span><br><span class="line">    -- 定义游标循环结束条件</span><br><span class="line">    DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">    -- 定义游标</span><br><span class="line">    DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">    -- 定义NOT FOUND结束处理程序</span><br><span class="line">    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">    </span><br><span class="line">    -- 开始使用游标</span><br><span class="line">    OPEN my_cursor;</span><br><span class="line">        foreach_inst: LOOP</span><br><span class="line">        FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 判断游标是否已经达到末尾</span><br><span class="line">            IF finished = TRUE THEN</span><br><span class="line">                LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">            END IF;</span><br><span class="line">            -- 显示当前行</span><br><span class="line">            SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 问题行！！！！</span><br><span class="line">            -- SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">            SET v_resource_id = (SELECT resource_id FROM data_resource WHERE inst_id = v_inst_id);</span><br><span class="line">            -- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">        -- 回到标签foreach_inst</span><br><span class="line">        END LOOP foreach_inst;</span><br><span class="line">    -- 关闭游标</span><br><span class="line">    CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="4-解决办法"><a href="#4-解决办法" class="headerlink" title="4. 解决办法"></a>4. 解决办法</h3><ul>
-<li>保证循环中的查询不会出现 NOT FOUND 异常</li>
-<li>使用<code>SET variable = (SELECT cloumn FROM table);</code> 来设置变量，替代<code>SELECT cloumn INTO variable FROM table;</code> 的方式</li>
-</ul>
-]]></content>
-      <categories>
-        <category>日常踩坑</category>
-      </categories>
-      <tags>
-        <tag>MySQL</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>Kafka知识总结</title>
     <url>/2022/12/05/Kafka%E7%9F%A5%E8%AF%86%E6%80%BB%E7%BB%93/</url>
     <content><![CDATA[<h3 id="1-基本概念"><a href="#1-基本概念" class="headerlink" title="1. 基本概念"></a>1. 基本概念</h3><blockquote>
@@ -1494,6 +1116,384 @@
       </tags>
   </entry>
   <entry>
+    <title>LVS负载均衡实战</title>
+    <url>/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/</url>
+    <content><![CDATA[<h3 id="1-前言"><a href="#1-前言" class="headerlink" title="1. 前言"></a>1. 前言</h3><p>LVS的作用就是用作<strong>四层</strong>的<strong>负载均衡</strong>，四层是指<code>TCP/IP</code>七层协议中的传输层。目的是请求按一定的<strong>调度策略</strong>把用户的请求分发到多台后端设备上。区别于nginx，nginx是七层的负载均衡，能够看到http协议，而LVS只能看到四层的协议，即TCP协议等，所以无法通过Http cookie处理session。</p>
+<h3 id="2-简介"><a href="#2-简介" class="headerlink" title="2. 简介"></a>2. 简介</h3><p><a href="http://www.linuxvirtualserver.org/">LVS（Linux Virtual Server）</a>即Linux虚拟服务器，由章文嵩博士开发并已贡献给开源社区，用于构建高性能、高可用的Linux服务器集群，具有良好的可靠性、可扩展性和可操作性。</p>
+<blockquote>
+<p>LVS的高可用需要结合Keepalived，不然的话其实只有一个前端负载均衡节点负责着绑定到LVS上的IP流量，所以当这个前端负载均衡节点挂了之后，IP流量就无法分发到后端真实工作服务器上。Keepalived的作用就是保证前端负载均衡节点的高可用。</p>
+</blockquote>
+<h4 id="2-1-LVS的组成"><a href="#2-1-LVS的组成" class="headerlink" title="2.1 LVS的组成"></a>2.1 LVS的组成</h4><p>LVS主要由<code>ipvs</code>和<code>ipvsadm</code>两部分组成。</p>
+<ol>
+<li><code>ipvs(ip virtual server)</code>是工作在Linux内核态的四层负载均衡，是真正实现调度的程序，基于内核底层<code>netfilter</code>实现，通过<code>netfilter</code>的处理链上的钩子实现包的处理和转发。</li>
+<li><code>ipvsadm</code>工作在用户空间，负责与ipvs之间的交互，为ipvs框架编写规则，定义谁是前端负载均衡节点，谁是后端的真实服务器</li>
+</ol>
+<h4 id="2-2-LVS的三种工作模式"><a href="#2-2-LVS的三种工作模式" class="headerlink" title="2.2 LVS的三种工作模式"></a>2.2 LVS的三种工作模式</h4><ul>
+<li><p>VS&#x2F;NAT（Virtual Server via Network Address Translation）</p>
+<ul>
+<li>通过网络地址转换NAT实现</li>
+<li>调度器重写请求报文的目标地址，将请求分派到后端的真实服务器</li>
+<li>真实服务器将响应报文交给调度器，响应报文的源地址被重写，再转发给客户</li>
+<li>请求和响应都经过调度器</li>
+</ul>
+</li>
+<li><p>VS&#x2F;TUN（Virtual Server via IP Tunneling）</p>
+<ul>
+<li>通过IP隧道实现</li>
+<li>请求报文到达调度器之后，通过IP隧道转发到后端真实服务器</li>
+<li>真实服务器将响应报文直接返回给客户</li>
+<li>调度器只处理请求报文</li>
+</ul>
+</li>
+<li><p>VS&#x2F;DR（Virtual Server via Direct Routing）</p>
+<ul>
+<li>通过改写请求报文的MCA地址实现</li>
+<li>请求报文到达调度器之后，改写报文的MAC地址，发送到后端真实服务器</li>
+<li>真实服务器将响应报文直接返回给客户</li>
+<li>调度器只处理请求报文</li>
+</ul>
+</li>
+</ul>
+<h5 id="2-2-1-三种模式的主要区别"><a href="#2-2-1-三种模式的主要区别" class="headerlink" title="2.2.1 三种模式的主要区别"></a>2.2.1 三种模式的主要区别</h5><table>
+<thead>
+<tr>
+<th>模式与特点</th>
+<th>NAT模式</th>
+<th>TUN模式</th>
+<th>DR模式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>服务器要求</td>
+<td>服务器节点可以使用任何操作系统</td>
+<td>必须支持IP隧道</td>
+<td>服务器节点支持虚拟网卡设备，能够禁用设备的ARP响应</td>
+</tr>
+<tr>
+<td>网络要求</td>
+<td>拥有私有IP地址的局域网络</td>
+<td>拥有合法IP地址的局域网或广域网</td>
+<td>拥有合法IP地址的局域网，服务器节点与调度器必须在同一个网段</td>
+</tr>
+<tr>
+<td>支持节点数</td>
+<td>10到20个，根据调度器的处理能力而定</td>
+<td>较高，可以支持100个服务节点</td>
+<td>较高，可以支持100个服务节点</td>
+</tr>
+<tr>
+<td>网关</td>
+<td>调度器为服务器节点网关</td>
+<td>服务器节点同自己的网关或者路由器连接，不经过负载均衡器</td>
+<td>服务器节点同自己的网关或者路由器连接，不经过负载均衡器</td>
+</tr>
+<tr>
+<td>IP要求</td>
+<td>仅需要一个合法的IP地址作为调度器的VIP地址</td>
+<td>除了VIP地址外，每个服务器需要有能够路由到客户端的IP地址</td>
+<td>除了VIP地址外，每个服务器需要有能够路由到客户端的IP地址</td>
+</tr>
+<tr>
+<td>特点</td>
+<td>地址转换</td>
+<td>封装IP</td>
+<td>修改MAC地址</td>
+</tr>
+</tbody></table>
+<h4 id="2-3-调度算法"><a href="#2-3-调度算法" class="headerlink" title="2.3 调度算法"></a>2.3 调度算法</h4><blockquote>
+<p>只做简单介绍，其中缩写英文用于在ipvsadm命令中指定集群调度算法</p>
+</blockquote>
+<ul>
+<li>轮询算法 <code>rr</code>（Round Robin）</li>
+<li>加权轮询算法 <code>wrr</code> （Weighted Round Robin）</li>
+<li>源地址哈希算法 <code>sh</code> （Source Hashing）</li>
+<li>目标地址哈希算法 <code>dh</code> （Destination Hashing）</li>
+<li>最少连接算法 <code>lc</code> （Least Connections）</li>
+<li>加权最少连接算法 <code>wlc</code> （Weighted Least Connection）</li>
+<li>最短期望延迟算法 <code>sed</code> （Shortest Expected Delay Scheduling）</li>
+<li>最少队列算法 <code>nq</code> （Never Queue Scheduling）</li>
+<li>基于局部的最少连接算法 <code>lblc</code> （Locality-Based Least Connections）</li>
+<li>带复制的基于局部的最少连接算法 <code>lblcr</code> （Locality-Based Least Connections with Replication）</li>
+<li>FO算法 <code>fo</code> （Weighted Fail Over）</li>
+<li>OVF算法 <code>ovf</code> （Overflow-connection）</li>
+</ul>
+<h3 id="3-工作原理"><a href="#3-工作原理" class="headerlink" title="3. 工作原理"></a>3. 工作原理</h3><blockquote>
+<p>重点理解报文包源和目的IP地址、源和目的MAC地址的变化</p>
+</blockquote>
+<h4 id="3-1-别称约定"><a href="#3-1-别称约定" class="headerlink" title="3.1 别称约定"></a>3.1 别称约定</h4><ul>
+<li>服务器<ul>
+<li>DS (Director Server)，指的是前端负载均衡器节点，即调度器</li>
+<li>RS (Real Server)，后端真实的工作服务器</li>
+</ul>
+</li>
+<li>IP地址<ul>
+<li>CIP (Client IP)，访问客户端的 IP 地址</li>
+<li>VIP (Virtual IP)，虚拟的 IP 地址，向外部直接面向用户请求，作为用户请求的目标的 IP 地址</li>
+<li>DIP (Director IP)，主要用于和内部主机通讯的 IP 地址</li>
+<li>RIP (Real Server IP)，后端服务器的 IP 地址</li>
+</ul>
+</li>
+<li>netfilter的五个阶段<ul>
+<li>PREROUTING</li>
+<li>INPUT</li>
+<li>OUTPUT</li>
+<li>FORWARD</li>
+<li>POSTROUTING</li>
+</ul>
+</li>
+</ul>
+<h4 id="3-2-LVS-x2F-NAT和FULLNAT"><a href="#3-2-LVS-x2F-NAT和FULLNAT" class="headerlink" title="3.2 LVS&#x2F;NAT和FULLNAT"></a>3.2 LVS&#x2F;NAT和FULLNAT</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_NAT.png" alt="LVS_NAT"></p>
+<blockquote>
+<p>还有一种工作模式是LVS&#x2F;FULLNAT。在DS将请求报文转发给RS时（即第三步），LVS&#x2F;NAT模式只修改目标IP为RIP，而LVS&#x2F;FULLNAT则同时将CIP和VIP分别修改为DIP和RIP。NAT模式DS和RS都需要在同一个子网（因为RS的网关为DS），FULLNAT模式DS和RS只要能通信可以不在同一个子网。</p>
+</blockquote>
+<ol>
+<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
+<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
+<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，则修改数据包的目标IP地址为RS的RIP地址，然后将数据包发送至<code>POSTROUTING</code>调用链。此时，请求报文的<strong>源IP为CIP，目标IP为RIP</strong></li>
+<li><code>POSTROUTING</code>链通过路由，将数据包发送给RS</li>
+<li>RS接收到请求报文，开始构建响应报文返回给DS（因为DS是RS的网关，所以一定得经过DS）。此时响应报文的<strong>源IP为RIP，目标IP为CIP</strong></li>
+<li>DS在将响应报文发送给Client前，会将源IP地址修改为自己的VIP地址，然后发送给Client。此时报文的<strong>源IP为VIP，目标IP为CIP</strong></li>
+</ol>
+<h4 id="3-3-LVS-x2F-TUN"><a href="#3-3-LVS-x2F-TUN" class="headerlink" title="3.3 LVS&#x2F;TUN"></a>3.3 LVS&#x2F;TUN</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_TUN.png" alt="LVS_TUN"></p>
+<blockquote>
+<p>通过IP隧道时，在原有的IP报文外再次封装多一层IP首部，内层IP首部（源为CIP，目的为VIP），外层IP首部（源为DIP，目的为RIP）</p>
+</blockquote>
+<ol>
+<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
+<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
+<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，将整个请求包作为数据封装到一个新的IP报文中，新的封装报文<strong>源IP为DIP，目的IP为RIP</strong>。然后将新报文发送到<code>POSTROUTING</code>调用链</li>
+<li><code>POSTROUTING</code>根据新封装报文的目的IP地址将报文路由到RS，此时新报文<strong>源IP为DIP，目的IP为RIP</strong></li>
+<li>RS接收到报文之后，拆除掉外层的IP首部，会发现里面还有一层IP首部，而且目标IP是自己的lo接口VIP。此时，RS处理请求，将响应报文通过lo接口送给eth0网卡(与外网相接)，然后将报文路由到Client。此时<strong>源IP为VIP，目的IP为CIP</strong></li>
+<li>响应报文最终路由到Client</li>
+</ol>
+<h4 id="3-3-LVS-x2F-DR"><a href="#3-3-LVS-x2F-DR" class="headerlink" title="3.3 LVS&#x2F;DR"></a>3.3 LVS&#x2F;DR</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_DR.png" alt="LVS_DR"></p>
+<blockquote>
+<p>DS与RS必须在同一个物理网络中</p>
+</blockquote>
+<ol>
+<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
+<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
+<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，则将请求报文中的<strong>源MAC地址修改为DIP的MAC地址，将目标MAC地址修改为RIP的MAC地址</strong>，然后将数据包发送至<code>POSTROUTING</code>调用链。此时的源IP和目的IP均未修改，仅修改了源MAC地址和目的MAC地址</li>
+<li>由于DS和RS在同一个网络中，所以是通过数据链路层来传输。<code>POSTROUTING</code>检查目标MAC地址为RIP的MAC地址，那么此时数据包将会通过交换机发送至RS（因为在同一个网段，所以不会发送到网关，而是发送到内部网络中）</li>
+<li>RS接收到报文之后，发现MAC地址为自己的MAC地址，接收此报文并转交给上层协议。处理完成后，响应报文通过lo接口的VIP传送给eth0网卡向外发出。此时，响应报文的<strong>源IP为VIP，目的IP为CIP</strong></li>
+<li>响应报文最终路由到Client</li>
+</ol>
+<blockquote>
+<p>其中第3、5步是最为关键的，三个问题：</p>
+<ul>
+<li>DS如何知道RS的MAC地址</li>
+<li>RS如何接收目标IP为VIP的报文</li>
+<li>如何保证RS在源IP为VIP的情况下，将响应报文发送至外网</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>第一个问题：DS如何知道RS的MAC地址？</p>
+<ul>
+<li>这个问题比较简单，因为DS必须要知道管理的RS的RIP地址，所以用ARP协议发送一个带有RIP的广播包。RS接收到这个广播包之后，打开并查看其中的IP是自己的RIP，就发送一个响应包，目的MAC地址是DS网卡接口的，而源MAC地址是RS网卡接口的。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>第二个问题：RS如何接收目标IP为VIP的报文</p>
+<ul>
+<li>要解决这个问题需要借助回环接口。在回环接口上配置VIP，在eth0上设置arp_ignore&#x3D;1。</li>
+<li>首先，RS通过请求报文中的目的MAC地址接收到报文后，会将其交给上层协议，即网络层，然后回判断目的IP地址是不是自己。正常情况下，这里的目的IP地址是VIP，但是我RS的网络接口地址是RIP，对不上，会不处理。</li>
+<li>于是需要配一个VIP地址到接口上。配到哪里呢？如果是配到eth0上，那在内部网络中使用ARP协议查找DS时，RS的eth0接口也会将自己的MAC地址返回，那不是发生IP冲突了？因此需要回环接口。<strong>回环接口是个逻辑接口，没有MAC地址，不会接收到ARP请求，因此也不会发送ARP响应，但是能够接收到IP数据报文</strong>。所以应该将VIP配置在回环接口上，但是有一个问题是，在默认arp_ignore&#x3D;0（代表回应任何网络接口上对任何本地IP地址的ARP查询请求）的情况下，eth0接口收到了对回环接口上的VIP地址的ARP请求，会将自己eth0接口的MAC地址响应出去，同样会发生IP冲突。所以需要将arg_ignore设置为1，即只响应目标IP地址为绑定在本接口的IP地址的ARP查询请求。如果有多张网卡，多张网卡都需要设置为1。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>第三个问题：如何保证RS在源IP为VIP的情况下，将响应报文发送至外网</p>
+<ul>
+<li>为什么会有这个问题呢？因为linux默认是使用IP报文的源IP作为ARP查询请求中的源IP地址，那么当RS发出ARP查询请求寻找能到达Client的网关MAC地址时，内部网络中的交换机会记录ARP查询请求中VIP地址和MAC地址作为以后转发接口使用，这样就会跟DS中配置的VIP网卡的MAC地址冲突了。</li>
+<li>咋办呢？配置eth0接口的arp_announce为2。arp_announce &#x3D; 0 (默认)表示在任意网络接口上的任何本地地址；arp_announce&#x3D; 2 表示对查询目标使用最适当的本地地址，此模式下将忽略这个IP数据包的源地址并尝试选择与能跟该地址通信的本地地址。优先选择所有网络接口的子网中外出访问子网中包含该目标 IP 地址的本地地址；如果没有合适的地址被发现，将选择当前的发送网络接口或其他的有可能接受到该 ARP 回应的网络接口来进行发送。</li>
+</ul>
+</blockquote>
+<h3 id="4-实战"><a href="#4-实战" class="headerlink" title="4. 实战"></a>4. 实战</h3><blockquote>
+<p>主要了解ipvsadm命令的使用，以及实际的路由规则</p>
+</blockquote>
+<h4 id="4-1-环境信息"><a href="#4-1-环境信息" class="headerlink" title="4.1 环境信息"></a>4.1 环境信息</h4><ul>
+<li>操作系统：Centos 7</li>
+<li>内核版本： 3.10.0-1160.el7.x86_64</li>
+<li>LVS工作模式：NAT</li>
+<li>网络信息</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>主机地址</th>
+<th>Director Server 01</th>
+<th>Real Server 01</th>
+<th>Real Server 02</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>IP</td>
+<td>172.23.118.10（内网IP）<br />192.23.118.13（VIP，对外访问）</td>
+<td>172.23.118.11（RIP）</td>
+<td>172.23.118.12（RIP）</td>
+</tr>
+<tr>
+<td>端口</td>
+<td>80</td>
+<td>80</td>
+<td>80</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>需要事先将RS的默认网关设置为DS的内网地址172.23.118.10</strong>（反正要保证RS对客户端的响应能够先到达DS）</p>
+<p>其实这里DS的内网IP和VIP可以设置成同一个，但是通常在生产环境中，为了对外提供LVS集群服务，需要一个外网IP作为VIP</p>
+<p>我这里把DS的VIP绑定在了另外一个网卡上</p>
+</blockquote>
+<h4 id="4-2-LVS安装"><a href="#4-2-LVS安装" class="headerlink" title="4.2 LVS安装"></a>4.2 LVS安装</h4><p>Linux内核2.4版本以上基本都支持LVS，即已经有了<code>ipvs</code>，所以要想使用LVS只需要再装一个LVS管理工具<code>ipvsadm</code>。</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">sudo yum install ipvsadm -y</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-3-Nginx安装"><a href="#4-3-Nginx安装" class="headerlink" title="4.3 Nginx安装"></a>4.3 Nginx安装</h4><p>安装nginx主要是为了方便测试请求被路由到那台服务器上</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">所有机器上执行</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装nginx</span></span><br><span class="line">sudo yum install nginx -y</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">启动nginx服务，默认80端口</span></span><br><span class="line">sudo servcie start nginx</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在DS上执行</span></span><br><span class="line">echo &#x27;DS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS01上执行</span></span><br><span class="line">echo &#x27;RS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS02上执行</span></span><br><span class="line">echo &#x27;RS02&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-4-关闭linux防火墙"><a href="#4-4-关闭linux防火墙" class="headerlink" title="4.4 关闭linux防火墙"></a>4.4 关闭linux防火墙</h4><p>不然无法从DS访问到RS的80端口。在生产环境下，通常只放开需要的端口。</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">关闭linux防火墙</span></span><br><span class="line">sudo systemctl stop firewalld</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-5-配置LVS"><a href="#4-5-配置LVS" class="headerlink" title="4.5 配置LVS"></a>4.5 配置LVS</h4><p>开始设置LVS集群</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">ipvsadm常用配置参数</span></span><br><span class="line">-A     添加虚拟服务VIP</span><br><span class="line">-D     删除虚拟服务VIP</span><br><span class="line">-L     查看虚拟服务VIP</span><br><span class="line">-C     清除所有虚拟服务VIP</span><br><span class="line"></span><br><span class="line">-t     指定虚拟服务及端口 VIP:Port</span><br><span class="line">-r     指定真实服务及端口 RS:Port </span><br><span class="line">-s     指定算法，rr（轮询）、wrr（加权轮询）、lc（最少连接）、sh（源地址散列）、dh(目标地址散列) 等等</span><br><span class="line">-w     指定权重</span><br><span class="line">-m     指定转发模式为NAT</span><br><span class="line">-g     指定转发模式为DR</span><br><span class="line">-i     指定转发模式为IP隧道</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在DS01上执行</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">开启IP数据包转发功能</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">以下命令只是暂时开启转发，重启后会失效</span></span><br><span class="line">echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">清除先前所有的ipvs配置信息</span></span><br><span class="line">sudo ipvsadm -C</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">添加一个LVS集群并且指定调度算法</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-A:添加集群 -t:VIP和端口 -s:调度算法</span></span><br><span class="line">sudo ipvsadm -A -t 192.23.118.13:80 -s rr</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">向LVS集群中添加真实服务器</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-a:添加真实服务器 -t:VIP和端口 -r:RIP和端口 -m:NAT模式 -w:转发权重</span></span><br><span class="line">sudo ipvsadm -a -t 192.23.118.13:80 -r 172.23.118.11:80 -m -w 1</span><br><span class="line">sudo ipvsadm -a -t 192.23.118.13:80 -r 172.23.118.12:80 -m -w 1</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">可以查看路由信息</span></span><br><span class="line">sudo watch ipvsadm -L -n -c</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-6-结果"><a href="#4-6-结果" class="headerlink" title="4.6 结果"></a>4.6 结果</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看LVS集群信息</span></span><br><span class="line">[junhao@localhost ~]$ sudo ipvsadm --list</span><br><span class="line">IP Virtual Server version 1.2.1 (size=4096)</span><br><span class="line">Prot LocalAddress:Port Scheduler Flags</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">RemoteAddress:Port           Forward Weight ActiveConn InActConn</span></span><br><span class="line">TCP  192.23.118.13:http rr</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.23.118.11:http           Masq    1      0          0</span>         </span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.23.118.12:http           Masq    1      0          0</span> </span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">访问LVS集群VIP</span></span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS01</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS01</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-7-操作过程中的一些问题"><a href="#4-7-操作过程中的一些问题" class="headerlink" title="4.7 操作过程中的一些问题"></a>4.7 操作过程中的一些问题</h4><ul>
+<li>在RS中会无法访问VIP（即内网中无法访问VIP）</li>
+</ul>
+<p>其实问题的本质跟着请求的源地址和目的地址走一遍就知道了，在RS1中发出请求（RIP1，VIP）。请求是能够到达DS的，LVS进行负载均衡后请求变为（RIP1，RIP），<strong>注意这里LVS只改变了目标地址，不改变源地址</strong>，请求被分配到随便一台真实服务器，RS1、RS2都可以。然后真实服务器接收到请求，处理之后根据源地址RIP1发出响应，<strong>注意这里因为RS1和RS2都在一个网段，所以响应发出后不会经过网关，即DS，而是在内网中发到RS1</strong>。然后没经过DS处理的响应（RIP，RIP1）就回到RS1中，然后<strong>RS1发现响应的源地址和目标地址与自己发出的请求（RIP1，VIP）不一致，就会把这个响应丢弃，而期望的响应是（VIP，RIP1）</strong>。所以在RS1中就无法访问VIP。</p>
+<ul>
+<li>IP转发的配置好像没用</li>
+</ul>
+<p>在实际操作过程中，试着把ip_forward设置成0再curl，但是也能通，没啥问题，这是因为把VIP绑定在了网卡上，所以肯定是能接收到的。然后试着把VIP解绑，即不绑定在任何网卡上，但是这个时候网络就不通了，即使ip_forward设置成1也不行，不清楚原因。</p>
+]]></content>
+      <categories>
+        <category>计算机网络</category>
+      </categories>
+      <tags>
+        <tag>LVS</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Linux中的login shell和non-login shell</title>
+    <url>/2022/10/10/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell/</url>
+    <content><![CDATA[<h3 id="1-简要介绍"><a href="#1-简要介绍" class="headerlink" title="1. 简要介绍"></a>1. 简要介绍</h3><p>Shell是用于为用户提供与Linux内核交互的工具，比如sh、bash、zch等都是shell。当我们使用Linux的时候，一进入系统就有一堆的变量可以使用，那么这些变量从哪里来呢？在Linux启动的时候，会按一定的顺序读取配置文件，并且将这些配置文件中的环境变量设置到当前的shell中，所以我们才能使用这些环境变量中目录里面的命令。</p>
+<p>因此我们就需要了解两个问题：</p>
+<ul>
+<li>Linux会按什么顺序读取哪些配置文件？</li>
+<li>login shell和non-login shell有什么区别？</li>
+</ul>
+<h3 id="2-login-shell和non-login-shell的区别"><a href="#2-login-shell和non-login-shell的区别" class="headerlink" title="2. login shell和non-login shell的区别"></a>2. login shell和non-login shell的区别</h3><ul>
+<li><strong>login shell</strong>：取得bash时需要完整的登录流程，就称为login shell。如：<ul>
+<li>登录到ubuntu之后需要输入用户名和密码才能操作用户界面，这就是一个login shell</li>
+<li>登录tty1~tty6时，也需要输入用户名和密码，这也是login sehll</li>
+</ul>
+</li>
+<li><strong>non-login shell</strong>：取得bash时不需要重复登录。如：<ul>
+<li>登录到ubuntu用户操作界面之后，通过鼠标打开的终端Terminal，就不需要输入用户名和密码，因此这就是non-login shell</li>
+<li>或者在原本bash环境下再次使用bash这个命令，会建立一个新的bash子进程，也不用输入账号密码，哪这个bash子程序也是non-login shell</li>
+</ul>
+</li>
+</ul>
+<h3 id="3-login-shell"><a href="#3-login-shell" class="headerlink" title="3. login shell"></a>3. login shell</h3><blockquote>
+<p>一般来说，login shell只会读取下面两个配置文件：</p>
+<ul>
+<li><strong>&#x2F;etc&#x2F;profile</strong>：系统整体的配置，一般尽量不要修改这个文件</li>
+<li><strong><del>&#x2F;.bash_profile或</del>&#x2F;.bash_login或~&#x2F;.profile</strong>：属于用户个人配置（从~目录就能看出），需要修改自己的数据，就写入这些文件。（bash的login shell配置只会读取上面三个文件的其中一个，而读取的顺序则是依照上面的顺序）</li>
+</ul>
+</blockquote>
+<h4 id="3-1-x2F-etc-x2F-profile公共配置内容"><a href="#3-1-x2F-etc-x2F-profile公共配置内容" class="headerlink" title="3.1 &#x2F;etc&#x2F;profile公共配置内容"></a>3.1 &#x2F;etc&#x2F;profile公共配置内容</h4><p><code>/etc/profile</code>文件中主要配置的环境变量包括：</p>
+<ul>
+<li>PATH：会根据UID来决定PATH变量中包不包含sbin的系统命令目录</li>
+<li>MAIL：将用户配置的mailbox配置到<code>/var/spool/mail/账户名</code></li>
+<li>USER：根据用户的账号配置这个变量内容</li>
+<li>HOSTNAME：根据主机的hostname配置</li>
+<li>HISTSIZE：历史命令的记录条数</li>
+</ul>
+<p>此外，<code>/etc/profile</code>文件还会按以下顺序读取外部配置文件：</p>
+<ol>
+<li><code>/etc/inputrc</code>：主要配置bash的热键、[tab]键需不需要有声音等</li>
+<li><code>/etc/profile.d/*.sh</code>：只要在<code>/etc/profile.d/</code>目录内，并且文件扩展名为 .sh，用户具有读的权限，那么该文件就会被&#x2F;etc&#x2F;profile读取。主要包括：bash操作界面的颜色，ll与ls命令的命令别名、which的命令别名等。<strong>如果需要给所有用户配置一些共享的命令别名时，可以在这个目录底下创建扩展名为.sh的文件，并将需要的数据写入</strong></li>
+<li><code>/etc/sysconfig/i18n</code>：这个文件是被<code>/etc/profile.d/lang.sh</code>文件调用，配置LANG变量，也就是bash默认使用什么语言</li>
+</ol>
+<h4 id="3-2-用户配置内容"><a href="#3-2-用户配置内容" class="headerlink" title="3.2 用户配置内容"></a>3.2 用户配置内容</h4><p>我们可以看下<code>~/.bash_profile</code>中的内容：</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">[junhao@localhost ~]$ cat ~/.bash_profile</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">.bash_profile</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Get the aliases and <span class="built_in">functions</span></span></span><br><span class="line">if [ -f ~/.bashrc ]; then</span><br><span class="line">    . ~/.bashrc</span><br><span class="line">fi</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">User specific environment and startup programs</span></span><br><span class="line"></span><br><span class="line">PATH=$PATH:$HOME/.local/bin:$HOME/bin</span><br><span class="line"></span><br><span class="line">export PATH</span><br><span class="line">[junhao@localhost ~]$ </span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>可以看到if判断语句中的一段，判断home目录下的文件<code>~/.bashrc</code>是不是存在，如果存在则读入<code>~/.bashrc</code>中的配置。</p>
+<p>至于<code>~/.bash_login</code> 或<code>~/.profile</code>文件，前面提到过，bash的login shell只会读取上面三个文件中的其中一个，哪个文件存在就读取哪个文件，而最后读取的都是<code>~/.bashrc</code>中的配置。</p>
+</blockquote>
+<p>我们再看看<code>~/.bashrc</code>文件中的内容：</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">[junhao@localhost ~]$ cat ~/.bashrc</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">.bashrc</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Source global definitions</span></span><br><span class="line">if [ -f /etc/bashrc ]; then</span><br><span class="line">    . /etc/bashrc</span><br><span class="line">fi</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Uncomment the following line <span class="keyword">if</span> you don<span class="string">&#x27;t like systemctl&#x27;</span>s auto-paging feature:</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">export</span> SYSTEMD_PAGER=</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">User specific aliases and <span class="built_in">functions</span></span></span><br><span class="line">[junhao@localhost ~]$ </span><br></pre></td></tr></table></figure>
+
+<p>可以看到在<code>~/.bashrc</code>文件中，最后会读取<code>/etc/bashrc</code>文件中的配置，而<code>/etc/bashrc</code>也会读取<code>/etc/profile.d/*.sh</code>中的配置。</p>
+<h4 id="3-3-总结"><a href="#3-3-总结" class="headerlink" title="3.3 总结"></a>3.3 总结</h4><p><img src="/2022/10/10/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell/login_shell.png" alt="login shell 的配置文件读取流程"></p>
+<p>实线的方向是主线流程，虚线的方向则是被调用的配置文件，从上面的流程图可以看出，最终读取的配置文件是<code>~/.bashrc</code>，所以可以将用户特定的配置写入<code>~/.bashrc</code>文件中，而所有用户共用的配置写入<code>/etc/bashrc</code>文件中。</p>
+<h3 id="4-non-login-shell"><a href="#4-non-login-shell" class="headerlink" title="4. non-login shell"></a>4. non-login shell</h3><blockquote>
+<p>当获取non-login shell的时候，bash的配置文件仅仅会读取<code>~/.bashrc</code>文件中的内容</p>
+</blockquote>
+<p><code>~/.bashrc</code>中会调用<code>/etc/bashrc</code>，而<code>/etc/bashrc</code>主要负责：</p>
+<ul>
+<li>根据UID设置umask的值</li>
+<li>根据UID设置命令行提示即PS1变量</li>
+<li>调用<code>/etc/profile.d/*.sh</code>中的配置</li>
+</ul>
+<h3 id="5-其他相关的配置文件"><a href="#5-其他相关的配置文件" class="headerlink" title="5. 其他相关的配置文件"></a>5. 其他相关的配置文件</h3><ul>
+<li><code>/etc/man.config</code>：配置man相关属性</li>
+<li><code>~/.bash_history</code>：历史命令相关</li>
+<li><code>~/.bash_logout</code>：注销bash时，需要执行的操作</li>
+</ul>
+]]></content>
+      <categories>
+        <category>Linux基础知识</category>
+      </categories>
+      <tags>
+        <tag>Linux</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>MySQL储存过程游标使用踩坑（NOT FOUND）</title>
+    <url>/2022/08/30/MySQL%E5%82%A8%E5%AD%98%E8%BF%87%E7%A8%8B%E6%B8%B8%E6%A0%87%E4%BD%BF%E7%94%A8%E8%B8%A9%E5%9D%91%EF%BC%88NOT-FOUND%EF%BC%89/</url>
+    <content><![CDATA[<h3 id="1-具体问题"><a href="#1-具体问题" class="headerlink" title="1. 具体问题"></a>1. 具体问题</h3><p>在使用游标的过程中，通常都会使用未找到（NOT FOUND或者SQLSTATE ‘02000’）的条件来标识游标的结束。</p>
+<p>即定义一个变量finished初始化为FALSE，并且定义一个事件处理程序处理NOT FOUND异常（FETCH时，游标已经达到末尾）将变量finished设置为TRUE，并通过检查变量finished来结束循环。</p>
+<h3 id="2-问题原因"><a href="#2-问题原因" class="headerlink" title="2. 问题原因"></a>2. 问题原因</h3><p>坑就在这个NOT FOUNT异常，作用范围是整个储存过程。当FETCH获取下一行数据为空时，会抛出NOT FOUND异常。但是！但是！当使用普通的SELECT语句时，查询为空也会抛出NOT FOUND异常，就会触发设定好的NOT FOUND异常处理程序，所以如果遍历游标的循环体内如果存在查询为空，会导致循环提前退出。</p>
+<h3 id="3-复现"><a href="#3-复现" class="headerlink" title="3. 复现"></a>3. 复现</h3><h4 id="3-1-相关的表"><a href="#3-1-相关的表" class="headerlink" title="3.1 相关的表"></a>3.1 相关的表</h4><ul>
+<li>inst（inst_id, tenant_id, user_id）</li>
+<li>data_resource(resource_id, inst_id)</li>
+</ul>
+<h4 id="3-2-错误示例"><a href="#3-2-错误示例" class="headerlink" title="3.2 错误示例"></a>3.2 错误示例</h4><p>这里在游标循环里面使用inst_id查询了关联表data_resource，但是当data_resource表中没有这条数据的时候就会出现NOT FOUND异常，将finished设置为TRUE，提前结束游标循环。如，本来是要显示inst_id为1、2、3这三行，但是当inst_id&#x3D;2时，data_resource表查询为空，就只显示inst_id为1这一行。</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">    DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">    DECLARE v_tenant_id BIGINT;</span><br><span class="line">    DECLARE v_user_id BIGINT;</span><br><span class="line">    DECLARE v_resource_id BIGINT;</span><br><span class="line">    -- 定义游标循环结束条件</span><br><span class="line">    DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">    -- 定义游标</span><br><span class="line">    DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">    -- 定义NOT FOUND结束处理程序</span><br><span class="line">    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">    </span><br><span class="line">    -- 开始使用游标</span><br><span class="line">    OPEN my_cursor;</span><br><span class="line">        foreach_inst: LOOP</span><br><span class="line">        FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 判断游标是否已经达到末尾</span><br><span class="line">            IF finished = TRUE THEN</span><br><span class="line">                LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">            END IF;</span><br><span class="line">            -- 显示当前行</span><br><span class="line">            SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 问题行！！！！</span><br><span class="line">            SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">            -- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">        -- 回到标签foreach_inst</span><br><span class="line">        END LOOP foreach_inst;</span><br><span class="line">    -- 关闭游标</span><br><span class="line">    CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="3-3-正确示例"><a href="#3-3-正确示例" class="headerlink" title="3.3 正确示例"></a>3.3 正确示例</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">    DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">    DECLARE v_tenant_id BIGINT;</span><br><span class="line">    DECLARE v_user_id BIGINT;</span><br><span class="line">    DECLARE v_resource_id BIGINT;</span><br><span class="line">    -- 定义游标循环结束条件</span><br><span class="line">    DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">    -- 定义游标</span><br><span class="line">    DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">    -- 定义NOT FOUND结束处理程序</span><br><span class="line">    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">    </span><br><span class="line">    -- 开始使用游标</span><br><span class="line">    OPEN my_cursor;</span><br><span class="line">        foreach_inst: LOOP</span><br><span class="line">        FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 判断游标是否已经达到末尾</span><br><span class="line">            IF finished = TRUE THEN</span><br><span class="line">                LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">            END IF;</span><br><span class="line">            -- 显示当前行</span><br><span class="line">            SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 问题行！！！！</span><br><span class="line">            -- SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">            SET v_resource_id = (SELECT resource_id FROM data_resource WHERE inst_id = v_inst_id);</span><br><span class="line">            -- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">        -- 回到标签foreach_inst</span><br><span class="line">        END LOOP foreach_inst;</span><br><span class="line">    -- 关闭游标</span><br><span class="line">    CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="4-解决办法"><a href="#4-解决办法" class="headerlink" title="4. 解决办法"></a>4. 解决办法</h3><ul>
+<li>保证循环中的查询不会出现 NOT FOUND 异常</li>
+<li>使用<code>SET variable = (SELECT cloumn FROM table);</code> 来设置变量，替代<code>SELECT cloumn INTO variable FROM table;</code> 的方式</li>
+</ul>
+]]></content>
+      <categories>
+        <category>日常踩坑</category>
+      </categories>
+      <tags>
+        <tag>MySQL</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>MySQL知识总结</title>
     <url>/2022/12/05/MySQL%E7%9F%A5%E8%AF%86%E6%80%BB%E7%BB%93/</url>
     <content><![CDATA[<h3 id="1-MyISAM和InnoDB的区别"><a href="#1-MyISAM和InnoDB的区别" class="headerlink" title="1. MyISAM和InnoDB的区别"></a>1. MyISAM和InnoDB的区别</h3><ul>
@@ -1774,159 +1774,6 @@
       </categories>
       <tags>
         <tag>MySQL</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>SpringBoot中使用Zookeeper进行服务发现</title>
-    <url>/2022/12/05/SpringBoot%E4%B8%AD%E4%BD%BF%E7%94%A8Zookeeper%E8%BF%9B%E8%A1%8C%E6%9C%8D%E5%8A%A1%E5%8F%91%E7%8E%B0/</url>
-    <content><![CDATA[<h2 id="1-什么是服务发现"><a href="#1-什么是服务发现" class="headerlink" title="1. 什么是服务发现"></a>1. 什么是服务发现</h2><p>首先引入三个角色，分别是服务提供者、服务消费者、服务中介。一个 HTTP 服务器既可以是服务提供者，也可以是服务消费者。</p>
-<ul>
-<li>服务提供者：简单来说就是一个 HTTP 服务器，向外提供 API 服务。</li>
-<li>服务消费者：其实就是一个程序，需要访问服务提供者提供的 API 服务来处理业务逻辑。</li>
-<li>服务中介：联系服务提供者和服务消费者的桥梁，服务提供者将自己提供的服务地址注册到服务中介，服务消费者可以从服务中介里查找需要的服务提供者地址。</li>
-</ul>
-<p><img src="/2022/12/05/SpringBoot%E4%B8%AD%E4%BD%BF%E7%94%A8Zookeeper%E8%BF%9B%E8%A1%8C%E6%9C%8D%E5%8A%A1%E5%8F%91%E7%8E%B0/v2-c5e1d05128694eaffc043d1acf1cab41_r.jpg" alt="img"></p>
-<h2 id="2-为什么需要服务发现"><a href="#2-为什么需要服务发现" class="headerlink" title="2. 为什么需要服务发现"></a>2. 为什么需要服务发现</h2><p>服务实例的网络位置（IP地址 + 端口）都是动态分配的，由于扩展、失败和升级，服务实例会经常动态改变。如果一个服务的地址经常发生变化，那么使用这个服务的客户端也要修改自己的配置文件以配置新的服务地址。频繁的变更会导致运维非常困难，因此客户端需要一种服务发现机制，以动态地获取到服务实例的网络位置。</p>
-<h2 id="3-常见的服务发现开源组件"><a href="#3-常见的服务发现开源组件" class="headerlink" title="3. 常见的服务发现开源组件"></a>3. 常见的服务发现开源组件</h2><p>服务发现开源组件就相当于服务中介，常见的有：</p>
-<ul>
-<li>etcd：一个用于共享配置和服务发现的高可用、分布式和一致的键值存储。使用了 etcd 的两个著名项目分别为 Kubernetes 和 Cloud Foundry。</li>
-<li>Consul：一个用于发现和配置服务的工具。它提供了一个 API，可用于客户端注册与发现服务。Consul 可对服务进行健康检查，以确定服务的可用性。</li>
-<li>Apache Zookeeper：一个被广泛应用于分布式应用的高性能协调服务。Apache ZooKeeper 最初是 Hadoop 的一个子项目，但现在已经成为一个独立的顶级项目。</li>
-<li>Eureka：Netflix 开发的服务发现框架，本身是一个基于 REST 的服务，主要用于定位运行在 AWS 域中的中间层服务，以达到负载均衡和中间层服务故障转移的目的。</li>
-<li>Nacos：是阿里巴巴开源的一款支持服务注册与发现，配置管理以及微服务管理的组件。</li>
-</ul>
-<p>需要知道的是，其实服务注册中心就是一个中介，来储存服务提供者的信息，因此其实 MySQL 或者 Redis 等数据库都能用作服务注册中心，只不过需要自己维护服务发现的功能，而上面提到的这些组件都提供了易用的服务发现 API ，更加适合快速开发。</p>
-<h2 id="4-Zookeeper-服务发现原理"><a href="#4-Zookeeper-服务发现原理" class="headerlink" title="4. Zookeeper 服务发现原理"></a>4. Zookeeper 服务发现原理</h2><p>Zookeeper 的服务注册与发现，主要应用的是 Zookeeper 的 Znode 数据模型和 Watcher 机制，主要分为以下几个步骤：</p>
-<ul>
-<li>服务注册：服务提供者启动时，会向 Zookeeper 服务端注册服务信息，即会在 Zookeeper 服务器上创建一个服务节点，并在节点上储存服务的相关数据（如服务提供者的 IP 地址、端口、UUID等）。Zookeeper 注册中心和服务提供者之间会建立一个 Socket 长连接，Zookeeper 注册中心定时向每个服务提供者发送心跳数据包，如果服务提供者没响应，会剔除该服务实例，并且发送通知。</li>
-<li>服务发现：服务消费者启动时，会根据本身依赖的服务信息，向 Zookeeper 服务端获取注册的服务信息并设置 Watcher。服务消费者获取到注册的服务信息之后将服务提供者信息缓存在本地，调用服务时，根据从 Zookeeper 注册中心获取到的注册信息调用服务。</li>
-<li>服务通知：当服务提供者因为某种原因宕机或不提供服务之后，Zookeeper 服务注册中心的对应服务节点会被删除，因为服务消费者在获取服务信息的时候在对应节点上设置了 Watcher。因此节点被删除后，会触发对应的 Wathcer 事件，Zookeeper 注册中心会异步向所有监听该节点事件的服务消费者发出节点删除的通知，服务消费者根据收到的通知更新缓存的服务列表。</li>
-</ul>
-<p><strong>但是一般来说，不建议使用 Zookeeper 作为服务发现注册中心</strong>，因为 Zookeeper 在 CAP 理论中支持的是 CP，即一致性和分区可用性。如果 Zookeeper 服务的 Leader 宕机，则需要重新选举 Leader，这个过程通常需要 30 到 120 秒，选举过程会导致集群不可用，注册服务也有可能会暂时不可用。而对于微服务架构来说，大部分时候强调更多是 AP。Zookeeper 更适合做分布式协调服务。</p>
-<h2 id="5-Spring-Boot-服务发现实战"><a href="#5-Spring-Boot-服务发现实战" class="headerlink" title="5. Spring Boot 服务发现实战"></a>5. Spring Boot 服务发现实战</h2><blockquote>
-<p>前置条件：安装好 Zookeeper，可以使用<a href="https://github.com/vran-dev/PrettyZoo">可视化工具PrettyZoo</a>进行查看。</p>
-</blockquote>
-<h3 id="5-1-服务提供者"><a href="#5-1-服务提供者" class="headerlink" title="5.1 服务提供者"></a>5.1 服务提供者</h3><blockquote>
-<p>服务提供者只是将自己的访问名称以及 IP 地址和端口注册到注册中心，所以并不会选择性的向外提供接口。如果某些接口不希望被外部访问，需要自己进行权限控制。</p>
-</blockquote>
-<p>创建一个 SpringBoot 项目，首先确保应用能够正常启动。</p>
-<h4 id="5-1-1-引入依赖包"><a href="#5-1-1-引入依赖包" class="headerlink" title="5.1.1 引入依赖包"></a>5.1.1 引入依赖包</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">&lt;dependency&gt;</span><br><span class="line">    &lt;groupId&gt;org.springframework.cloud&lt;/groupId&gt;</span><br><span class="line">    &lt;artifactId&gt;spring-cloud-starter-zookeeper-discovery&lt;/artifactId&gt;</span><br><span class="line">    &lt;version&gt;3.1.3&lt;/version&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br></pre></td></tr></table></figure>
-
-<h4 id="5-1-2-配置文件"><a href="#5-1-2-配置文件" class="headerlink" title="5.1.2 配置文件"></a>5.1.2 配置文件</h4><figure class="highlight yml"><table><tr><td class="code"><pre><span class="line"><span class="attr">server:</span></span><br><span class="line">  <span class="attr">port:</span> <span class="number">8080</span></span><br><span class="line"><span class="attr">spring:</span></span><br><span class="line">  <span class="attr">application:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">HelloWorld</span></span><br><span class="line">  <span class="attr">cloud:</span></span><br><span class="line">    <span class="attr">zookeeper:</span> <span class="comment"># 其他配置可以查看ZookeeperProperties.class和ZookeeperDiscoveryProperties.class文件得知</span></span><br><span class="line">      <span class="attr">connect-string:</span> <span class="string">localhost:2181</span> </span><br><span class="line">      <span class="attr">discovery:</span></span><br><span class="line">        <span class="attr">enabled:</span> <span class="literal">true</span> <span class="comment"># 或者可以通过在启动类中添加注解@EnableDiscoveryClient启用服务发现</span></span><br><span class="line">        <span class="comment"># 如果碰到多个网卡的情况，可以通过 preferIpAddress 和 instanceIpAddress 指定服务发现的地址</span></span><br><span class="line">        <span class="comment">#preferIpAddress: true</span></span><br><span class="line">        <span class="comment">#instanceIpAddress: ip 地址</span></span><br></pre></td></tr></table></figure>
-
-<h4 id="5-1-3-增加-REST-服务"><a href="#5-1-3-增加-REST-服务" class="headerlink" title="5.1.3 增加 REST 服务"></a>5.1.3 增加 REST 服务</h4><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">package</span> com.ljh.zookeeperdiscovery.controller;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> org.springframework.web.bind.annotation.GetMapping;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">interface</span> <span class="title class_">IHelloApi</span> &#123;</span><br><span class="line">    <span class="meta">@GetMapping(value = &quot;/helloworld&quot;)</span></span><br><span class="line">    String <span class="title function_">helloWorld</span><span class="params">()</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@RestController</span></span><br><span class="line"><span class="meta">@RequestMapping(value = &quot;/&quot;)</span></span><br><span class="line"><span class="meta">@Slf4j</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">HelloController</span> <span class="keyword">implements</span> <span class="title class_">IHelloApi</span> &#123;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> String <span class="title function_">helloWorld</span><span class="params">()</span>&#123;</span><br><span class="line">        log.debug(<span class="string">&quot;Receive request from outer!&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> <span class="string">&quot;HelloWorld&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h3 id="5-2-观察-Zookeeper-注册信息"><a href="#5-2-观察-Zookeeper-注册信息" class="headerlink" title="5.2 观察 Zookeeper 注册信息"></a>5.2 观察 Zookeeper 注册信息</h3><p>可以看到 SpringBoot 已经自动将信息注册到 Zookeeper 中。其中，<code>/services/HelloWorld</code>中的 HelloWorld 就是是应用名称，作为路由地址，在其他服务中就可以像使用域名一样使用这个名字来寻找 IP 地址。在这个 node 节点中，因为我 zk 使用的是 docker 部署的，所以 address 显示的是<code>host.docker.internal</code>，正常来说应该显示的是服务的 IP 地址。</p>
-<p><img src="/2022/12/05/SpringBoot%E4%B8%AD%E4%BD%BF%E7%94%A8Zookeeper%E8%BF%9B%E8%A1%8C%E6%9C%8D%E5%8A%A1%E5%8F%91%E7%8E%B0/image-20221227112048184.png" alt="image-20221227112048184"></p>
-<h3 id="5-3-服务消费者"><a href="#5-3-服务消费者" class="headerlink" title="5.3 服务消费者"></a>5.3 服务消费者</h3><p>既然服务提供者已经将服务注册到 Zookeeper 中，下一步就是考虑怎么使用这个服务了。</p>
-<p>在 Spring Boot 中能够通过很多种方法进行服务调用，包括 OpenFeign 和 RestTemplate。下面将使用 OpenFeign 调用服务提供者提供的服务。</p>
-<h4 id="5-3-1-引入依赖"><a href="#5-3-1-引入依赖" class="headerlink" title="5.3.1 引入依赖"></a>5.3.1 引入依赖</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">&lt;dependency&gt;</span><br><span class="line">    &lt;groupId&gt;org.springframework.cloud&lt;/groupId&gt;</span><br><span class="line">    &lt;artifactId&gt;spring-cloud-starter-openfeign&lt;/artifactId&gt;</span><br><span class="line">    &lt;version&gt;3.1.5&lt;/version&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br><span class="line">&lt;dependency&gt;</span><br><span class="line">    &lt;groupId&gt;org.springframework.cloud&lt;/groupId&gt;</span><br><span class="line">    &lt;artifactId&gt;spring-cloud-starter-zookeeper-discovery&lt;/artifactId&gt;</span><br><span class="line">    &lt;version&gt;3.1.3&lt;/version&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br></pre></td></tr></table></figure>
-
-<h4 id="5-3-2-配置文件"><a href="#5-3-2-配置文件" class="headerlink" title="5.3.2 配置文件"></a>5.3.2 配置文件</h4><figure class="highlight yml"><table><tr><td class="code"><pre><span class="line"><span class="attr">server:</span></span><br><span class="line">  <span class="attr">port:</span> <span class="number">8081</span></span><br><span class="line"></span><br><span class="line"><span class="attr">spring:</span></span><br><span class="line">  <span class="attr">application:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">consumer1</span></span><br><span class="line">  <span class="attr">cloud:</span></span><br><span class="line">    <span class="attr">zookeeper:</span></span><br><span class="line">      <span class="attr">discovery:</span></span><br><span class="line">        <span class="attr">enabled:</span> <span class="literal">true</span></span><br><span class="line">      <span class="attr">connect-string:</span> <span class="string">localhost:2181</span> </span><br></pre></td></tr></table></figure>
-
-<h4 id="5-3-3-引入服务接口"><a href="#5-3-3-引入服务接口" class="headerlink" title="5.3.3 引入服务接口"></a>5.3.3 引入服务接口</h4><ul>
-<li>IHelloApi 是服务提供者中定义的接口，直接复用接口能够避免重新定义</li>
-</ul>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">package</span> com.ljh.zookeeperdiscovery2.api;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> org.springframework.cloud.openfeign.FeignClient;</span><br><span class="line"></span><br><span class="line"><span class="meta">@FeignClient(name = &quot;HelloWorld&quot;)</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">interface</span> <span class="title class_">IHelloClient</span> <span class="keyword">extends</span> <span class="title class_">IHelloApi</span>&#123;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>定义一个用于测试的请求方法：</li>
-</ul>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">package</span> com.ljh.zookeeperdiscovery2.controller;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> com.ljh.zookeeperdiscovery2.api.IHelloClient;</span><br><span class="line"><span class="keyword">import</span> lombok.extern.slf4j.Slf4j;</span><br><span class="line"><span class="keyword">import</span> org.springframework.beans.factory.annotation.Autowired;</span><br><span class="line"><span class="keyword">import</span> org.springframework.web.bind.annotation.GetMapping;</span><br><span class="line"><span class="keyword">import</span> org.springframework.web.bind.annotation.RequestMapping;</span><br><span class="line"><span class="keyword">import</span> org.springframework.web.bind.annotation.RestController;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Slf4j</span></span><br><span class="line"><span class="meta">@RestController</span></span><br><span class="line"><span class="meta">@RequestMapping(value = &quot;/&quot;)</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">TestController</span> &#123;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    IHelloClient helloClient;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@GetMapping(value = &quot;/test&quot;)</span></span><br><span class="line">    <span class="keyword">public</span> String <span class="title function_">test</span><span class="params">()</span>&#123;</span><br><span class="line">        <span class="keyword">return</span> helloClient.helloWorld(); </span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h4 id="5-3-4-测试结果"><a href="#5-3-4-测试结果" class="headerlink" title="5.3.4 测试结果"></a>5.3.4 测试结果</h4><img src="image-20230103113801220.png" alt="image-20230103113801220" style="zoom:50%;" />
-
-
-
-<h2 id="6-spring-cloud-zookeeper-源码分析"><a href="#6-spring-cloud-zookeeper-源码分析" class="headerlink" title="6. spring-cloud-zookeeper 源码分析"></a>6. spring-cloud-zookeeper 源码分析</h2><blockquote>
-<p>关于 spring-cloud-zookeeper 的源码，需要带着以下三个问题进行分析：</p>
-<ul>
-<li>需要<strong>注册什么内容</strong>到服务中心？</li>
-<li><strong>如何将服务注册</strong>到服务中心？</li>
-<li>Spring Boot 在<strong>什么时候</strong>将服务注册到服务中心？</li>
-</ul>
-<p>阅读源码需要带着以上问题，一个一个的去看，才不会被细节性的东西所带偏，关注主要的功能代码。</p>
-</blockquote>
-<h3 id="6-1-关于-Apache-Curator"><a href="#6-1-关于-Apache-Curator" class="headerlink" title="6.1 关于 Apache Curator"></a>6.1 关于 Apache Curator</h3><p>Apache Curator 是 Apache Zookeeper 的 Java&#x2F;JVM 客户端库，包含一个高级 API 框架和实用程序，能够更加简便、可靠地使用 Apache Zookeeper。简单来说就是对 Zookeeper 得原生 API 进一步的简化，封装了一些常用的功能，比如说各种分布式锁、Leader 选举以及缓存等，其中就包括服务注册的功能。</p>
-<p>spring-cloud-zookeeper 底层其实也是用的 Apache Curator 进行服务注册，只不过在其基础之上，融入到 Spring Boot 的自动配置体系中。关于 Apache Curator 服务注册的使用方法，请<a href="https://curator.apache.org/curator-x-discovery/index.html">查看官网</a>。</p>
-<p>根据 Curator 官网中的介绍，要使用服务注册，需要构建一个服务实例 <code>ServiceInstance</code>。一个<code>ServiceInstance</code>代表着一个服务提供者，封装了服务提供者的信息。</p>
-<p>而<code>ServiceInstance</code>由<code>ServiceProvider</code>进行创建，<code>ServiceProvider</code>封装特定的命名服务以及服务的负载均衡策略。</p>
-<p><code>ServiceProvider</code>又需要通过<code>ServiceProviderBuilder</code>进行构建，<code>ServiceProviderBuilder</code>需要通过<code>ServiceDiscovery</code>获取，<code>ServiceDiscovery</code>通过<code>ServiceDiscoveryBuilder</code>构建。调用<code>ServiceDiscovery</code>的<code>start()</code>方法开始启用服务，<code>close()</code>方法注销服务。</p>
-<p><strong>总体的链路是：<code>ServiceInstance</code>  &lt;- <code>ServiceProvider</code> &lt;- <code>ServiceProviderBuilder</code> &lt;- <code>ServiceDiscovery</code> &lt;- <code>ServiceDiscoveryBuilder</code></strong></p>
-<p>通常，将服务提供者的信息传入到 <code>ServiceDiscovery</code>  的构造函数的时候，它会自动注册&#x2F;注销服务，但是如果想要自己手动进行注册，可以使用<code>ServiceDiscovery</code>的<code>public void registerService(ServiceInstance&lt;T&gt; service)</code>方法。</p>
-<h3 id="6-2-在哪里创建的-ServiceInstance"><a href="#6-2-在哪里创建的-ServiceInstance" class="headerlink" title="6.2 在哪里创建的 ServiceInstance"></a>6.2 在哪里创建的 ServiceInstance</h3><blockquote>
-<p>从现在开始，我们分析源码的主要流程</p>
-</blockquote>
-<p>从上面一小节我们可以知道，spring-cloud-zookeeper 最底层其实使用的还是 Apache Curator框架。那就需要寻找是在哪里创建的 ServiceInstance。</p>
-<p><strong>spring-cloud-zookeeper 的关键配置类是 <code>ZookeeperAutoServiceRegistrationAutoConfiguration.java</code></strong></p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ZookeeperAutoServiceRegistrationAutoConfiguration</span> &#123;</span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="keyword">public</span> ZookeeperAutoServiceRegistration <span class="title function_">zookeeperAutoServiceRegistration</span><span class="params">(</span></span><br><span class="line"><span class="params">            ZookeeperServiceRegistry registry, ZookeeperRegistration registration,</span></span><br><span class="line"><span class="params">            ZookeeperDiscoveryProperties properties)</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">ZookeeperAutoServiceRegistration</span>(registry, registration, properties);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="meta">@ConditionalOnMissingBean(ZookeeperRegistration.class)</span></span><br><span class="line">    <span class="keyword">public</span> ServiceInstanceRegistration <span class="title function_">serviceInstanceRegistration</span><span class="params">(</span></span><br><span class="line"><span class="params">            ApplicationContext context, ZookeeperDiscoveryProperties properties)</span> &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">appName</span> <span class="operator">=</span> context.getEnvironment().getProperty(<span class="string">&quot;spring.application.name&quot;</span>,</span><br><span class="line">                <span class="string">&quot;application&quot;</span>);</span><br><span class="line">        <span class="type">String</span> <span class="variable">host</span> <span class="operator">=</span> properties.getInstanceHost();</span><br><span class="line">        <span class="keyword">if</span> (!StringUtils.hasText(host)) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalStateException</span>(<span class="string">&quot;instanceHost must not be empty&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        properties.getMetadata().put(StatusConstants.INSTANCE_STATUS_KEY, properties.getInitialStatus());</span><br><span class="line"></span><br><span class="line">        <span class="type">ZookeeperInstance</span> <span class="variable">zookeeperInstance</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ZookeeperInstance</span>(context.getId(),</span><br><span class="line">                appName, properties.getMetadata());</span><br><span class="line">        <span class="comment">// 重点！获取ServiceInstance的构建器</span></span><br><span class="line">        <span class="type">RegistrationBuilder</span> <span class="variable">builder</span> <span class="operator">=</span> ServiceInstanceRegistration.builder().address(host)</span><br><span class="line">                .name(appName).payload(zookeeperInstance)</span><br><span class="line">                .uriSpec(properties.getUriSpec());</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (properties.getInstanceSslPort() != <span class="literal">null</span>) &#123;</span><br><span class="line">            builder.sslPort(properties.getInstanceSslPort());</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (properties.getInstanceId() != <span class="literal">null</span>) &#123;</span><br><span class="line">            builder.id(properties.getInstanceId());</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// TODO add customizer?</span></span><br><span class="line">        <span class="comment">// 构建ServiceInstanceRegistration实例</span></span><br><span class="line">        <span class="keyword">return</span> builder.build();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>从上面可以看出，配置类中主要是创建了两个 Bean 实例，一个是 <code>ZookeeperAutoServiceRegistration</code>，一个是<code>ServiceInstanceRegistration</code>。看到<code>ServiceInstanceRegistration</code>跟<code>ServiceInstance</code>命名方式那么像，肯定是有什么关联，点进去看看。</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ServiceInstanceRegistration</span> <span class="keyword">implements</span> <span class="title class_">ZookeeperRegistration</span>&#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> RegistrationBuilder <span class="title function_">builder</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="comment">// 调用了Curator框架的ServiceInstance&lt;T&gt;.builder()静态方法，得到一个ServiceInstanceBuilder&lt;T&gt;构建器</span></span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">RegistrationBuilder</span>(ServiceInstance.&lt;ZookeeperInstance&gt;builder());</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">RuntimeException</span>(<span class="string">&quot;Error creating ServiceInstanceBuilder&quot;</span>, e);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<img src="image-20230103145025431.png" alt="image-20230103145025431" style="zoom:50%;" />
-
-<p>从类的结构关系中可以看到，<code>ServiceInstanceRegistration类</code>中包含着一个<code>ServiceInstance</code>的域。这里的<code>ZookeeperInstance类</code>是服务提供者的一些额外信息，主要是辅助 Spring Boot 的服务发现功能，储存在 payload 信息中。</p>
-<p><code>ZookeeperAutoServiceRegistrationAutoConfiguration类</code>中的<code>serviceInstanceRegistration(ApplicationContext context, ZookeeperDiscoveryProperties properties)</code>方法中注入了<strong>应用的上下文信息</strong>以及 <strong>Zookeeper服务发现的属性配置信息</strong>，就是为了构建 <code>ServiceInstance</code>。</p>
-<p><code>RegistrationBuilder类</code>是<code>ServiceInstanceRegistration类</code>的静态内部类。在调用<code>ServiceInstanceRegistration.builder()</code>方法的时候，调用了<code>ServiceInstance&lt;T&gt;.builder()</code>静态方法，创建了一个<code>ServiceInstanceBuilder&lt;T&gt;</code>用于构建服务提供者的所有信息。</p>
-<p>当调用<code>RegistrationBuilder类</code>的<code>build()</code>方法时，创建一个<code>ServiceInstanceRegistration类</code>实例并返回：</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">class</span> <span class="title class_">RegistrationBuilder</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> ServiceInstanceRegistration <span class="title function_">build</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="comment">// 创建ServiceInstanceRegistration实例，并将ServiceInstanceBuilder&lt;T&gt;构建器传入</span></span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">ServiceInstanceRegistration</span>(<span class="built_in">this</span>.builder);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>此时，<code>ServiceInstanceRegistration实例</code>中包含着<code>ServiceInstanceBuilder&lt;ZookeeperInstance&gt; builder</code>构建器的信息，当调用<code>getServiceInstance()</code>方法的时候，就会通过构建器构建<code>ServiceInstance</code>实例并返回：</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ServiceInstanceRegistration</span> <span class="keyword">implements</span> <span class="title class_">ZookeeperRegistration</span>&#123;</span><br><span class="line">    <span class="keyword">public</span> ServiceInstance&lt;ZookeeperInstance&gt; <span class="title function_">getServiceInstance</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (<span class="built_in">this</span>.serviceInstance == <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="comment">// 通过ServiceInstanceBuilder&lt;T&gt;构建器构建ServiceInstance实例</span></span><br><span class="line">            build();</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="built_in">this</span>.serviceInstance;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">build</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.serviceInstance = <span class="built_in">this</span>.builder.build();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>至此，就能够明白第一个问题，需要注册什么内容到服务中心？并且在哪里进行创建。</p>
-<h3 id="6-3-如何将服务注册到服务中心"><a href="#6-3-如何将服务注册到服务中心" class="headerlink" title="6.3 如何将服务注册到服务中心"></a>6.3 如何将服务注册到服务中心</h3><blockquote>
-<p>在 6.1 小节中我们知道，Curator 框架可以通过调用<code>ServiceDiscovery</code> 的<code>start()</code>方法或者是<code>registerService()</code>方法进行服务注册。那我们就需要寻找一下在哪里调用的<code>start()</code>方法或者是<code>registerService()</code>方法。</p>
-</blockquote>
-<p>依然是看到**自动配置类<code>ZookeeperAutoServiceRegistrationAutoConfiguration.java</code>**，其中另外一个注入的 Bean 实例是 <code>ZookeeperAutoServiceRegistration</code>。</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ZookeeperAutoServiceRegistration</span> <span class="keyword">extends</span> <span class="title class_">AbstractAutoServiceRegistration</span>&lt;ZookeeperRegistration&gt;&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">register</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (!<span class="built_in">this</span>.properties.isRegister()) &#123;</span><br><span class="line">            log.debug(<span class="string">&quot;Registration disabled.&quot;</span>);</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (<span class="built_in">this</span>.registration.getPort() == <span class="number">0</span>) &#123;</span><br><span class="line">            <span class="built_in">this</span>.registration.setPort(getPort().get());</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="built_in">super</span>.register();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>可以看到，<code>ZookeeperAutoServiceRegistration类</code>中有一个<code>register()</code>方法，非常像是服务注册的逻辑，其中调用了父类的<code>register()</code>方法。</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="keyword">class</span> <span class="title class_">AbstractAutoServiceRegistration</span>&lt;R <span class="keyword">extends</span> <span class="title class_">Registration</span>&gt; <span class="keyword">implements</span> <span class="title class_">AutoServiceRegistration</span>, ApplicationContextAware, ApplicationListener&lt;WebServerInitializedEvent&gt; &#123;</span><br><span class="line">    <span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">register</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.serviceRegistry.register(getRegistration());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>这里<code>this.serviceRegistry.register()</code>实际调用的是<code>ZookeeperServiceRegistry实例</code>的<code>register()</code>方法：</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ZookeeperServiceRegistry</span> <span class="keyword">implements</span> <span class="title class_">ServiceRegistry</span>&lt;ZookeeperRegistration&gt;, SmartInitializingSingleton, Closeable &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">register</span><span class="params">(ZookeeperRegistration registration)</span> &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="comment">// 实际调用ServiceDiscovery的registerService()方法进行服务注册</span></span><br><span class="line">            getServiceDiscovery().registerService(registration.getServiceInstance());</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">            rethrowRuntimeException(e);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p><code>getServiceDiscovery().registerService()</code>就是实际调用<code>ServiceDiscovery类</code>的<code>registerService()</code>方法进行服务注册。</p>
-<blockquote>
-<p>由此，引出了三个问题：</p>
-<ul>
-<li><code>registration.getServiceInstance()</code>是从哪里来的？</li>
-<li>怎么就调用到了<code>ZookeeperServiceRegistry实例</code>的<code>register()</code>方法？</li>
-<li><code>ServiceDiscovery</code>是在哪里进行构建的？</li>
-</ul>
-</blockquote>
-<blockquote>
-<p><strong>第一个问题</strong>比较简单，在<code>ZookeeperAutoServiceRegistrationAutoConfiguration配置类</code>中构建<code>ZookeeperAutoServiceRegistration实例Bean</code>的时候，传入了一个<code>ZookeeperRegistration实例Bean</code>，而6.2 小节中创建的<code>ServiceInstanceRegistration实例Bean</code>实现了<code>ZookeeperRegistration接口</code>，而调用<code>getServiceInstance()</code>就能获取到 **<code>ServiceInstance实例</code>**。</p>
-</blockquote>
-<blockquote>
-<p><strong>第二和第三个问题是一起的</strong>，<code>zookeeperAutoServiceRegistration()</code>方法中注入了一个<code>ZookeeperServiceRegistry实例Bean</code>作为<code>ZookeeperAutoServiceRegistration构造函数</code>的入参。这个<code>ZookeeperServiceRegistry实例Bean</code>是在<code>ZookeeperServiceRegistryAutoConfiguration配置类</code>中创建的。</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ZookeeperServiceRegistryAutoConfiguration</span> <span class="keyword">implements</span> <span class="title class_">ApplicationContextAware</span> &#123;</span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="meta">@ConditionalOnBean(ServiceDiscovery.class)</span></span><br><span class="line">    <span class="meta">@SuppressWarnings(&quot;unchecked&quot;)</span></span><br><span class="line">    <span class="keyword">public</span> ZookeeperServiceRegistry <span class="title function_">zookeeperServiceRegistry</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">ZookeeperServiceRegistry</span>(<span class="built_in">this</span>.context.getBean(ServiceDiscovery.class));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>而这里通过 Spring 应用上下文获取的 <code>ServiceDiscovery实例Bean</code>是在<code>CuratorServiceDiscoveryAutoConfiguration配置类</code>中创建的：</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">CuratorServiceDiscoveryAutoConfiguration</span> &#123;</span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="meta">@ConditionalOnMissingBean(ServiceDiscoveryCustomizer.class)</span></span><br><span class="line">    <span class="keyword">public</span> DefaultServiceDiscoveryCustomizer <span class="title function_">defaultServiceDiscoveryCustomizer</span><span class="params">(</span></span><br><span class="line"><span class="params">            CuratorFramework curator, ZookeeperDiscoveryProperties properties,</span></span><br><span class="line"><span class="params">            InstanceSerializer&lt;ZookeeperInstance&gt; serializer)</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">DefaultServiceDiscoveryCustomizer</span>(curator, properties, serializer);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="meta">@ConditionalOnMissingBean</span></span><br><span class="line">    <span class="keyword">public</span> InstanceSerializer&lt;ZookeeperInstance&gt; <span class="title function_">deprecatedInstanceSerializer</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">JsonInstanceSerializer</span>&lt;&gt;(ZookeeperInstance.class);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="meta">@ConditionalOnMissingBean</span></span><br><span class="line">    <span class="keyword">public</span> ServiceDiscovery&lt;ZookeeperInstance&gt; <span class="title function_">curatorServiceDiscovery</span><span class="params">(ServiceDiscoveryCustomizer customizer)</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> customizer.customize(ServiceDiscoveryBuilder.builder(ZookeeperInstance.class));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>再继续下去就不分析了，其实就是获取配置文件中 Zookeeper 的信息，创建 CuratorFramework 的连接，以及指定 payload 的序列化器。如果想要设置服务发现节点的 ACL 权限可以自己创建一个实例 Bean 替换默认的 CuratorFramework  连接，或者替换其他实例Bean 进行自定义设置。</p>
-</blockquote>
-<h3 id="6-4-Spring-Boot-在什么时候将服务注册到服务中心"><a href="#6-4-Spring-Boot-在什么时候将服务注册到服务中心" class="headerlink" title="6.4 Spring Boot 在什么时候将服务注册到服务中心"></a>6.4 Spring Boot 在<strong>什么时候</strong>将服务注册到服务中心</h3><p>我们看到<code>ZookeeperAutoServiceRegistration类</code>的继承关系示意图，可以得知<code>ZookeeperAutoServiceRegistration类</code>实现了<code>ApplicationListener&lt;WebServerInitializedEvent&gt;</code>监听器接口，所以当 WebServer 服务准备完成的时候会产生<code>WebServerInitializedEvent事件</code>，并且 Spring 会自动调用其<code>onApplicationEvent()</code>方法。</p>
-<p><img src="/2022/12/05/SpringBoot%E4%B8%AD%E4%BD%BF%E7%94%A8Zookeeper%E8%BF%9B%E8%A1%8C%E6%9C%8D%E5%8A%A1%E5%8F%91%E7%8E%B0/image-20230103221232863.png" alt="image-20230103221232863"></p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="keyword">class</span> <span class="title class_">AbstractAutoServiceRegistration</span>&lt;R <span class="keyword">extends</span> <span class="title class_">Registration</span>&gt; <span class="keyword">implements</span> <span class="title class_">AutoServiceRegistration</span>, ApplicationContextAware, ApplicationListener&lt;WebServerInitializedEvent&gt; &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">onApplicationEvent</span><span class="params">(WebServerInitializedEvent event)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.bind(event);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@Deprecated</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">bind</span><span class="params">(WebServerInitializedEvent event)</span> &#123;</span><br><span class="line">        <span class="type">ApplicationContext</span> <span class="variable">context</span> <span class="operator">=</span> event.getApplicationContext();</span><br><span class="line">        <span class="keyword">if</span> (!(context <span class="keyword">instanceof</span> ConfigurableWebServerApplicationContext) || !<span class="string">&quot;management&quot;</span>.equals(((ConfigurableWebServerApplicationContext)context).getServerNamespace())) &#123;</span><br><span class="line">            <span class="built_in">this</span>.port.compareAndSet(<span class="number">0</span>, event.getWebServer().getPort());</span><br><span class="line">            <span class="built_in">this</span>.start();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">start</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (!<span class="built_in">this</span>.isEnabled()) &#123;</span><br><span class="line">            <span class="keyword">if</span> (logger.isDebugEnabled()) &#123;</span><br><span class="line">                logger.debug(<span class="string">&quot;Discovery Lifecycle disabled. Not starting&quot;</span>);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">if</span> (!<span class="built_in">this</span>.running.get()) &#123;</span><br><span class="line">                <span class="built_in">this</span>.context.publishEvent(<span class="keyword">new</span> <span class="title class_">InstancePreRegisteredEvent</span>(<span class="built_in">this</span>, <span class="built_in">this</span>.getRegistration()));</span><br><span class="line">                <span class="comment">// 调用子类ZookeeperAutoServiceRegistration的注册方法，关联6.3小节</span></span><br><span class="line">                <span class="built_in">this</span>.register();</span><br><span class="line">                <span class="keyword">if</span> (<span class="built_in">this</span>.shouldRegisterManagement()) &#123;</span><br><span class="line">                    <span class="built_in">this</span>.registerManagement();</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                <span class="built_in">this</span>.context.publishEvent(<span class="keyword">new</span> <span class="title class_">InstanceRegisteredEvent</span>(<span class="built_in">this</span>, <span class="built_in">this</span>.getConfiguration()));</span><br><span class="line">                <span class="built_in">this</span>.running.compareAndSet(<span class="literal">false</span>, <span class="literal">true</span>);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-
-
-<h2 id="7-小结"><a href="#7-小结" class="headerlink" title="7. 小结"></a>7. 小结</h2><p>关于 spring-cloud-zookeeper 的源码为什么那么复杂，老母猪戴奶罩一套又一套的，主要还是因为除了支持 zookeeper 能做服务发现以外，还支持 Eureka、Consul 这些作为注册中心，所以需要提供一个比较通用的接口， 这些通用的接口就是定义在 spring-cloud-commons包里。</p>
-<p>关于看源码，如果是比较简单的框架直接看没什么问题，但是如果规模比较大的框架，还是要先有个大概的概念再去看，思路会清楚很多，所以还是要多长自己的见识，一味的只看源码其实也没啥用，无头苍蝇，哪里都不着调。</p>
-]]></content>
-      <categories>
-        <category>Zookeeper</category>
-        <category>Spring</category>
-      </categories>
-      <tags>
-        <tag>Zookeeper</tag>
-        <tag>Spring</tag>
       </tags>
   </entry>
   <entry>
@@ -2333,6 +2180,159 @@
       </tags>
   </entry>
   <entry>
+    <title>SpringBoot中使用Zookeeper进行服务发现</title>
+    <url>/2022/12/05/SpringBoot%E4%B8%AD%E4%BD%BF%E7%94%A8Zookeeper%E8%BF%9B%E8%A1%8C%E6%9C%8D%E5%8A%A1%E5%8F%91%E7%8E%B0/</url>
+    <content><![CDATA[<h2 id="1-什么是服务发现"><a href="#1-什么是服务发现" class="headerlink" title="1. 什么是服务发现"></a>1. 什么是服务发现</h2><p>首先引入三个角色，分别是服务提供者、服务消费者、服务中介。一个 HTTP 服务器既可以是服务提供者，也可以是服务消费者。</p>
+<ul>
+<li>服务提供者：简单来说就是一个 HTTP 服务器，向外提供 API 服务。</li>
+<li>服务消费者：其实就是一个程序，需要访问服务提供者提供的 API 服务来处理业务逻辑。</li>
+<li>服务中介：联系服务提供者和服务消费者的桥梁，服务提供者将自己提供的服务地址注册到服务中介，服务消费者可以从服务中介里查找需要的服务提供者地址。</li>
+</ul>
+<p><img src="/2022/12/05/SpringBoot%E4%B8%AD%E4%BD%BF%E7%94%A8Zookeeper%E8%BF%9B%E8%A1%8C%E6%9C%8D%E5%8A%A1%E5%8F%91%E7%8E%B0/v2-c5e1d05128694eaffc043d1acf1cab41_r.jpg" alt="img"></p>
+<h2 id="2-为什么需要服务发现"><a href="#2-为什么需要服务发现" class="headerlink" title="2. 为什么需要服务发现"></a>2. 为什么需要服务发现</h2><p>服务实例的网络位置（IP地址 + 端口）都是动态分配的，由于扩展、失败和升级，服务实例会经常动态改变。如果一个服务的地址经常发生变化，那么使用这个服务的客户端也要修改自己的配置文件以配置新的服务地址。频繁的变更会导致运维非常困难，因此客户端需要一种服务发现机制，以动态地获取到服务实例的网络位置。</p>
+<h2 id="3-常见的服务发现开源组件"><a href="#3-常见的服务发现开源组件" class="headerlink" title="3. 常见的服务发现开源组件"></a>3. 常见的服务发现开源组件</h2><p>服务发现开源组件就相当于服务中介，常见的有：</p>
+<ul>
+<li>etcd：一个用于共享配置和服务发现的高可用、分布式和一致的键值存储。使用了 etcd 的两个著名项目分别为 Kubernetes 和 Cloud Foundry。</li>
+<li>Consul：一个用于发现和配置服务的工具。它提供了一个 API，可用于客户端注册与发现服务。Consul 可对服务进行健康检查，以确定服务的可用性。</li>
+<li>Apache Zookeeper：一个被广泛应用于分布式应用的高性能协调服务。Apache ZooKeeper 最初是 Hadoop 的一个子项目，但现在已经成为一个独立的顶级项目。</li>
+<li>Eureka：Netflix 开发的服务发现框架，本身是一个基于 REST 的服务，主要用于定位运行在 AWS 域中的中间层服务，以达到负载均衡和中间层服务故障转移的目的。</li>
+<li>Nacos：是阿里巴巴开源的一款支持服务注册与发现，配置管理以及微服务管理的组件。</li>
+</ul>
+<p>需要知道的是，其实服务注册中心就是一个中介，来储存服务提供者的信息，因此其实 MySQL 或者 Redis 等数据库都能用作服务注册中心，只不过需要自己维护服务发现的功能，而上面提到的这些组件都提供了易用的服务发现 API ，更加适合快速开发。</p>
+<h2 id="4-Zookeeper-服务发现原理"><a href="#4-Zookeeper-服务发现原理" class="headerlink" title="4. Zookeeper 服务发现原理"></a>4. Zookeeper 服务发现原理</h2><p>Zookeeper 的服务注册与发现，主要应用的是 Zookeeper 的 Znode 数据模型和 Watcher 机制，主要分为以下几个步骤：</p>
+<ul>
+<li>服务注册：服务提供者启动时，会向 Zookeeper 服务端注册服务信息，即会在 Zookeeper 服务器上创建一个服务节点，并在节点上储存服务的相关数据（如服务提供者的 IP 地址、端口、UUID等）。Zookeeper 注册中心和服务提供者之间会建立一个 Socket 长连接，Zookeeper 注册中心定时向每个服务提供者发送心跳数据包，如果服务提供者没响应，会剔除该服务实例，并且发送通知。</li>
+<li>服务发现：服务消费者启动时，会根据本身依赖的服务信息，向 Zookeeper 服务端获取注册的服务信息并设置 Watcher。服务消费者获取到注册的服务信息之后将服务提供者信息缓存在本地，调用服务时，根据从 Zookeeper 注册中心获取到的注册信息调用服务。</li>
+<li>服务通知：当服务提供者因为某种原因宕机或不提供服务之后，Zookeeper 服务注册中心的对应服务节点会被删除，因为服务消费者在获取服务信息的时候在对应节点上设置了 Watcher。因此节点被删除后，会触发对应的 Wathcer 事件，Zookeeper 注册中心会异步向所有监听该节点事件的服务消费者发出节点删除的通知，服务消费者根据收到的通知更新缓存的服务列表。</li>
+</ul>
+<p><strong>但是一般来说，不建议使用 Zookeeper 作为服务发现注册中心</strong>，因为 Zookeeper 在 CAP 理论中支持的是 CP，即一致性和分区可用性。如果 Zookeeper 服务的 Leader 宕机，则需要重新选举 Leader，这个过程通常需要 30 到 120 秒，选举过程会导致集群不可用，注册服务也有可能会暂时不可用。而对于微服务架构来说，大部分时候强调更多是 AP。Zookeeper 更适合做分布式协调服务。</p>
+<h2 id="5-Spring-Boot-服务发现实战"><a href="#5-Spring-Boot-服务发现实战" class="headerlink" title="5. Spring Boot 服务发现实战"></a>5. Spring Boot 服务发现实战</h2><blockquote>
+<p>前置条件：安装好 Zookeeper，可以使用<a href="https://github.com/vran-dev/PrettyZoo">可视化工具PrettyZoo</a>进行查看。</p>
+</blockquote>
+<h3 id="5-1-服务提供者"><a href="#5-1-服务提供者" class="headerlink" title="5.1 服务提供者"></a>5.1 服务提供者</h3><blockquote>
+<p>服务提供者只是将自己的访问名称以及 IP 地址和端口注册到注册中心，所以并不会选择性的向外提供接口。如果某些接口不希望被外部访问，需要自己进行权限控制。</p>
+</blockquote>
+<p>创建一个 SpringBoot 项目，首先确保应用能够正常启动。</p>
+<h4 id="5-1-1-引入依赖包"><a href="#5-1-1-引入依赖包" class="headerlink" title="5.1.1 引入依赖包"></a>5.1.1 引入依赖包</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">&lt;dependency&gt;</span><br><span class="line">    &lt;groupId&gt;org.springframework.cloud&lt;/groupId&gt;</span><br><span class="line">    &lt;artifactId&gt;spring-cloud-starter-zookeeper-discovery&lt;/artifactId&gt;</span><br><span class="line">    &lt;version&gt;3.1.3&lt;/version&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br></pre></td></tr></table></figure>
+
+<h4 id="5-1-2-配置文件"><a href="#5-1-2-配置文件" class="headerlink" title="5.1.2 配置文件"></a>5.1.2 配置文件</h4><figure class="highlight yml"><table><tr><td class="code"><pre><span class="line"><span class="attr">server:</span></span><br><span class="line">  <span class="attr">port:</span> <span class="number">8080</span></span><br><span class="line"><span class="attr">spring:</span></span><br><span class="line">  <span class="attr">application:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">HelloWorld</span></span><br><span class="line">  <span class="attr">cloud:</span></span><br><span class="line">    <span class="attr">zookeeper:</span> <span class="comment"># 其他配置可以查看ZookeeperProperties.class和ZookeeperDiscoveryProperties.class文件得知</span></span><br><span class="line">      <span class="attr">connect-string:</span> <span class="string">localhost:2181</span> </span><br><span class="line">      <span class="attr">discovery:</span></span><br><span class="line">        <span class="attr">enabled:</span> <span class="literal">true</span> <span class="comment"># 或者可以通过在启动类中添加注解@EnableDiscoveryClient启用服务发现</span></span><br><span class="line">        <span class="comment"># 如果碰到多个网卡的情况，可以通过 preferIpAddress 和 instanceIpAddress 指定服务发现的地址</span></span><br><span class="line">        <span class="comment">#preferIpAddress: true</span></span><br><span class="line">        <span class="comment">#instanceIpAddress: ip 地址</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="5-1-3-增加-REST-服务"><a href="#5-1-3-增加-REST-服务" class="headerlink" title="5.1.3 增加 REST 服务"></a>5.1.3 增加 REST 服务</h4><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">package</span> com.ljh.zookeeperdiscovery.controller;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> org.springframework.web.bind.annotation.GetMapping;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">interface</span> <span class="title class_">IHelloApi</span> &#123;</span><br><span class="line">    <span class="meta">@GetMapping(value = &quot;/helloworld&quot;)</span></span><br><span class="line">    String <span class="title function_">helloWorld</span><span class="params">()</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@RestController</span></span><br><span class="line"><span class="meta">@RequestMapping(value = &quot;/&quot;)</span></span><br><span class="line"><span class="meta">@Slf4j</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">HelloController</span> <span class="keyword">implements</span> <span class="title class_">IHelloApi</span> &#123;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> String <span class="title function_">helloWorld</span><span class="params">()</span>&#123;</span><br><span class="line">        log.debug(<span class="string">&quot;Receive request from outer!&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> <span class="string">&quot;HelloWorld&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-2-观察-Zookeeper-注册信息"><a href="#5-2-观察-Zookeeper-注册信息" class="headerlink" title="5.2 观察 Zookeeper 注册信息"></a>5.2 观察 Zookeeper 注册信息</h3><p>可以看到 SpringBoot 已经自动将信息注册到 Zookeeper 中。其中，<code>/services/HelloWorld</code>中的 HelloWorld 就是是应用名称，作为路由地址，在其他服务中就可以像使用域名一样使用这个名字来寻找 IP 地址。在这个 node 节点中，因为我 zk 使用的是 docker 部署的，所以 address 显示的是<code>host.docker.internal</code>，正常来说应该显示的是服务的 IP 地址。</p>
+<p><img src="/2022/12/05/SpringBoot%E4%B8%AD%E4%BD%BF%E7%94%A8Zookeeper%E8%BF%9B%E8%A1%8C%E6%9C%8D%E5%8A%A1%E5%8F%91%E7%8E%B0/image-20221227112048184.png" alt="image-20221227112048184"></p>
+<h3 id="5-3-服务消费者"><a href="#5-3-服务消费者" class="headerlink" title="5.3 服务消费者"></a>5.3 服务消费者</h3><p>既然服务提供者已经将服务注册到 Zookeeper 中，下一步就是考虑怎么使用这个服务了。</p>
+<p>在 Spring Boot 中能够通过很多种方法进行服务调用，包括 OpenFeign 和 RestTemplate。下面将使用 OpenFeign 调用服务提供者提供的服务。</p>
+<h4 id="5-3-1-引入依赖"><a href="#5-3-1-引入依赖" class="headerlink" title="5.3.1 引入依赖"></a>5.3.1 引入依赖</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">&lt;dependency&gt;</span><br><span class="line">    &lt;groupId&gt;org.springframework.cloud&lt;/groupId&gt;</span><br><span class="line">    &lt;artifactId&gt;spring-cloud-starter-openfeign&lt;/artifactId&gt;</span><br><span class="line">    &lt;version&gt;3.1.5&lt;/version&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br><span class="line">&lt;dependency&gt;</span><br><span class="line">    &lt;groupId&gt;org.springframework.cloud&lt;/groupId&gt;</span><br><span class="line">    &lt;artifactId&gt;spring-cloud-starter-zookeeper-discovery&lt;/artifactId&gt;</span><br><span class="line">    &lt;version&gt;3.1.3&lt;/version&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br></pre></td></tr></table></figure>
+
+<h4 id="5-3-2-配置文件"><a href="#5-3-2-配置文件" class="headerlink" title="5.3.2 配置文件"></a>5.3.2 配置文件</h4><figure class="highlight yml"><table><tr><td class="code"><pre><span class="line"><span class="attr">server:</span></span><br><span class="line">  <span class="attr">port:</span> <span class="number">8081</span></span><br><span class="line"></span><br><span class="line"><span class="attr">spring:</span></span><br><span class="line">  <span class="attr">application:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">consumer1</span></span><br><span class="line">  <span class="attr">cloud:</span></span><br><span class="line">    <span class="attr">zookeeper:</span></span><br><span class="line">      <span class="attr">discovery:</span></span><br><span class="line">        <span class="attr">enabled:</span> <span class="literal">true</span></span><br><span class="line">      <span class="attr">connect-string:</span> <span class="string">localhost:2181</span> </span><br></pre></td></tr></table></figure>
+
+<h4 id="5-3-3-引入服务接口"><a href="#5-3-3-引入服务接口" class="headerlink" title="5.3.3 引入服务接口"></a>5.3.3 引入服务接口</h4><ul>
+<li>IHelloApi 是服务提供者中定义的接口，直接复用接口能够避免重新定义</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">package</span> com.ljh.zookeeperdiscovery2.api;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> org.springframework.cloud.openfeign.FeignClient;</span><br><span class="line"></span><br><span class="line"><span class="meta">@FeignClient(name = &quot;HelloWorld&quot;)</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">interface</span> <span class="title class_">IHelloClient</span> <span class="keyword">extends</span> <span class="title class_">IHelloApi</span>&#123;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>定义一个用于测试的请求方法：</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">package</span> com.ljh.zookeeperdiscovery2.controller;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> com.ljh.zookeeperdiscovery2.api.IHelloClient;</span><br><span class="line"><span class="keyword">import</span> lombok.extern.slf4j.Slf4j;</span><br><span class="line"><span class="keyword">import</span> org.springframework.beans.factory.annotation.Autowired;</span><br><span class="line"><span class="keyword">import</span> org.springframework.web.bind.annotation.GetMapping;</span><br><span class="line"><span class="keyword">import</span> org.springframework.web.bind.annotation.RequestMapping;</span><br><span class="line"><span class="keyword">import</span> org.springframework.web.bind.annotation.RestController;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Slf4j</span></span><br><span class="line"><span class="meta">@RestController</span></span><br><span class="line"><span class="meta">@RequestMapping(value = &quot;/&quot;)</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">TestController</span> &#123;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    IHelloClient helloClient;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@GetMapping(value = &quot;/test&quot;)</span></span><br><span class="line">    <span class="keyword">public</span> String <span class="title function_">test</span><span class="params">()</span>&#123;</span><br><span class="line">        <span class="keyword">return</span> helloClient.helloWorld(); </span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="5-3-4-测试结果"><a href="#5-3-4-测试结果" class="headerlink" title="5.3.4 测试结果"></a>5.3.4 测试结果</h4><img src="image-20230103113801220.png" alt="image-20230103113801220" style="zoom:50%;" />
+
+
+
+<h2 id="6-spring-cloud-zookeeper-源码分析"><a href="#6-spring-cloud-zookeeper-源码分析" class="headerlink" title="6. spring-cloud-zookeeper 源码分析"></a>6. spring-cloud-zookeeper 源码分析</h2><blockquote>
+<p>关于 spring-cloud-zookeeper 的源码，需要带着以下三个问题进行分析：</p>
+<ul>
+<li>需要<strong>注册什么内容</strong>到服务中心？</li>
+<li><strong>如何将服务注册</strong>到服务中心？</li>
+<li>Spring Boot 在<strong>什么时候</strong>将服务注册到服务中心？</li>
+</ul>
+<p>阅读源码需要带着以上问题，一个一个的去看，才不会被细节性的东西所带偏，关注主要的功能代码。</p>
+</blockquote>
+<h3 id="6-1-关于-Apache-Curator"><a href="#6-1-关于-Apache-Curator" class="headerlink" title="6.1 关于 Apache Curator"></a>6.1 关于 Apache Curator</h3><p>Apache Curator 是 Apache Zookeeper 的 Java&#x2F;JVM 客户端库，包含一个高级 API 框架和实用程序，能够更加简便、可靠地使用 Apache Zookeeper。简单来说就是对 Zookeeper 得原生 API 进一步的简化，封装了一些常用的功能，比如说各种分布式锁、Leader 选举以及缓存等，其中就包括服务注册的功能。</p>
+<p>spring-cloud-zookeeper 底层其实也是用的 Apache Curator 进行服务注册，只不过在其基础之上，融入到 Spring Boot 的自动配置体系中。关于 Apache Curator 服务注册的使用方法，请<a href="https://curator.apache.org/curator-x-discovery/index.html">查看官网</a>。</p>
+<p>根据 Curator 官网中的介绍，要使用服务注册，需要构建一个服务实例 <code>ServiceInstance</code>。一个<code>ServiceInstance</code>代表着一个服务提供者，封装了服务提供者的信息。</p>
+<p>而<code>ServiceInstance</code>由<code>ServiceProvider</code>进行创建，<code>ServiceProvider</code>封装特定的命名服务以及服务的负载均衡策略。</p>
+<p><code>ServiceProvider</code>又需要通过<code>ServiceProviderBuilder</code>进行构建，<code>ServiceProviderBuilder</code>需要通过<code>ServiceDiscovery</code>获取，<code>ServiceDiscovery</code>通过<code>ServiceDiscoveryBuilder</code>构建。调用<code>ServiceDiscovery</code>的<code>start()</code>方法开始启用服务，<code>close()</code>方法注销服务。</p>
+<p><strong>总体的链路是：<code>ServiceInstance</code>  &lt;- <code>ServiceProvider</code> &lt;- <code>ServiceProviderBuilder</code> &lt;- <code>ServiceDiscovery</code> &lt;- <code>ServiceDiscoveryBuilder</code></strong></p>
+<p>通常，将服务提供者的信息传入到 <code>ServiceDiscovery</code>  的构造函数的时候，它会自动注册&#x2F;注销服务，但是如果想要自己手动进行注册，可以使用<code>ServiceDiscovery</code>的<code>public void registerService(ServiceInstance&lt;T&gt; service)</code>方法。</p>
+<h3 id="6-2-在哪里创建的-ServiceInstance"><a href="#6-2-在哪里创建的-ServiceInstance" class="headerlink" title="6.2 在哪里创建的 ServiceInstance"></a>6.2 在哪里创建的 ServiceInstance</h3><blockquote>
+<p>从现在开始，我们分析源码的主要流程</p>
+</blockquote>
+<p>从上面一小节我们可以知道，spring-cloud-zookeeper 最底层其实使用的还是 Apache Curator框架。那就需要寻找是在哪里创建的 ServiceInstance。</p>
+<p><strong>spring-cloud-zookeeper 的关键配置类是 <code>ZookeeperAutoServiceRegistrationAutoConfiguration.java</code></strong></p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ZookeeperAutoServiceRegistrationAutoConfiguration</span> &#123;</span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="keyword">public</span> ZookeeperAutoServiceRegistration <span class="title function_">zookeeperAutoServiceRegistration</span><span class="params">(</span></span><br><span class="line"><span class="params">            ZookeeperServiceRegistry registry, ZookeeperRegistration registration,</span></span><br><span class="line"><span class="params">            ZookeeperDiscoveryProperties properties)</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">ZookeeperAutoServiceRegistration</span>(registry, registration, properties);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="meta">@ConditionalOnMissingBean(ZookeeperRegistration.class)</span></span><br><span class="line">    <span class="keyword">public</span> ServiceInstanceRegistration <span class="title function_">serviceInstanceRegistration</span><span class="params">(</span></span><br><span class="line"><span class="params">            ApplicationContext context, ZookeeperDiscoveryProperties properties)</span> &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">appName</span> <span class="operator">=</span> context.getEnvironment().getProperty(<span class="string">&quot;spring.application.name&quot;</span>,</span><br><span class="line">                <span class="string">&quot;application&quot;</span>);</span><br><span class="line">        <span class="type">String</span> <span class="variable">host</span> <span class="operator">=</span> properties.getInstanceHost();</span><br><span class="line">        <span class="keyword">if</span> (!StringUtils.hasText(host)) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalStateException</span>(<span class="string">&quot;instanceHost must not be empty&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        properties.getMetadata().put(StatusConstants.INSTANCE_STATUS_KEY, properties.getInitialStatus());</span><br><span class="line"></span><br><span class="line">        <span class="type">ZookeeperInstance</span> <span class="variable">zookeeperInstance</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ZookeeperInstance</span>(context.getId(),</span><br><span class="line">                appName, properties.getMetadata());</span><br><span class="line">        <span class="comment">// 重点！获取ServiceInstance的构建器</span></span><br><span class="line">        <span class="type">RegistrationBuilder</span> <span class="variable">builder</span> <span class="operator">=</span> ServiceInstanceRegistration.builder().address(host)</span><br><span class="line">                .name(appName).payload(zookeeperInstance)</span><br><span class="line">                .uriSpec(properties.getUriSpec());</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (properties.getInstanceSslPort() != <span class="literal">null</span>) &#123;</span><br><span class="line">            builder.sslPort(properties.getInstanceSslPort());</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (properties.getInstanceId() != <span class="literal">null</span>) &#123;</span><br><span class="line">            builder.id(properties.getInstanceId());</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// TODO add customizer?</span></span><br><span class="line">        <span class="comment">// 构建ServiceInstanceRegistration实例</span></span><br><span class="line">        <span class="keyword">return</span> builder.build();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>从上面可以看出，配置类中主要是创建了两个 Bean 实例，一个是 <code>ZookeeperAutoServiceRegistration</code>，一个是<code>ServiceInstanceRegistration</code>。看到<code>ServiceInstanceRegistration</code>跟<code>ServiceInstance</code>命名方式那么像，肯定是有什么关联，点进去看看。</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ServiceInstanceRegistration</span> <span class="keyword">implements</span> <span class="title class_">ZookeeperRegistration</span>&#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> RegistrationBuilder <span class="title function_">builder</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="comment">// 调用了Curator框架的ServiceInstance&lt;T&gt;.builder()静态方法，得到一个ServiceInstanceBuilder&lt;T&gt;构建器</span></span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">RegistrationBuilder</span>(ServiceInstance.&lt;ZookeeperInstance&gt;builder());</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">RuntimeException</span>(<span class="string">&quot;Error creating ServiceInstanceBuilder&quot;</span>, e);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<img src="image-20230103145025431.png" alt="image-20230103145025431" style="zoom:50%;" />
+
+<p>从类的结构关系中可以看到，<code>ServiceInstanceRegistration类</code>中包含着一个<code>ServiceInstance</code>的域。这里的<code>ZookeeperInstance类</code>是服务提供者的一些额外信息，主要是辅助 Spring Boot 的服务发现功能，储存在 payload 信息中。</p>
+<p><code>ZookeeperAutoServiceRegistrationAutoConfiguration类</code>中的<code>serviceInstanceRegistration(ApplicationContext context, ZookeeperDiscoveryProperties properties)</code>方法中注入了<strong>应用的上下文信息</strong>以及 <strong>Zookeeper服务发现的属性配置信息</strong>，就是为了构建 <code>ServiceInstance</code>。</p>
+<p><code>RegistrationBuilder类</code>是<code>ServiceInstanceRegistration类</code>的静态内部类。在调用<code>ServiceInstanceRegistration.builder()</code>方法的时候，调用了<code>ServiceInstance&lt;T&gt;.builder()</code>静态方法，创建了一个<code>ServiceInstanceBuilder&lt;T&gt;</code>用于构建服务提供者的所有信息。</p>
+<p>当调用<code>RegistrationBuilder类</code>的<code>build()</code>方法时，创建一个<code>ServiceInstanceRegistration类</code>实例并返回：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">class</span> <span class="title class_">RegistrationBuilder</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> ServiceInstanceRegistration <span class="title function_">build</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="comment">// 创建ServiceInstanceRegistration实例，并将ServiceInstanceBuilder&lt;T&gt;构建器传入</span></span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">ServiceInstanceRegistration</span>(<span class="built_in">this</span>.builder);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>此时，<code>ServiceInstanceRegistration实例</code>中包含着<code>ServiceInstanceBuilder&lt;ZookeeperInstance&gt; builder</code>构建器的信息，当调用<code>getServiceInstance()</code>方法的时候，就会通过构建器构建<code>ServiceInstance</code>实例并返回：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ServiceInstanceRegistration</span> <span class="keyword">implements</span> <span class="title class_">ZookeeperRegistration</span>&#123;</span><br><span class="line">    <span class="keyword">public</span> ServiceInstance&lt;ZookeeperInstance&gt; <span class="title function_">getServiceInstance</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (<span class="built_in">this</span>.serviceInstance == <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="comment">// 通过ServiceInstanceBuilder&lt;T&gt;构建器构建ServiceInstance实例</span></span><br><span class="line">            build();</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="built_in">this</span>.serviceInstance;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">build</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.serviceInstance = <span class="built_in">this</span>.builder.build();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>至此，就能够明白第一个问题，需要注册什么内容到服务中心？并且在哪里进行创建。</p>
+<h3 id="6-3-如何将服务注册到服务中心"><a href="#6-3-如何将服务注册到服务中心" class="headerlink" title="6.3 如何将服务注册到服务中心"></a>6.3 如何将服务注册到服务中心</h3><blockquote>
+<p>在 6.1 小节中我们知道，Curator 框架可以通过调用<code>ServiceDiscovery</code> 的<code>start()</code>方法或者是<code>registerService()</code>方法进行服务注册。那我们就需要寻找一下在哪里调用的<code>start()</code>方法或者是<code>registerService()</code>方法。</p>
+</blockquote>
+<p>依然是看到**自动配置类<code>ZookeeperAutoServiceRegistrationAutoConfiguration.java</code>**，其中另外一个注入的 Bean 实例是 <code>ZookeeperAutoServiceRegistration</code>。</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ZookeeperAutoServiceRegistration</span> <span class="keyword">extends</span> <span class="title class_">AbstractAutoServiceRegistration</span>&lt;ZookeeperRegistration&gt;&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">register</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (!<span class="built_in">this</span>.properties.isRegister()) &#123;</span><br><span class="line">            log.debug(<span class="string">&quot;Registration disabled.&quot;</span>);</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (<span class="built_in">this</span>.registration.getPort() == <span class="number">0</span>) &#123;</span><br><span class="line">            <span class="built_in">this</span>.registration.setPort(getPort().get());</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="built_in">super</span>.register();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，<code>ZookeeperAutoServiceRegistration类</code>中有一个<code>register()</code>方法，非常像是服务注册的逻辑，其中调用了父类的<code>register()</code>方法。</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="keyword">class</span> <span class="title class_">AbstractAutoServiceRegistration</span>&lt;R <span class="keyword">extends</span> <span class="title class_">Registration</span>&gt; <span class="keyword">implements</span> <span class="title class_">AutoServiceRegistration</span>, ApplicationContextAware, ApplicationListener&lt;WebServerInitializedEvent&gt; &#123;</span><br><span class="line">    <span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">register</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.serviceRegistry.register(getRegistration());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里<code>this.serviceRegistry.register()</code>实际调用的是<code>ZookeeperServiceRegistry实例</code>的<code>register()</code>方法：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ZookeeperServiceRegistry</span> <span class="keyword">implements</span> <span class="title class_">ServiceRegistry</span>&lt;ZookeeperRegistration&gt;, SmartInitializingSingleton, Closeable &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">register</span><span class="params">(ZookeeperRegistration registration)</span> &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="comment">// 实际调用ServiceDiscovery的registerService()方法进行服务注册</span></span><br><span class="line">            getServiceDiscovery().registerService(registration.getServiceInstance());</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">            rethrowRuntimeException(e);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>getServiceDiscovery().registerService()</code>就是实际调用<code>ServiceDiscovery类</code>的<code>registerService()</code>方法进行服务注册。</p>
+<blockquote>
+<p>由此，引出了三个问题：</p>
+<ul>
+<li><code>registration.getServiceInstance()</code>是从哪里来的？</li>
+<li>怎么就调用到了<code>ZookeeperServiceRegistry实例</code>的<code>register()</code>方法？</li>
+<li><code>ServiceDiscovery</code>是在哪里进行构建的？</li>
+</ul>
+</blockquote>
+<blockquote>
+<p><strong>第一个问题</strong>比较简单，在<code>ZookeeperAutoServiceRegistrationAutoConfiguration配置类</code>中构建<code>ZookeeperAutoServiceRegistration实例Bean</code>的时候，传入了一个<code>ZookeeperRegistration实例Bean</code>，而6.2 小节中创建的<code>ServiceInstanceRegistration实例Bean</code>实现了<code>ZookeeperRegistration接口</code>，而调用<code>getServiceInstance()</code>就能获取到 **<code>ServiceInstance实例</code>**。</p>
+</blockquote>
+<blockquote>
+<p><strong>第二和第三个问题是一起的</strong>，<code>zookeeperAutoServiceRegistration()</code>方法中注入了一个<code>ZookeeperServiceRegistry实例Bean</code>作为<code>ZookeeperAutoServiceRegistration构造函数</code>的入参。这个<code>ZookeeperServiceRegistry实例Bean</code>是在<code>ZookeeperServiceRegistryAutoConfiguration配置类</code>中创建的。</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ZookeeperServiceRegistryAutoConfiguration</span> <span class="keyword">implements</span> <span class="title class_">ApplicationContextAware</span> &#123;</span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="meta">@ConditionalOnBean(ServiceDiscovery.class)</span></span><br><span class="line">    <span class="meta">@SuppressWarnings(&quot;unchecked&quot;)</span></span><br><span class="line">    <span class="keyword">public</span> ZookeeperServiceRegistry <span class="title function_">zookeeperServiceRegistry</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">ZookeeperServiceRegistry</span>(<span class="built_in">this</span>.context.getBean(ServiceDiscovery.class));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>而这里通过 Spring 应用上下文获取的 <code>ServiceDiscovery实例Bean</code>是在<code>CuratorServiceDiscoveryAutoConfiguration配置类</code>中创建的：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">CuratorServiceDiscoveryAutoConfiguration</span> &#123;</span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="meta">@ConditionalOnMissingBean(ServiceDiscoveryCustomizer.class)</span></span><br><span class="line">    <span class="keyword">public</span> DefaultServiceDiscoveryCustomizer <span class="title function_">defaultServiceDiscoveryCustomizer</span><span class="params">(</span></span><br><span class="line"><span class="params">            CuratorFramework curator, ZookeeperDiscoveryProperties properties,</span></span><br><span class="line"><span class="params">            InstanceSerializer&lt;ZookeeperInstance&gt; serializer)</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">DefaultServiceDiscoveryCustomizer</span>(curator, properties, serializer);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="meta">@ConditionalOnMissingBean</span></span><br><span class="line">    <span class="keyword">public</span> InstanceSerializer&lt;ZookeeperInstance&gt; <span class="title function_">deprecatedInstanceSerializer</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">JsonInstanceSerializer</span>&lt;&gt;(ZookeeperInstance.class);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="meta">@ConditionalOnMissingBean</span></span><br><span class="line">    <span class="keyword">public</span> ServiceDiscovery&lt;ZookeeperInstance&gt; <span class="title function_">curatorServiceDiscovery</span><span class="params">(ServiceDiscoveryCustomizer customizer)</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> customizer.customize(ServiceDiscoveryBuilder.builder(ZookeeperInstance.class));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>再继续下去就不分析了，其实就是获取配置文件中 Zookeeper 的信息，创建 CuratorFramework 的连接，以及指定 payload 的序列化器。如果想要设置服务发现节点的 ACL 权限可以自己创建一个实例 Bean 替换默认的 CuratorFramework  连接，或者替换其他实例Bean 进行自定义设置。</p>
+</blockquote>
+<h3 id="6-4-Spring-Boot-在什么时候将服务注册到服务中心"><a href="#6-4-Spring-Boot-在什么时候将服务注册到服务中心" class="headerlink" title="6.4 Spring Boot 在什么时候将服务注册到服务中心"></a>6.4 Spring Boot 在<strong>什么时候</strong>将服务注册到服务中心</h3><p>我们看到<code>ZookeeperAutoServiceRegistration类</code>的继承关系示意图，可以得知<code>ZookeeperAutoServiceRegistration类</code>实现了<code>ApplicationListener&lt;WebServerInitializedEvent&gt;</code>监听器接口，所以当 WebServer 服务准备完成的时候会产生<code>WebServerInitializedEvent事件</code>，并且 Spring 会自动调用其<code>onApplicationEvent()</code>方法。</p>
+<p><img src="/2022/12/05/SpringBoot%E4%B8%AD%E4%BD%BF%E7%94%A8Zookeeper%E8%BF%9B%E8%A1%8C%E6%9C%8D%E5%8A%A1%E5%8F%91%E7%8E%B0/image-20230103221232863.png" alt="image-20230103221232863"></p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="keyword">class</span> <span class="title class_">AbstractAutoServiceRegistration</span>&lt;R <span class="keyword">extends</span> <span class="title class_">Registration</span>&gt; <span class="keyword">implements</span> <span class="title class_">AutoServiceRegistration</span>, ApplicationContextAware, ApplicationListener&lt;WebServerInitializedEvent&gt; &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">onApplicationEvent</span><span class="params">(WebServerInitializedEvent event)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.bind(event);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@Deprecated</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">bind</span><span class="params">(WebServerInitializedEvent event)</span> &#123;</span><br><span class="line">        <span class="type">ApplicationContext</span> <span class="variable">context</span> <span class="operator">=</span> event.getApplicationContext();</span><br><span class="line">        <span class="keyword">if</span> (!(context <span class="keyword">instanceof</span> ConfigurableWebServerApplicationContext) || !<span class="string">&quot;management&quot;</span>.equals(((ConfigurableWebServerApplicationContext)context).getServerNamespace())) &#123;</span><br><span class="line">            <span class="built_in">this</span>.port.compareAndSet(<span class="number">0</span>, event.getWebServer().getPort());</span><br><span class="line">            <span class="built_in">this</span>.start();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">start</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (!<span class="built_in">this</span>.isEnabled()) &#123;</span><br><span class="line">            <span class="keyword">if</span> (logger.isDebugEnabled()) &#123;</span><br><span class="line">                logger.debug(<span class="string">&quot;Discovery Lifecycle disabled. Not starting&quot;</span>);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">if</span> (!<span class="built_in">this</span>.running.get()) &#123;</span><br><span class="line">                <span class="built_in">this</span>.context.publishEvent(<span class="keyword">new</span> <span class="title class_">InstancePreRegisteredEvent</span>(<span class="built_in">this</span>, <span class="built_in">this</span>.getRegistration()));</span><br><span class="line">                <span class="comment">// 调用子类ZookeeperAutoServiceRegistration的注册方法，关联6.3小节</span></span><br><span class="line">                <span class="built_in">this</span>.register();</span><br><span class="line">                <span class="keyword">if</span> (<span class="built_in">this</span>.shouldRegisterManagement()) &#123;</span><br><span class="line">                    <span class="built_in">this</span>.registerManagement();</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                <span class="built_in">this</span>.context.publishEvent(<span class="keyword">new</span> <span class="title class_">InstanceRegisteredEvent</span>(<span class="built_in">this</span>, <span class="built_in">this</span>.getConfiguration()));</span><br><span class="line">                <span class="built_in">this</span>.running.compareAndSet(<span class="literal">false</span>, <span class="literal">true</span>);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="7-小结"><a href="#7-小结" class="headerlink" title="7. 小结"></a>7. 小结</h2><p>关于 spring-cloud-zookeeper 的源码为什么那么复杂，老母猪戴奶罩一套又一套的，主要还是因为除了支持 zookeeper 能做服务发现以外，还支持 Eureka、Consul 这些作为注册中心，所以需要提供一个比较通用的接口， 这些通用的接口就是定义在 spring-cloud-commons包里。</p>
+<p>关于看源码，如果是比较简单的框架直接看没什么问题，但是如果规模比较大的框架，还是要先有个大概的概念再去看，思路会清楚很多，所以还是要多长自己的见识，一味的只看源码其实也没啥用，无头苍蝇，哪里都不着调。</p>
+]]></content>
+      <categories>
+        <category>Zookeeper</category>
+        <category>Spring</category>
+      </categories>
+      <tags>
+        <tag>Spring</tag>
+        <tag>Zookeeper</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>python模块加载顺序</title>
     <url>/2022/08/17/python%E6%A8%A1%E5%9D%97%E5%8A%A0%E8%BD%BD%E9%A1%BA%E5%BA%8F/</url>
     <content><![CDATA[<blockquote>
@@ -2372,268 +2372,6 @@
       </categories>
       <tags>
         <tag>Python</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>关于一些好看的写作规范</title>
-    <url>/2022/11/02/%E5%85%B3%E4%BA%8E%E4%B8%80%E4%BA%9B%E5%A5%BD%E7%9C%8B%E7%9A%84%E5%86%99%E4%BD%9C%E8%A7%84%E8%8C%83/</url>
-    <content><![CDATA[<p>主要是统一一下自己的写作规范，尽可能好看一点</p>
-<ul>
-<li><p>尽可能使用markdown的标准语法，不要引入太多html或者是其他插件的语法</p>
-</li>
-<li><p>关于文章目录，所有最高层级的标题使用markdown的三级标题</p>
-</li>
-<li><p>关于不同标题层级之间的换行，在不同层级之间要空出一行，如果不空的话，文章看起来密密麻麻，父层级和第一个子层级之间可以不空出一行，但是子层级和子层级之间需要空出一行</p>
-</li>
-<li><p>句子中的英文，有的时候句子里面会写英文的单词，如果是：这是一个Test句子。中文与英文之间没有间隔，看起来就会很密，字一多起来，看起来头疼。所以在英文前后加上一个空格，如：这是一个 Test 句子（当然，页面渲染结果可以使用 hexo-pangu 这个插件来自动处理）。另外，这些英文尽可能首字母大小，看起来会舒服很多，但是也不一定全大写，自己看情况。</p>
-</li>
-<li><p>对于文本中的代码，不用说也知道，用&#96;&#96;&#96;引入代码块，再把代码黏贴进去，尽可能标注上代码类型，Java、Python 或 Shell 等。代码和文本不进行区分简直是反人类，这种博客看都不想看。</p>
-</li>
-<li><p>关于博客中最后的引用连接，最好写上标题名字，然后用超链接的方式，如<a href="https://learn.lianglianglee.com/%E4%B8%93%E6%A0%8F/Kafka%E6%A0%B8%E5%BF%83%E6%8A%80%E6%9C%AF%E4%B8%8E%E5%AE%9E%E6%88%98/18%20%20Kafka%E4%B8%AD%E4%BD%8D%E7%A7%BB%E6%8F%90%E4%BA%A4%E9%82%A3%E4%BA%9B%E4%BA%8B%E5%84%BF.md">Kafka中位移提交那些事儿</a>，如果连接失效了，就没办法了，所以自己最好在印象笔记里面存一份。</p>
-</li>
-</ul>
-]]></content>
-      <categories>
-        <category>日常踩坑</category>
-      </categories>
-      <tags>
-        <tag>日常</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>网络抓包工具使用</title>
-    <url>/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/</url>
-    <content><![CDATA[<h2 id="1-网络抓包原理"><a href="#1-网络抓包原理" class="headerlink" title="1. 网络抓包原理"></a>1. 网络抓包原理</h2><blockquote>
-<p>抓包实际上是分析网络协议的一种过程，只要网络数据流经过我们的节点，就能够对数据流进行抓包。</p>
-</blockquote>
-<h3 id="1-1-网卡或代理抓包"><a href="#1-1-网卡或代理抓包" class="headerlink" title="1.1 网卡或代理抓包"></a>1.1 网卡或代理抓包</h3><p>目前的抓包软件总体上可以分成两类：</p>
-<ul>
-<li>一种是设置代理抓取 http 包，比如Charles、mitmproxy这些软件。</li>
-<li>另一种是直接抓取经过本机网络的所有协议包，其中最出名的就是 wireshark 以及 Linux 自带的抓包软件命令 tcpdump。</li>
-</ul>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/15202375411791.jpg" alt="img"></p>
-<h3 id="1-2-http-与-https"><a href="#1-2-http-与-https" class="headerlink" title="1.2 http 与 https"></a>1.2 http 与 https</h3><p>http 与 https 最大的区别是 http 的数据包是不加密的， https 的数据包是加密的。因此对于 wireshark 这种在数据链路层进行抓包的工具，所获取到的 https 数据包是加密的，因此无法分析包的内容。而 Charles 等只要安装 Charles 的证书，就能够解密 https 数据包的内容。</p>
-<h2 id="2-tcpdump-使用"><a href="#2-tcpdump-使用" class="headerlink" title="2. tcpdump 使用"></a>2. tcpdump 使用</h2><blockquote>
-<p>tcpdump可以把抓取到的数据包导出为 wireshark 格式的文件。</p>
-</blockquote>
-<blockquote>
-<p>不重复造轮子，详情请看<a href="https://www.cnblogs.com/wongbingming/p/13212306.html">tcpdump使用指南</a>，或者参考 man 文档。</p>
-</blockquote>
-<h3 id="2-1-命令格式"><a href="#2-1-命令格式" class="headerlink" title="2.1 命令格式"></a>2.1 命令格式</h3><p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/20200628111325.png" alt="img"></p>
-<ul>
-<li><p><strong>option 可选参数</strong>：常用的有<code>-i 指定网卡名字</code>、<code>-w 保存抓包数据到文件</code>、<code>-r 从文件中读取抓包数据</code>、<code>-v\-vv\-vvv 输出更详细的内容</code>、<code>-n\-nn\-N 不解析域名\端口</code>。</p>
-</li>
-<li><p><strong>proto 类过滤器</strong>：根据协议进行过滤，可识别的关键词有： <code>tcp、udp、icmp、ip、ip6、arp、rarp、ether、wlan、fddi、tr、decnet</code>。</p>
-</li>
-<li><p><strong>direction 类过滤器</strong>：根据数据流向进行过滤，可识别的关键字有：<code>src、dst</code>，同时你可以使用逻辑运算符进行组合，比如 <code>src or dst</code>。</p>
-</li>
-<li><p><strong>type 类过滤器</strong>：可识别的关键词有：<code>host、net、port、portrange</code>，这些词后边需要再接参数。</p>
-</li>
-</ul>
-<h3 id="2-2-输出内容格式"><a href="#2-2-输出内容格式" class="headerlink" title="2.2 输出内容格式"></a>2.2 输出内容格式</h3><blockquote>
-<p>加入不同的可选参数，可能会使得输出的内容格式会有区别，但是能够触类旁通。</p>
-</blockquote>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo tcpdump -nn src host 172.25.122.140</span></span><br><span class="line">tcpdump: verbose output suppressed, use -v or -vv for full protocol decode</span><br><span class="line">listening on eth0, link-type EN10MB (Ethernet), capture size 262144 bytes</span><br><span class="line">11:21:04.200134 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [S], seq 3457030617, win 64240, options [mss 1460,sackOK,TS val 148049843 ecr 0,nop,wscale 7], length 0</span><br><span class="line">11:21:04.206621 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [.], ack 3549651488, win 502, length 0</span><br><span class="line">11:21:04.212251 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [P.], seq 0:517, ack 1, win 502, length 517</span><br></pre></td></tr></table></figure>
-
-<p>以最后一条数据为例：</p>
-<ol>
-<li><strong>第一列，时分秒毫秒</strong> ：11:21:04.212251</li>
-<li><strong>第二列，网络协议</strong> ：IP</li>
-<li><strong>第三列，发送方 IP + 端口</strong>：IP - 172.25.122.140 | 端口 - 40236</li>
-<li>**第四列，数据流向 &gt;**：从 172.25.122.140.40236 流向 14.215.177.39.443</li>
-<li><strong>第五列，接收方 IP + 端口</strong>：IP - 14.215.177.39 | 端口 - 443</li>
-<li><strong>第六列，冒号</strong><code>：</code></li>
-<li><strong>第七列， 数据包内容</strong>：包括 Flags 标识符，seq 号，ack 号，win 窗口，数据长度 length</li>
-</ol>
-<p><strong>Flags 标识符</strong>：</p>
-<ul>
-<li><code>[S]</code> : SYN（开始连接）</li>
-<li><code>[P]</code> : PSH（推送数据）</li>
-<li><code>[F]</code> : FIN （结束连接）</li>
-<li><code>[R]</code> : RST（重置连接）</li>
-<li><code>[.]</code> : 没有 Flag （意思是除上面四种类型外的其他情况，有可能是 ACK 也有可能是 URG）</li>
-</ul>
-<h2 id="3-Wireshark-使用"><a href="#3-Wireshark-使用" class="headerlink" title="3. Wireshark 使用"></a>3. Wireshark 使用</h2><blockquote>
-<p>Wireshark 使用中最难的，其实就是过滤器的使用，如何从海量请求数据包过滤出自己需要分析的内容。</p>
-</blockquote>
-<blockquote>
-<p>Wireshark 包括两种过滤器：</p>
-<ul>
-<li><p>捕获过滤器：抓包的过滤规则，只抓取特定条件的数据包</p>
-</li>
-<li><p>显示过滤器：对抓取到的数据再次过滤，只显示符合特定规则数据包</p>
-</li>
-</ul>
-</blockquote>
-<h3 id="3-1-抓包示例"><a href="#3-1-抓包示例" class="headerlink" title="3.1 抓包示例"></a>3.1 抓包示例</h3><blockquote>
-<p>使用 Wireshark 抓取 ping <a href="http://www.baidu.com/">www.baidu.com</a> 的数据包</p>
-</blockquote>
-<ol>
-<li>打开 Wireshark 主界面。</li>
-</ol>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104161119826.png" alt="image-20230104161119826"></p>
-<ol start="2">
-<li>选择菜单栏上<code>捕获-&gt;选项-&gt;选择网卡-&gt;开始</code>，或者直接在主界面中选择需要抓包的网卡就能够开始抓包（网卡通常只会处理发送给它自身地址的流量，如果想要捕获所有经过网卡的流量就需要开启混杂模式）。</li>
-</ol>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104162023100.png" alt="image-20230104162023100"></p>
-<ol start="3">
-<li>启动之后，Wireshark 就处于抓包状态了。</li>
-</ol>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104162352660.png" alt="image-20230104162352660"></p>
-<ol start="4">
-<li>在 cmd 窗口执行<code>ping www.baidu.com</code>命令。</li>
-</ol>
-<img src="image-20230104162742232.png" alt="image-20230104162742232" style="zoom:60%;" />
-
-<ol start="5">
-<li>操作完成之后，就能在 Wireshark 中看到抓取的数据包了。为了避免其他不相关的数据包影响分析，可以在过滤栏设置显示过滤条件。<code>ip.addr == 14.215.177.39 and icmp</code>表示只显示源主机 IP 或者目标主机 IP 为 <code>14.215.177.39</code> 且 ICMP 协议的数据包。</li>
-</ol>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104163323961.png" alt="image-20230104163323961"></p>
-<h3 id="3-2-界面介绍"><a href="#3-2-界面介绍" class="headerlink" title="3.2 界面介绍"></a>3.2 界面介绍</h3><p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104164142717.png" alt="image-20230104164142717"></p>
-<h4 id="3-2-1-捕获过滤器"><a href="#3-2-1-捕获过滤器" class="headerlink" title="3.2.1 捕获过滤器"></a>3.2.1 捕获过滤器</h4><h5 id="3-2-1-1-界面设置"><a href="#3-2-1-1-界面设置" class="headerlink" title="3.2.1.1 界面设置"></a>3.2.1.1 界面设置</h5><p>能够在<code>捕获-&gt;捕获过滤器</code>中进行设置，只抓取符合规则的数据包，能够在开始抓包前进行设置。</p>
-<img src="image-20230104170403368.png" alt="image-20230104170403368"  />
-
-<img src="image-20230104170503369.png" alt="image-20230104170503369"  />
-
-<h5 id="3-2-1-2-捕获过滤器规则"><a href="#3-2-1-2-捕获过滤器规则" class="headerlink" title="3.2.1.2 捕获过滤器规则"></a>3.2.1.2 捕获过滤器规则</h5><blockquote>
-<p>捕获过滤器规则设置规则跟 tcpdump 是一样的，只介绍简单的过滤规则，详情请翻阅<a href="https://www.wireshark.org/docs/wsug_html_chunked/ChCapCaptureFilterSection.html">官方文档</a></p>
-</blockquote>
-<p>捕获过滤器的设置主要包括：网络类型 Type(host、net、port)、方向 Dir(src、dst)、协议类型 Proto(ether、ip、tcp、udp、http、icmp、ftp等)、逻辑运算符(&amp;&amp;、||、! 或者 and、or、not)。</p>
-<p>以下显示一些使用示例：</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">host 172.18.5.4     # 只捕捉源地址或者目的地址为172.18.5.4的流量</span><br><span class="line">net 192.168.0.0/24  # 捕捉192.168.0.0/24网段中的流量</span><br><span class="line">src net 192.168.0.0/24 # 捕捉源地址IP在网段192.168.0.0/24中的流量</span><br><span class="line">not broadcast and not multicast # 仅捕捉单播流量，不捕捉广播和多播的流量</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="3-2-2-显示过滤器"><a href="#3-2-2-显示过滤器" class="headerlink" title="3.2.2 显示过滤器"></a>3.2.2 显示过滤器</h4><h5 id="3-2-2-1-界面设置"><a href="#3-2-2-1-界面设置" class="headerlink" title="3.2.2.1 界面设置"></a>3.2.2.1 界面设置</h5><p>对抓取到的数据再次过滤，只显示符合特定规则数据包。显示过滤器能够在<code>分析-&gt;显示过滤器</code>中进行设置。</p>
-<p>在主界面中右键选择<code>作为过滤器应用</code>有惊喜，可以将界面中的一些数据作为过滤规则。</p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104170955371.png" alt="image-20230104170955371"></p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104173929469.png" alt="image-20230104173929469"></p>
-<h5 id="3-2-2-2-显示过滤器规则"><a href="#3-2-2-2-显示过滤器规则" class="headerlink" title="3.2.2.2 显示过滤器规则"></a>3.2.2.2 显示过滤器规则</h5><blockquote>
-<p>详细设置规则请参阅<a href="https://www.wireshark.org/docs/wsug_html_chunked/ChWorkBuildDisplayFilterSection.html">官方文档</a></p>
-</blockquote>
-<p>设置规则基本上是<code>key 运算符 value</code>的格式，运算符可以取<code>==、!=、===、!==、&gt;、&lt;、&gt;=、&lt;=、~</code>。</p>
-<p>使用示例：</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">tcp # 只显示tcp协议的数据包列表</span><br><span class="line">http # 只显示http协议的数据包列表</span><br><span class="line">ip.src == 192.168.1.104 # 显示源地址为192.168.1.104的数据包列表</span><br><span class="line">ip.dst == 192.168.1.104 # 显示目标地址为192.168.1.104的数据包列表</span><br><span class="line">ip.addr == 192.168.1.104 # 显示源IP地址或目标IP地址为192.168.1.104的数据包列表</span><br><span class="line">tcp.port == 80 # 显示源主机或者目的主机端口为80的数据包列表</span><br><span class="line">tcp.srcport == 80 # 只显示TCP协议的源主机端口为80的数据包列表</span><br><span class="line">tcp.dstport == 80 # 只显示TCP协议的目的主机端口为80的数据包列表</span><br><span class="line">http.request.method == &quot;GET&quot; # 只显示HTTP GET方法的</span><br></pre></td></tr></table></figure>
-
-<h4 id="3-2-3-数据包列表区"><a href="#3-2-3-数据包列表区" class="headerlink" title="3.2.3 数据包列表区"></a>3.2.3 数据包列表区</h4><p>显示捕获到的数据包，每一行代表一个数据包，每个数据包包含编号、时间戳、源地址、目的地址、协议、长度以及数据包信息。不同的协议数据包使用了不同的颜色显示进行区分，可以在<code>视图-&gt;着色规则</code>中查看详细的设定。</p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104175334347.png" alt="image-20230104175334347"></p>
-<img src="image-20230104165647707.png" alt="image-20230104165647707" style="zoom:50%;" />
-
-<h4 id="3-2-4-详细数据区"><a href="#3-2-4-详细数据区" class="headerlink" title="3.2.4 详细数据区"></a>3.2.4 详细数据区</h4><p>数据包详细信息面板是最重要的，包含了数据包的所有详细信息内容，从物理层到应用层的数据，用来查看协议中的每一个字段信息。</p>
-<p><strong>参照 OSI 七层模型， 每一行代表着每一层中的数据，根据不同层次的不同协议，显示可能会有所不同。</strong></p>
-<ul>
-<li>Frame：物理层的数据帧状况，即全部数据。</li>
-<li>Ethernet II：数据链路层以太网帧头部信息。</li>
-<li>Internet Protocol Version 4：IPv4 包的头部信息。</li>
-<li>Transmission Control Protocol：TCP 协议的头部信息。</li>
-<li>Hypertext Transfer Protocol：HTTP数据包的所有信息。</li>
-</ul>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104180450263.png" alt="image-20230104180450263"></p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105105346183.png" alt="image-20230105105346183"></p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105155339201.png" alt="image-20230105155339201"></p>
-<h4 id="3-2-5-数据包字节区"><a href="#3-2-5-数据包字节区" class="headerlink" title="3.2.5 数据包字节区"></a>3.2.5 数据包字节区</h4><p>显示原始接收到的数据包字节，通过点击数据包详情区对应的字段，会在数据包字节区显示所对应的数据。</p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104181425789.png" alt="image-20230104181425789"></p>
-<h3 id="3-3-抓包-TCP-三次握手"><a href="#3-3-抓包-TCP-三次握手" class="headerlink" title="3.3 抓包 TCP 三次握手"></a>3.3 抓包 TCP 三次握手</h3><h4 id="3-3-1-TCP-三次握手过程"><a href="#3-3-1-TCP-三次握手过程" class="headerlink" title="3.3.1 TCP 三次握手过程"></a>3.3.1 TCP 三次握手过程</h4><blockquote>
-<p>要分析抓到数据包，首先需要了解其原理</p>
-</blockquote>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105165221418.png" alt="image-20230105165221418"></p>
-<ol>
-<li>TCP服务器进程先创建传输控制块TCB，时刻准备接受客户进程的连接请求，此时服务器就进入了LISTEN（监听）状态；</li>
-<li>TCP客户进程也是先创建传输控制块TCB，然后向服务器发出连接请求报文，这是报文首部中的同部位 SYN&#x3D;1，同时选择一个初始序列号 seq&#x3D;x ，此时，TCP客户端进程进入了 SYN-SENT（同步已发送状态）状态。<strong>TCP规定，SYN报文段（SYN&#x3D;1的报文段）不能携带数据，但需要消耗掉一个序号</strong>；</li>
-<li>TCP服务器收到请求报文后，如果同意连接，则发出确认报文。确认报文中应该 ACK&#x3D;1，SYN&#x3D;1，确认号是ack&#x3D;x+1，同时也要为自己初始化一个序列号 seq&#x3D;y，此时，TCP服务器进程进入了SYN-RCVD（同步收到）状态。<strong>这个报文也不能携带数据，但是同样要消耗一个序号</strong>；</li>
-<li>TCP客户进程收到确认后，还要向服务器给出确认。确认报文的ACK&#x3D;1，ack&#x3D;y+1，自己的序列号seq&#x3D;x+1，此时，TCP连接建立，客户端进入ESTABLISHED（已建立连接）状态。<strong>TCP规定，ACK报文段可以携带数据，但是如果不携带数据则不消耗序号</strong>；</li>
-<li>当服务器收到客户端的确认后也进入ESTABLISHED状态，此后双方就可以开始通信了；</li>
-</ol>
-<h4 id="3-3-2-抓取-TCP-数据包"><a href="#3-3-2-抓取-TCP-数据包" class="headerlink" title="3.3.2 抓取 TCP 数据包"></a>3.3.2 抓取 TCP 数据包</h4><ol>
-<li>在 cmd 使用 <code>ping jandan.net</code>获取域名 IP；</li>
-</ol>
-<img src="image-20230105114055220.png" alt="image-20230105114055220" style="zoom:50%;" />
-
-<ol start="2">
-<li>启动 Wireshark 开始抓包；</li>
-<li>设置显示过滤器<code>ip.addr == 59.37.142.220 </code>；</li>
-</ol>
-<img src="image-20230105114302324.png" alt="image-20230105114302324" style="zoom:50%;" />
-
-<ol start="4">
-<li>浏览器中访问 <code>http://jandan.net/</code>；</li>
-</ol>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105142256229.png" alt="image-20230105142256229"></p>
-<p>从图中可以看到，这次访问 TCP 握手的三个过程。注意的是因为我这不是第一次访问网站，所以会有关闭之前连接的请求。然后访问的时候发起了两个 TCP 请求，可以通过端口号的不同进行区分，我们关注的是本地 54418 端口到服务器 80 端口的 TCP 请求。</p>
-<h4 id="3-3-3-第一次握手数据包"><a href="#3-3-3-第一次握手数据包" class="headerlink" title="3.3.3 第一次握手数据包"></a>3.3.3 第一次握手数据包</h4><p>WireShark 中显示了两个<code>Sequence Number</code>一个为<code>0</code>，一个为<code>605892471</code>，是因为 WireShark 为了更加容易观察进行的处理，一个是相对 Seq，一个是实际请求的 Seq，如果分别点击会发现数据包字节区是对应的同一块区域。</p>
-<ul>
-<li>SYN 标志位置为 1，表示向服务器请求建立连接；</li>
-<li>Seq 序列号为 605892471，相对位置为 0，表示当前客户端当前还没有发送数据；</li>
-</ul>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105144046541.png" alt="image-20230105144046541"></p>
-<h4 id="3-3-4-第二次握手数据包"><a href="#3-3-4-第二次握手数据包" class="headerlink" title="3.3.4 第二次握手数据包"></a>3.3.4 第二次握手数据包</h4><p>第二次握手数据包是服务器返回给客户端的，可以看到是从 59.37.142.220 的 80 端口到本机IP 的 54418 端口。跟 Seq 序列号一样，Acknowledgement number 也有相对与实际的区别。</p>
-<ul>
-<li>服务器响应新生成了 Seq 序列号：483437807，相对位置为 0， 表示当前服务器还没有发送数据；</li>
-<li>ack 设置为请求的 Seq 序列号 + 1，即为 605892472，表示响应的是第一次握手的数据包；</li>
-<li>ACK 和 SYN 标志位都置为 1，表示服务器同意建立连接并返回响应；</li>
-</ul>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105145332078.png" alt="image-20230105145332078"></p>
-<h4 id="3-3-5-第三次握手数据包"><a href="#3-3-5-第三次握手数据包" class="headerlink" title="3.3.5 第三次握手数据包"></a>3.3.5 第三次握手数据包</h4><p>第三次握手就比较简单了，建立完成之后就能开始数据交互：</p>
-<ul>
-<li>Seq 序列号为服务器响应 ack 的值，相对位置为 1，表示已经发送一个数据；</li>
-<li>ack 为服务器响应 Seq 序列号的值 + 1，表示当前客户端成功接收到的数据位数，虽然服务端没有发送任何有效数据，确认号还是被加 1，因为包含 SYN 或 FIN 标志位（并不会对有效数据的计数产生影响，因为含有SYN或FIN标志位的包并不携带有效数据)；</li>
-<li>ACK 标志位置 1，表示已经接收到第二次握手数据包；</li>
-</ul>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105150139918.png" alt="image-20230105150139918"></p>
-]]></content>
-      <categories>
-        <category>计算机网络</category>
-      </categories>
-  </entry>
-  <entry>
-    <title>记一次WSDL使用</title>
-    <url>/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/</url>
-    <content><![CDATA[<h3 id="1-起因"><a href="#1-起因" class="headerlink" title="1. 起因"></a>1. 起因</h3><p>突然要求对接公司集团的一个接口，给了一个 <code>http://192.168.1.1:7001/services/NotifyService?wsdl</code> 这种地址过来，然后还给了个说明文档，介绍用 XML 的格式发送报文。</p>
-<p>一开始觉得跟 restful 接口差不多，就没多大留意。然后按照说明文档构建了 XML 格式的报文，跟下面的例子差不多。觉得没啥问题了，用 Postman 一测试，哎，怎么返回失败呢？首先是网络，检查了一下是通的。哪说明是调用接口的方式出了问题。</p>
-<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">ReqRoot</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">ReqTime</span>&gt;</span>2022-10-27 10:03:02<span class="tag">&lt;/<span class="name">ReqTime</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">BillNo</span>&gt;</span></span><br><span class="line">            000000</span><br><span class="line">        <span class="tag">&lt;/<span class="name">BillNo</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Content</span>&gt;</span>消息成功发送<span class="tag">&lt;/<span class="name">Content</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">SendUser</span>&gt;</span>user<span class="tag">&lt;/<span class="name">SendUser</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Address</span>&gt;</span>mobile<span class="tag">&lt;/<span class="name">Address</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">ReqRoot</span>&gt;</span></span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="2-经过"><a href="#2-经过" class="headerlink" title="2. 经过"></a>2. 经过</h3><p>既然调用失败，那就百度一下为什么调用失败。看到给的链接后面有个 <code>wsdl</code> 的东西，感觉不太对劲，于是乎搜索了一下 <code>wsdl</code>。问了一下同事，说这是历史久远的接口。</p>
-<h4 id="2-1-什么是WSDL？"><a href="#2-1-什么是WSDL？" class="headerlink" title="2.1 什么是WSDL？"></a>2.1 什么是WSDL？</h4><blockquote>
-<p>WSDL 是一种使用 XML 编写的文档。这种文档可描述某个 Web service。它可规定服务的位置，以及此服务提供的操作（或方法）。</p>
-</blockquote>
-<blockquote>
-<p>在 2001 年 3 月，WSDL 1.1 被 IBM、微软作为一个 W3C 记录（W3C note）提交到有关 XML 协议的 W3C XML 活动，用于描述网络服务。（W3C 记录仅供讨论。一项 W3C 记录的发布并不代表它已被 W3C 或 W3C 团队亦或任何 W3C 成员认可。）</p>
-</blockquote>
-<ul>
-<li>WSDL（Web Services Description Language）指网络服务描述语言</li>
-<li>WSDL 使用 XML 编写</li>
-<li>WSDL 是一种 XML 文档</li>
-<li>WSDL 用于描述网络服务</li>
-<li>WSDL 也可用于定位网络服务</li>
-<li>WSDL 还不是 W3C 标准</li>
-</ul>
-<h4 id="2-2-怎么使用"><a href="#2-2-怎么使用" class="headerlink" title="2.2 怎么使用"></a>2.2 怎么使用</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">可以用下面的这个链接进行测试，这是一个中国电视节目预告 Web 服务</span><br><span class="line">http://www.webxml.com.cn/webservices/ChinaTVprogramWebService.asmx?wsdl</span><br></pre></td></tr></table></figure>
-
-<p>我主要关注的是怎么用这个接口，起码能保证业务上的功能正常再去关注这是什么东西。于是乎开始搜索怎么才能让接口调用成功。</p>
-<p>突然发现这个接口是能够直接在浏览器上面打开的，不过其实打开了，也看不出什么东西，因为是一堆的 XML 文本。大概知道的就是这个文本里面定义了有哪些接口，还有接口的调用方式。</p>
-<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/wsdl%E7%BD%91%E9%A1%B5.png" alt="image-20221124152448072"></p>
-<p>然后在网上找啊找，都没怎么找到比较好的方式去调用，但是起码别人是能调通的。观察发现怎么有一个应用叫 SoapUI 能够生成请求的报文体呢（截图截全一点对大家都好）。于是乎自己下载了一个下来看一下。</p>
-<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/soapui.png" alt="image-20221124153100317"></p>
-<p>界面上就是上面的样子，填入 wsdl 的链接就能够比较直观的看到有哪些能够调用的方法，在对应的方法里面创建请求还会帮你填充好一些 SOAP 协议相关的东西（之前就是缺少了这一部分）。如果把请求部分填充完整，是能够使用 SoapUI 请求成功。</p>
-<h4 id="2-3-使用-Postman-调用"><a href="#2-3-使用-Postman-调用" class="headerlink" title="2.3 使用 Postman 调用"></a>2.3 使用 Postman 调用</h4><p>既然能够使用 SoapUI 请求成功，那么就要尝试一下怎样才能使用 Postman 请求成功了。简单分为以下三步：</p>
-<ul>
-<li>将请求的 Content-Type 设置为 text&#x2F;xml</li>
-<li>请求头部加上SOAPAction，值可以置为空</li>
-<li>将 SoapUI 中接口自动生成的部分填入到请求体的 Body 中，然后填充必要的内容。（接口中给定的文档是 XML 文本，因此需要使用<code>&lt;![CDATA[your_data]]&gt;</code>的格式，your_data替换为接口文档中的格式）（CDATA 代表字符数据，其中的数据可以包含 XML 标记，但是还是会被当做字符串）</li>
-</ul>
-<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version=<span class="string">&quot;1.0&quot;</span> encoding=<span class="string">&quot;UTF-8&quot;</span>?&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">soapenv:Envelope</span> <span class="attr">xmlns:soapenv</span>=<span class="string">&quot;http://schemas.xmlsoap.org/soap/envelope/&quot;</span> <span class="attr">xmlns:dom</span>=<span class="string">&quot;http://domain.webservice.itsm.ffcs.com&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">soapenv:Header</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">soapenv:Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">dom:sendMsgNew</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">dom:request</span>&gt;</span></span><br><span class="line">                &lt;![CDATA[</span><br><span class="line">                &lt;ReqRoot&gt;</span><br><span class="line">                    &lt;Body&gt;</span><br><span class="line">                        &lt;ReqTime&gt;2022-10-27 10:03:02&lt;/ReqTime&gt;</span><br><span class="line">                        &lt;BillNo&gt;</span><br><span class="line">                            000000</span><br><span class="line">                        &lt;/BillNo&gt;</span><br><span class="line">                        &lt;Content&gt;消息成功发送&lt;/Content&gt;</span><br><span class="line">                        &lt;SendUser&gt;user&lt;/SendUser&gt;</span><br><span class="line">                        &lt;Address&gt;mobile&lt;/Address&gt;</span><br><span class="line">                    &lt;/Body&gt;</span><br><span class="line">                &lt;/ReqRoot&gt;</span><br><span class="line">               ]]&gt;</span><br><span class="line">            <span class="tag">&lt;/<span class="name">dom:request</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">dom:sendMsgNew</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">soapenv:Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">soapenv:Envelope</span>&gt;</span></span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="3-总结"><a href="#3-总结" class="headerlink" title="3. 总结"></a>3. 总结</h3><p>其实就是 WSDL 与 Soap 的相关知识，但是其实现在很少用，等什么时候有空了再详细看看吧。</p>
-]]></content>
-      <categories>
-        <category>日常踩坑</category>
-      </categories>
-      <tags>
-        <tag>日常</tag>
       </tags>
   </entry>
   <entry>
@@ -4117,5 +3855,267 @@
 <p>3.2.0版本后添加的特性，Chroot特性允许每个客户端为自己设置一个命名空间。如果一个客户端设置了Chroot，那么对Zookeeper集群的任何操作，都会被限制在自己的命名空间下。Chroot能够将客户端对应上Zookeeper的一颗子树，因此在多个应用公用一个Zookeeper集群的时候，有利于应用间的相互隔离。</p>
 </blockquote>
 <h3 id="ACL-访问控制"><a href="#ACL-访问控制" class="headerlink" title="ACL 访问控制"></a>ACL 访问控制</h3>]]></content>
+  </entry>
+  <entry>
+    <title>关于一些好看的写作规范</title>
+    <url>/2022/11/02/%E5%85%B3%E4%BA%8E%E4%B8%80%E4%BA%9B%E5%A5%BD%E7%9C%8B%E7%9A%84%E5%86%99%E4%BD%9C%E8%A7%84%E8%8C%83/</url>
+    <content><![CDATA[<p>主要是统一一下自己的写作规范，尽可能好看一点</p>
+<ul>
+<li><p>尽可能使用markdown的标准语法，不要引入太多html或者是其他插件的语法</p>
+</li>
+<li><p>关于文章目录，所有最高层级的标题使用markdown的三级标题</p>
+</li>
+<li><p>关于不同标题层级之间的换行，在不同层级之间要空出一行，如果不空的话，文章看起来密密麻麻，父层级和第一个子层级之间可以不空出一行，但是子层级和子层级之间需要空出一行</p>
+</li>
+<li><p>句子中的英文，有的时候句子里面会写英文的单词，如果是：这是一个Test句子。中文与英文之间没有间隔，看起来就会很密，字一多起来，看起来头疼。所以在英文前后加上一个空格，如：这是一个 Test 句子（当然，页面渲染结果可以使用 hexo-pangu 这个插件来自动处理）。另外，这些英文尽可能首字母大小，看起来会舒服很多，但是也不一定全大写，自己看情况。</p>
+</li>
+<li><p>对于文本中的代码，不用说也知道，用&#96;&#96;&#96;引入代码块，再把代码黏贴进去，尽可能标注上代码类型，Java、Python 或 Shell 等。代码和文本不进行区分简直是反人类，这种博客看都不想看。</p>
+</li>
+<li><p>关于博客中最后的引用连接，最好写上标题名字，然后用超链接的方式，如<a href="https://learn.lianglianglee.com/%E4%B8%93%E6%A0%8F/Kafka%E6%A0%B8%E5%BF%83%E6%8A%80%E6%9C%AF%E4%B8%8E%E5%AE%9E%E6%88%98/18%20%20Kafka%E4%B8%AD%E4%BD%8D%E7%A7%BB%E6%8F%90%E4%BA%A4%E9%82%A3%E4%BA%9B%E4%BA%8B%E5%84%BF.md">Kafka中位移提交那些事儿</a>，如果连接失效了，就没办法了，所以自己最好在印象笔记里面存一份。</p>
+</li>
+</ul>
+]]></content>
+      <categories>
+        <category>日常踩坑</category>
+      </categories>
+      <tags>
+        <tag>日常</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>网络抓包工具使用</title>
+    <url>/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/</url>
+    <content><![CDATA[<h2 id="1-网络抓包原理"><a href="#1-网络抓包原理" class="headerlink" title="1. 网络抓包原理"></a>1. 网络抓包原理</h2><blockquote>
+<p>抓包实际上是分析网络协议的一种过程，只要网络数据流经过我们的节点，就能够对数据流进行抓包。</p>
+</blockquote>
+<h3 id="1-1-网卡或代理抓包"><a href="#1-1-网卡或代理抓包" class="headerlink" title="1.1 网卡或代理抓包"></a>1.1 网卡或代理抓包</h3><p>目前的抓包软件总体上可以分成两类：</p>
+<ul>
+<li>一种是设置代理抓取 http 包，比如Charles、mitmproxy这些软件。</li>
+<li>另一种是直接抓取经过本机网络的所有协议包，其中最出名的就是 wireshark 以及 Linux 自带的抓包软件命令 tcpdump。</li>
+</ul>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/15202375411791.jpg" alt="img"></p>
+<h3 id="1-2-http-与-https"><a href="#1-2-http-与-https" class="headerlink" title="1.2 http 与 https"></a>1.2 http 与 https</h3><p>http 与 https 最大的区别是 http 的数据包是不加密的， https 的数据包是加密的。因此对于 wireshark 这种在数据链路层进行抓包的工具，所获取到的 https 数据包是加密的，因此无法分析包的内容。而 Charles 等只要安装 Charles 的证书，就能够解密 https 数据包的内容。</p>
+<h2 id="2-tcpdump-使用"><a href="#2-tcpdump-使用" class="headerlink" title="2. tcpdump 使用"></a>2. tcpdump 使用</h2><blockquote>
+<p>tcpdump可以把抓取到的数据包导出为 wireshark 格式的文件。</p>
+</blockquote>
+<blockquote>
+<p>不重复造轮子，详情请看<a href="https://www.cnblogs.com/wongbingming/p/13212306.html">tcpdump使用指南</a>，或者参考 man 文档。</p>
+</blockquote>
+<h3 id="2-1-命令格式"><a href="#2-1-命令格式" class="headerlink" title="2.1 命令格式"></a>2.1 命令格式</h3><p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/20200628111325.png" alt="img"></p>
+<ul>
+<li><p><strong>option 可选参数</strong>：常用的有<code>-i 指定网卡名字</code>、<code>-w 保存抓包数据到文件</code>、<code>-r 从文件中读取抓包数据</code>、<code>-v\-vv\-vvv 输出更详细的内容</code>、<code>-n\-nn\-N 不解析域名\端口</code>。</p>
+</li>
+<li><p><strong>proto 类过滤器</strong>：根据协议进行过滤，可识别的关键词有： <code>tcp、udp、icmp、ip、ip6、arp、rarp、ether、wlan、fddi、tr、decnet</code>。</p>
+</li>
+<li><p><strong>direction 类过滤器</strong>：根据数据流向进行过滤，可识别的关键字有：<code>src、dst</code>，同时你可以使用逻辑运算符进行组合，比如 <code>src or dst</code>。</p>
+</li>
+<li><p><strong>type 类过滤器</strong>：可识别的关键词有：<code>host、net、port、portrange</code>，这些词后边需要再接参数。</p>
+</li>
+</ul>
+<h3 id="2-2-输出内容格式"><a href="#2-2-输出内容格式" class="headerlink" title="2.2 输出内容格式"></a>2.2 输出内容格式</h3><blockquote>
+<p>加入不同的可选参数，可能会使得输出的内容格式会有区别，但是能够触类旁通。</p>
+</blockquote>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo tcpdump -nn src host 172.25.122.140</span></span><br><span class="line">tcpdump: verbose output suppressed, use -v or -vv for full protocol decode</span><br><span class="line">listening on eth0, link-type EN10MB (Ethernet), capture size 262144 bytes</span><br><span class="line">11:21:04.200134 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [S], seq 3457030617, win 64240, options [mss 1460,sackOK,TS val 148049843 ecr 0,nop,wscale 7], length 0</span><br><span class="line">11:21:04.206621 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [.], ack 3549651488, win 502, length 0</span><br><span class="line">11:21:04.212251 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [P.], seq 0:517, ack 1, win 502, length 517</span><br></pre></td></tr></table></figure>
+
+<p>以最后一条数据为例：</p>
+<ol>
+<li><strong>第一列，时分秒毫秒</strong> ：11:21:04.212251</li>
+<li><strong>第二列，网络协议</strong> ：IP</li>
+<li><strong>第三列，发送方 IP + 端口</strong>：IP - 172.25.122.140 | 端口 - 40236</li>
+<li>**第四列，数据流向 &gt;**：从 172.25.122.140.40236 流向 14.215.177.39.443</li>
+<li><strong>第五列，接收方 IP + 端口</strong>：IP - 14.215.177.39 | 端口 - 443</li>
+<li><strong>第六列，冒号</strong><code>：</code></li>
+<li><strong>第七列， 数据包内容</strong>：包括 Flags 标识符，seq 号，ack 号，win 窗口，数据长度 length</li>
+</ol>
+<p><strong>Flags 标识符</strong>：</p>
+<ul>
+<li><code>[S]</code> : SYN（开始连接）</li>
+<li><code>[P]</code> : PSH（推送数据）</li>
+<li><code>[F]</code> : FIN （结束连接）</li>
+<li><code>[R]</code> : RST（重置连接）</li>
+<li><code>[.]</code> : 没有 Flag （意思是除上面四种类型外的其他情况，有可能是 ACK 也有可能是 URG）</li>
+</ul>
+<h2 id="3-Wireshark-使用"><a href="#3-Wireshark-使用" class="headerlink" title="3. Wireshark 使用"></a>3. Wireshark 使用</h2><blockquote>
+<p>Wireshark 使用中最难的，其实就是过滤器的使用，如何从海量请求数据包过滤出自己需要分析的内容。</p>
+</blockquote>
+<blockquote>
+<p>Wireshark 包括两种过滤器：</p>
+<ul>
+<li><p>捕获过滤器：抓包的过滤规则，只抓取特定条件的数据包</p>
+</li>
+<li><p>显示过滤器：对抓取到的数据再次过滤，只显示符合特定规则数据包</p>
+</li>
+</ul>
+</blockquote>
+<h3 id="3-1-抓包示例"><a href="#3-1-抓包示例" class="headerlink" title="3.1 抓包示例"></a>3.1 抓包示例</h3><blockquote>
+<p>使用 Wireshark 抓取 ping <a href="http://www.baidu.com/">www.baidu.com</a> 的数据包</p>
+</blockquote>
+<ol>
+<li>打开 Wireshark 主界面。</li>
+</ol>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104161119826.png" alt="image-20230104161119826"></p>
+<ol start="2">
+<li>选择菜单栏上<code>捕获-&gt;选项-&gt;选择网卡-&gt;开始</code>，或者直接在主界面中选择需要抓包的网卡就能够开始抓包（网卡通常只会处理发送给它自身地址的流量，如果想要捕获所有经过网卡的流量就需要开启混杂模式）。</li>
+</ol>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104162023100.png" alt="image-20230104162023100"></p>
+<ol start="3">
+<li>启动之后，Wireshark 就处于抓包状态了。</li>
+</ol>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104162352660.png" alt="image-20230104162352660"></p>
+<ol start="4">
+<li>在 cmd 窗口执行<code>ping www.baidu.com</code>命令。</li>
+</ol>
+<img src="image-20230104162742232.png" alt="image-20230104162742232" style="zoom:60%;" />
+
+<ol start="5">
+<li>操作完成之后，就能在 Wireshark 中看到抓取的数据包了。为了避免其他不相关的数据包影响分析，可以在过滤栏设置显示过滤条件。<code>ip.addr == 14.215.177.39 and icmp</code>表示只显示源主机 IP 或者目标主机 IP 为 <code>14.215.177.39</code> 且 ICMP 协议的数据包。</li>
+</ol>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104163323961.png" alt="image-20230104163323961"></p>
+<h3 id="3-2-界面介绍"><a href="#3-2-界面介绍" class="headerlink" title="3.2 界面介绍"></a>3.2 界面介绍</h3><p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104164142717.png" alt="image-20230104164142717"></p>
+<h4 id="3-2-1-捕获过滤器"><a href="#3-2-1-捕获过滤器" class="headerlink" title="3.2.1 捕获过滤器"></a>3.2.1 捕获过滤器</h4><h5 id="3-2-1-1-界面设置"><a href="#3-2-1-1-界面设置" class="headerlink" title="3.2.1.1 界面设置"></a>3.2.1.1 界面设置</h5><p>能够在<code>捕获-&gt;捕获过滤器</code>中进行设置，只抓取符合规则的数据包，能够在开始抓包前进行设置。</p>
+<img src="image-20230104170403368.png" alt="image-20230104170403368"  />
+
+<img src="image-20230104170503369.png" alt="image-20230104170503369"  />
+
+<h5 id="3-2-1-2-捕获过滤器规则"><a href="#3-2-1-2-捕获过滤器规则" class="headerlink" title="3.2.1.2 捕获过滤器规则"></a>3.2.1.2 捕获过滤器规则</h5><blockquote>
+<p>捕获过滤器规则设置规则跟 tcpdump 是一样的，只介绍简单的过滤规则，详情请翻阅<a href="https://www.wireshark.org/docs/wsug_html_chunked/ChCapCaptureFilterSection.html">官方文档</a></p>
+</blockquote>
+<p>捕获过滤器的设置主要包括：网络类型 Type(host、net、port)、方向 Dir(src、dst)、协议类型 Proto(ether、ip、tcp、udp、http、icmp、ftp等)、逻辑运算符(&amp;&amp;、||、! 或者 and、or、not)。</p>
+<p>以下显示一些使用示例：</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">host 172.18.5.4     # 只捕捉源地址或者目的地址为172.18.5.4的流量</span><br><span class="line">net 192.168.0.0/24  # 捕捉192.168.0.0/24网段中的流量</span><br><span class="line">src net 192.168.0.0/24 # 捕捉源地址IP在网段192.168.0.0/24中的流量</span><br><span class="line">not broadcast and not multicast # 仅捕捉单播流量，不捕捉广播和多播的流量</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="3-2-2-显示过滤器"><a href="#3-2-2-显示过滤器" class="headerlink" title="3.2.2 显示过滤器"></a>3.2.2 显示过滤器</h4><h5 id="3-2-2-1-界面设置"><a href="#3-2-2-1-界面设置" class="headerlink" title="3.2.2.1 界面设置"></a>3.2.2.1 界面设置</h5><p>对抓取到的数据再次过滤，只显示符合特定规则数据包。显示过滤器能够在<code>分析-&gt;显示过滤器</code>中进行设置。</p>
+<p>在主界面中右键选择<code>作为过滤器应用</code>有惊喜，可以将界面中的一些数据作为过滤规则。</p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104170955371.png" alt="image-20230104170955371"></p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104173929469.png" alt="image-20230104173929469"></p>
+<h5 id="3-2-2-2-显示过滤器规则"><a href="#3-2-2-2-显示过滤器规则" class="headerlink" title="3.2.2.2 显示过滤器规则"></a>3.2.2.2 显示过滤器规则</h5><blockquote>
+<p>详细设置规则请参阅<a href="https://www.wireshark.org/docs/wsug_html_chunked/ChWorkBuildDisplayFilterSection.html">官方文档</a></p>
+</blockquote>
+<p>设置规则基本上是<code>key 运算符 value</code>的格式，运算符可以取<code>==、!=、===、!==、&gt;、&lt;、&gt;=、&lt;=、~</code>。</p>
+<p>使用示例：</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">tcp # 只显示tcp协议的数据包列表</span><br><span class="line">http # 只显示http协议的数据包列表</span><br><span class="line">ip.src == 192.168.1.104 # 显示源地址为192.168.1.104的数据包列表</span><br><span class="line">ip.dst == 192.168.1.104 # 显示目标地址为192.168.1.104的数据包列表</span><br><span class="line">ip.addr == 192.168.1.104 # 显示源IP地址或目标IP地址为192.168.1.104的数据包列表</span><br><span class="line">tcp.port == 80 # 显示源主机或者目的主机端口为80的数据包列表</span><br><span class="line">tcp.srcport == 80 # 只显示TCP协议的源主机端口为80的数据包列表</span><br><span class="line">tcp.dstport == 80 # 只显示TCP协议的目的主机端口为80的数据包列表</span><br><span class="line">http.request.method == &quot;GET&quot; # 只显示HTTP GET方法的</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-2-3-数据包列表区"><a href="#3-2-3-数据包列表区" class="headerlink" title="3.2.3 数据包列表区"></a>3.2.3 数据包列表区</h4><p>显示捕获到的数据包，每一行代表一个数据包，每个数据包包含编号、时间戳、源地址、目的地址、协议、长度以及数据包信息。不同的协议数据包使用了不同的颜色显示进行区分，可以在<code>视图-&gt;着色规则</code>中查看详细的设定。</p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104175334347.png" alt="image-20230104175334347"></p>
+<img src="image-20230104165647707.png" alt="image-20230104165647707" style="zoom:50%;" />
+
+<h4 id="3-2-4-详细数据区"><a href="#3-2-4-详细数据区" class="headerlink" title="3.2.4 详细数据区"></a>3.2.4 详细数据区</h4><p>数据包详细信息面板是最重要的，包含了数据包的所有详细信息内容，从物理层到应用层的数据，用来查看协议中的每一个字段信息。</p>
+<p><strong>参照 OSI 七层模型， 每一行代表着每一层中的数据，根据不同层次的不同协议，显示可能会有所不同。</strong></p>
+<ul>
+<li>Frame：物理层的数据帧状况，即全部数据。</li>
+<li>Ethernet II：数据链路层以太网帧头部信息。</li>
+<li>Internet Protocol Version 4：IPv4 包的头部信息。</li>
+<li>Transmission Control Protocol：TCP 协议的头部信息。</li>
+<li>Hypertext Transfer Protocol：HTTP数据包的所有信息。</li>
+</ul>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104180450263.png" alt="image-20230104180450263"></p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105105346183.png" alt="image-20230105105346183"></p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105155339201.png" alt="image-20230105155339201"></p>
+<h4 id="3-2-5-数据包字节区"><a href="#3-2-5-数据包字节区" class="headerlink" title="3.2.5 数据包字节区"></a>3.2.5 数据包字节区</h4><p>显示原始接收到的数据包字节，通过点击数据包详情区对应的字段，会在数据包字节区显示所对应的数据。</p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104181425789.png" alt="image-20230104181425789"></p>
+<h3 id="3-3-抓包-TCP-三次握手"><a href="#3-3-抓包-TCP-三次握手" class="headerlink" title="3.3 抓包 TCP 三次握手"></a>3.3 抓包 TCP 三次握手</h3><h4 id="3-3-1-TCP-三次握手过程"><a href="#3-3-1-TCP-三次握手过程" class="headerlink" title="3.3.1 TCP 三次握手过程"></a>3.3.1 TCP 三次握手过程</h4><blockquote>
+<p>要分析抓到数据包，首先需要了解其原理</p>
+</blockquote>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105165221418.png" alt="image-20230105165221418"></p>
+<ol>
+<li>TCP服务器进程先创建传输控制块TCB，时刻准备接受客户进程的连接请求，此时服务器就进入了LISTEN（监听）状态；</li>
+<li>TCP客户进程也是先创建传输控制块TCB，然后向服务器发出连接请求报文，这是报文首部中的同部位 SYN&#x3D;1，同时选择一个初始序列号 seq&#x3D;x ，此时，TCP客户端进程进入了 SYN-SENT（同步已发送状态）状态。<strong>TCP规定，SYN报文段（SYN&#x3D;1的报文段）不能携带数据，但需要消耗掉一个序号</strong>；</li>
+<li>TCP服务器收到请求报文后，如果同意连接，则发出确认报文。确认报文中应该 ACK&#x3D;1，SYN&#x3D;1，确认号是ack&#x3D;x+1，同时也要为自己初始化一个序列号 seq&#x3D;y，此时，TCP服务器进程进入了SYN-RCVD（同步收到）状态。<strong>这个报文也不能携带数据，但是同样要消耗一个序号</strong>；</li>
+<li>TCP客户进程收到确认后，还要向服务器给出确认。确认报文的ACK&#x3D;1，ack&#x3D;y+1，自己的序列号seq&#x3D;x+1，此时，TCP连接建立，客户端进入ESTABLISHED（已建立连接）状态。<strong>TCP规定，ACK报文段可以携带数据，但是如果不携带数据则不消耗序号</strong>；</li>
+<li>当服务器收到客户端的确认后也进入ESTABLISHED状态，此后双方就可以开始通信了；</li>
+</ol>
+<h4 id="3-3-2-抓取-TCP-数据包"><a href="#3-3-2-抓取-TCP-数据包" class="headerlink" title="3.3.2 抓取 TCP 数据包"></a>3.3.2 抓取 TCP 数据包</h4><ol>
+<li>在 cmd 使用 <code>ping jandan.net</code>获取域名 IP；</li>
+</ol>
+<img src="image-20230105114055220.png" alt="image-20230105114055220" style="zoom:50%;" />
+
+<ol start="2">
+<li>启动 Wireshark 开始抓包；</li>
+<li>设置显示过滤器<code>ip.addr == 59.37.142.220 </code>；</li>
+</ol>
+<img src="image-20230105114302324.png" alt="image-20230105114302324" style="zoom:50%;" />
+
+<ol start="4">
+<li>浏览器中访问 <code>http://jandan.net/</code>；</li>
+</ol>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105142256229.png" alt="image-20230105142256229"></p>
+<p>从图中可以看到，这次访问 TCP 握手的三个过程。注意的是因为我这不是第一次访问网站，所以会有关闭之前连接的请求。然后访问的时候发起了两个 TCP 请求，可以通过端口号的不同进行区分，我们关注的是本地 54418 端口到服务器 80 端口的 TCP 请求。</p>
+<h4 id="3-3-3-第一次握手数据包"><a href="#3-3-3-第一次握手数据包" class="headerlink" title="3.3.3 第一次握手数据包"></a>3.3.3 第一次握手数据包</h4><p>WireShark 中显示了两个<code>Sequence Number</code>一个为<code>0</code>，一个为<code>605892471</code>，是因为 WireShark 为了更加容易观察进行的处理，一个是相对 Seq，一个是实际请求的 Seq，如果分别点击会发现数据包字节区是对应的同一块区域。</p>
+<ul>
+<li>SYN 标志位置为 1，表示向服务器请求建立连接；</li>
+<li>Seq 序列号为 605892471，相对位置为 0，表示当前客户端当前还没有发送数据；</li>
+</ul>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105144046541.png" alt="image-20230105144046541"></p>
+<h4 id="3-3-4-第二次握手数据包"><a href="#3-3-4-第二次握手数据包" class="headerlink" title="3.3.4 第二次握手数据包"></a>3.3.4 第二次握手数据包</h4><p>第二次握手数据包是服务器返回给客户端的，可以看到是从 59.37.142.220 的 80 端口到本机IP 的 54418 端口。跟 Seq 序列号一样，Acknowledgement number 也有相对与实际的区别。</p>
+<ul>
+<li>服务器响应新生成了 Seq 序列号：483437807，相对位置为 0， 表示当前服务器还没有发送数据；</li>
+<li>ack 设置为请求的 Seq 序列号 + 1，即为 605892472，表示响应的是第一次握手的数据包；</li>
+<li>ACK 和 SYN 标志位都置为 1，表示服务器同意建立连接并返回响应；</li>
+</ul>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105145332078.png" alt="image-20230105145332078"></p>
+<h4 id="3-3-5-第三次握手数据包"><a href="#3-3-5-第三次握手数据包" class="headerlink" title="3.3.5 第三次握手数据包"></a>3.3.5 第三次握手数据包</h4><p>第三次握手就比较简单了，建立完成之后就能开始数据交互：</p>
+<ul>
+<li>Seq 序列号为服务器响应 ack 的值，相对位置为 1，表示已经发送一个数据；</li>
+<li>ack 为服务器响应 Seq 序列号的值 + 1，表示当前客户端成功接收到的数据位数，虽然服务端没有发送任何有效数据，确认号还是被加 1，因为包含 SYN 或 FIN 标志位（并不会对有效数据的计数产生影响，因为含有SYN或FIN标志位的包并不携带有效数据)；</li>
+<li>ACK 标志位置 1，表示已经接收到第二次握手数据包；</li>
+</ul>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105150139918.png" alt="image-20230105150139918"></p>
+]]></content>
+      <categories>
+        <category>计算机网络</category>
+      </categories>
+  </entry>
+  <entry>
+    <title>记一次WSDL使用</title>
+    <url>/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/</url>
+    <content><![CDATA[<h3 id="1-起因"><a href="#1-起因" class="headerlink" title="1. 起因"></a>1. 起因</h3><p>突然要求对接公司集团的一个接口，给了一个 <code>http://192.168.1.1:7001/services/NotifyService?wsdl</code> 这种地址过来，然后还给了个说明文档，介绍用 XML 的格式发送报文。</p>
+<p>一开始觉得跟 restful 接口差不多，就没多大留意。然后按照说明文档构建了 XML 格式的报文，跟下面的例子差不多。觉得没啥问题了，用 Postman 一测试，哎，怎么返回失败呢？首先是网络，检查了一下是通的。哪说明是调用接口的方式出了问题。</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">ReqRoot</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">ReqTime</span>&gt;</span>2022-10-27 10:03:02<span class="tag">&lt;/<span class="name">ReqTime</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">BillNo</span>&gt;</span></span><br><span class="line">            000000</span><br><span class="line">        <span class="tag">&lt;/<span class="name">BillNo</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Content</span>&gt;</span>消息成功发送<span class="tag">&lt;/<span class="name">Content</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">SendUser</span>&gt;</span>user<span class="tag">&lt;/<span class="name">SendUser</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Address</span>&gt;</span>mobile<span class="tag">&lt;/<span class="name">Address</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">ReqRoot</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="2-经过"><a href="#2-经过" class="headerlink" title="2. 经过"></a>2. 经过</h3><p>既然调用失败，那就百度一下为什么调用失败。看到给的链接后面有个 <code>wsdl</code> 的东西，感觉不太对劲，于是乎搜索了一下 <code>wsdl</code>。问了一下同事，说这是历史久远的接口。</p>
+<h4 id="2-1-什么是WSDL？"><a href="#2-1-什么是WSDL？" class="headerlink" title="2.1 什么是WSDL？"></a>2.1 什么是WSDL？</h4><blockquote>
+<p>WSDL 是一种使用 XML 编写的文档。这种文档可描述某个 Web service。它可规定服务的位置，以及此服务提供的操作（或方法）。</p>
+</blockquote>
+<blockquote>
+<p>在 2001 年 3 月，WSDL 1.1 被 IBM、微软作为一个 W3C 记录（W3C note）提交到有关 XML 协议的 W3C XML 活动，用于描述网络服务。（W3C 记录仅供讨论。一项 W3C 记录的发布并不代表它已被 W3C 或 W3C 团队亦或任何 W3C 成员认可。）</p>
+</blockquote>
+<ul>
+<li>WSDL（Web Services Description Language）指网络服务描述语言</li>
+<li>WSDL 使用 XML 编写</li>
+<li>WSDL 是一种 XML 文档</li>
+<li>WSDL 用于描述网络服务</li>
+<li>WSDL 也可用于定位网络服务</li>
+<li>WSDL 还不是 W3C 标准</li>
+</ul>
+<h4 id="2-2-怎么使用"><a href="#2-2-怎么使用" class="headerlink" title="2.2 怎么使用"></a>2.2 怎么使用</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">可以用下面的这个链接进行测试，这是一个中国电视节目预告 Web 服务</span><br><span class="line">http://www.webxml.com.cn/webservices/ChinaTVprogramWebService.asmx?wsdl</span><br></pre></td></tr></table></figure>
+
+<p>我主要关注的是怎么用这个接口，起码能保证业务上的功能正常再去关注这是什么东西。于是乎开始搜索怎么才能让接口调用成功。</p>
+<p>突然发现这个接口是能够直接在浏览器上面打开的，不过其实打开了，也看不出什么东西，因为是一堆的 XML 文本。大概知道的就是这个文本里面定义了有哪些接口，还有接口的调用方式。</p>
+<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/wsdl%E7%BD%91%E9%A1%B5.png" alt="image-20221124152448072"></p>
+<p>然后在网上找啊找，都没怎么找到比较好的方式去调用，但是起码别人是能调通的。观察发现怎么有一个应用叫 SoapUI 能够生成请求的报文体呢（截图截全一点对大家都好）。于是乎自己下载了一个下来看一下。</p>
+<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/soapui.png" alt="image-20221124153100317"></p>
+<p>界面上就是上面的样子，填入 wsdl 的链接就能够比较直观的看到有哪些能够调用的方法，在对应的方法里面创建请求还会帮你填充好一些 SOAP 协议相关的东西（之前就是缺少了这一部分）。如果把请求部分填充完整，是能够使用 SoapUI 请求成功。</p>
+<h4 id="2-3-使用-Postman-调用"><a href="#2-3-使用-Postman-调用" class="headerlink" title="2.3 使用 Postman 调用"></a>2.3 使用 Postman 调用</h4><p>既然能够使用 SoapUI 请求成功，那么就要尝试一下怎样才能使用 Postman 请求成功了。简单分为以下三步：</p>
+<ul>
+<li>将请求的 Content-Type 设置为 text&#x2F;xml</li>
+<li>请求头部加上SOAPAction，值可以置为空</li>
+<li>将 SoapUI 中接口自动生成的部分填入到请求体的 Body 中，然后填充必要的内容。（接口中给定的文档是 XML 文本，因此需要使用<code>&lt;![CDATA[your_data]]&gt;</code>的格式，your_data替换为接口文档中的格式）（CDATA 代表字符数据，其中的数据可以包含 XML 标记，但是还是会被当做字符串）</li>
+</ul>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version=<span class="string">&quot;1.0&quot;</span> encoding=<span class="string">&quot;UTF-8&quot;</span>?&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">soapenv:Envelope</span> <span class="attr">xmlns:soapenv</span>=<span class="string">&quot;http://schemas.xmlsoap.org/soap/envelope/&quot;</span> <span class="attr">xmlns:dom</span>=<span class="string">&quot;http://domain.webservice.itsm.ffcs.com&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">soapenv:Header</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">soapenv:Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">dom:sendMsgNew</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">dom:request</span>&gt;</span></span><br><span class="line">                &lt;![CDATA[</span><br><span class="line">                &lt;ReqRoot&gt;</span><br><span class="line">                    &lt;Body&gt;</span><br><span class="line">                        &lt;ReqTime&gt;2022-10-27 10:03:02&lt;/ReqTime&gt;</span><br><span class="line">                        &lt;BillNo&gt;</span><br><span class="line">                            000000</span><br><span class="line">                        &lt;/BillNo&gt;</span><br><span class="line">                        &lt;Content&gt;消息成功发送&lt;/Content&gt;</span><br><span class="line">                        &lt;SendUser&gt;user&lt;/SendUser&gt;</span><br><span class="line">                        &lt;Address&gt;mobile&lt;/Address&gt;</span><br><span class="line">                    &lt;/Body&gt;</span><br><span class="line">                &lt;/ReqRoot&gt;</span><br><span class="line">               ]]&gt;</span><br><span class="line">            <span class="tag">&lt;/<span class="name">dom:request</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">dom:sendMsgNew</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">soapenv:Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">soapenv:Envelope</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="3-总结"><a href="#3-总结" class="headerlink" title="3. 总结"></a>3. 总结</h3><p>其实就是 WSDL 与 Soap 的相关知识，但是其实现在很少用，等什么时候有空了再详细看看吧。</p>
+]]></content>
+      <categories>
+        <category>日常踩坑</category>
+      </categories>
+      <tags>
+        <tag>日常</tag>
+      </tags>
   </entry>
 </search>
