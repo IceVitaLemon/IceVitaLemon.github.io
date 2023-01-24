@@ -39,7 +39,7 @@
 <meta property="og:image" content="http://example.com/2022/12/05/Java%E4%B8%AD%E7%9A%84BIO%E3%80%81NIO%E3%80%81AIO/JAVA_AIO.png">
 <meta property="og:image" content="http://example.com/2022/12/05/Java%E4%B8%AD%E7%9A%84BIO%E3%80%81NIO%E3%80%81AIO/Proactor%E6%A8%A1%E5%9E%8B.png">
 <meta property="article:published_time" content="2022-12-05T06:46:30.000Z">
-<meta property="article:modified_time" content="2023-01-05T09:10:13.926Z">
+<meta property="article:modified_time" content="2023-01-05T10:54:38.777Z">
 <meta property="article:author" content="Junhao Lin">
 <meta property="article:tag" content="Java">
 <meta name="twitter:card" content="summary">
@@ -172,18 +172,18 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
         <a href="/archives/">
-          <span class="site-state-item-count">16</span>
+          <span class="site-state-item-count">17</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
           <a href="/categories/">
-        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-count">12</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
       <div class="site-state-item site-state-tags">
           <a href="/tags/">
-        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-count">12</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
@@ -268,7 +268,7 @@
         <i class="far fa-calendar-check"></i>
       </span>
       <span class="post-meta-item-text">更新于</span>
-      <time title="修改时间：2023-01-05 17:10:13" itemprop="dateModified" datetime="2023-01-05T17:10:13+08:00">2023-01-05</time>
+      <time title="修改时间：2023-01-05 18:54:38" itemprop="dateModified" datetime="2023-01-05T18:54:38+08:00">2023-01-05</time>
     </span>
     <span class="post-meta-item">
       <span class="post-meta-item-icon">
@@ -355,10 +355,10 @@
 <p>所以，对于select这种方式，需要进行<strong>2次遍历文件描述符集合的操作</strong>，一次是在内核态中，一个是在用户态中，而且还会发生<strong>2次拷贝文件描述符集合的操作</strong>，先从用户空间传入内核空间，由内核修改后，再传出到用户空间中。</p>
 <p>select使用固定长度的BitsMap，表示文件描述符集合，而且BitsMap所支持的文件描述符的个数是有限的，在Linux系统中，由内核的FD_SETSIZE限制，默认最大值为<strong>1024</strong>。</p>
 <p>poll不再用BitsMap来储存所关注的文件描述符，取而代之用动态数组，以链表形式来组织，突破了select使用BitsMap存储文件描述符个数限制，当然还是会受到系统文件描述符的数量限制。</p>
-<p>但是poll和select并没有太大的本质区别，都是使用线性结构储存进程关注的Socket集合，因此都需要遍历文件描述符集合来找到可读或可写的Socket，**时间复杂度为O(n)**，而且也需要在用户态与内核态之间拷贝文件描述符集合，这种方式随着并发数上来，性能的损耗会呈指数级增长。</p>
+<p>但是poll和select并没有太大的本质区别，都是使用线性结构储存进程关注的Socket集合，因此都需要遍历文件描述符集合来找到可读或可写的Socket，<strong>时间复杂度为O(n)</strong> ，而且也需要在用户态与内核态之间拷贝文件描述符集合，这种方式随着并发数上来，性能的损耗会呈指数级增长。</p>
 <h4 id="4-2-epoll"><a href="#4-2-epoll" class="headerlink" title="4.2 epoll"></a>4.2 epoll</h4><p>epoll在两个方面解决select&#x2F;poll的问题</p>
-<p><strong>第一点</strong>，epoll在内核里使用<strong>红黑树来跟踪进程所有待检测的文件描述字</strong>，把需要监控的socket通过**epoll_ctl()**函数加入到内核中的红黑树里，红黑树是个高效的数据结构，增删查一般时间复杂度是O(logn)，通过维护内核中的这颗红黑树，就不需要像select&#x2F;poll每次操作时都传入整个socket集合，只需要传入一个待检测的socket，减少了内核和用户态间大量的数据拷贝和内存分配。</p>
-<p><strong>第二点</strong>，epoll使用<strong>事件驱动的机制</strong>，内核里<strong>维护了一个链表来记录就绪事件</strong>，当某个socket有事件发生时，通过回调函数内核会将其加入到这个就绪事件列表中，当用户调用**epoll_wait()**函数时，只会返回有事件发生的文件描述符，不需要像select&#x2F;poll一样遍历整个socket集合，大大提高了检测的效率。</p>
+<p><strong>第一点</strong>，epoll在内核里使用<strong>红黑树来跟踪进程所有待检测的文件描述字</strong>，把需要监控的socket通过 <strong>epoll_ctl()</strong> 函数加入到内核中的红黑树里，红黑树是个高效的数据结构，增删查一般时间复杂度是O(logn)，通过维护内核中的这颗红黑树，就不需要像select&#x2F;poll每次操作时都传入整个socket集合，只需要传入一个待检测的socket，减少了内核和用户态间大量的数据拷贝和内存分配。</p>
+<p><strong>第二点</strong>，epoll使用<strong>事件驱动的机制</strong>，内核里<strong>维护了一个链表来记录就绪事件</strong>，当某个socket有事件发生时，通过回调函数内核会将其加入到这个就绪事件列表中，当用户调用<strong>epoll_wait()</strong> 函数时，只会返回有事件发生的文件描述符，不需要像select&#x2F;poll一样遍历整个socket集合，大大提高了检测的效率。</p>
 <img src="epoll.png" alt="epoll" style="zoom:70%;" />
 
 <p>epoll的方式即使监听的Socket数量越多的时候，效率不会大幅度降低，能够同时监听Socket的数目也非常的多，上限就是系统定义的进程能够打开的最大文件描述符个数。因此epoll被称为解决C10K问题的利器。</p>
@@ -551,13 +551,13 @@
     <span class="post-meta-item-icon">
       <i class="fa fa-chart-line"></i>
     </span>
-    <span title="站点总字数">87k</span>
+    <span title="站点总字数">95k</span>
   </span>
   <span class="post-meta-item">
     <span class="post-meta-item-icon">
       <i class="fa fa-coffee"></i>
     </span>
-    <span title="站点阅读时长">5:18</span>
+    <span title="站点阅读时长">5:44</span>
   </span>
 </div><script color="0,0,255" opacity="0.5" zIndex="-1" count="99" src="/js/canvas-nest.js"></script>
 

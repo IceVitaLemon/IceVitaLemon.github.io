@@ -113,7 +113,7 @@
 </blockquote>
 <p>常用的命令，一般有以下几条（需要切换到博客根目录中执行）：</p>
 <ul>
-<li>**hexo n “博客文章名”**：新建一篇博客文章，文件位于<code>D:\blog\source\_posts</code>中，使用 Markdown 语法进行编写</li>
+<li><strong>hexo n “博客文章名”</strong> ：新建一篇博客文章，文件位于<code>D:\blog\source\_posts</code>中，使用 Markdown 语法进行编写</li>
 <li><strong>hexo clean：</strong>清除生成的缓存文件</li>
 <li><strong>hexo g：</strong>将使用 Markdown 语法编写的博客文件转换成静态 html 文件</li>
 <li><strong>hexo s：</strong>在自己本机部署服务，使用<code>localhost:4000</code>即可访问页面</li>
@@ -360,10 +360,10 @@
 <p>所以，对于select这种方式，需要进行<strong>2次遍历文件描述符集合的操作</strong>，一次是在内核态中，一个是在用户态中，而且还会发生<strong>2次拷贝文件描述符集合的操作</strong>，先从用户空间传入内核空间，由内核修改后，再传出到用户空间中。</p>
 <p>select使用固定长度的BitsMap，表示文件描述符集合，而且BitsMap所支持的文件描述符的个数是有限的，在Linux系统中，由内核的FD_SETSIZE限制，默认最大值为<strong>1024</strong>。</p>
 <p>poll不再用BitsMap来储存所关注的文件描述符，取而代之用动态数组，以链表形式来组织，突破了select使用BitsMap存储文件描述符个数限制，当然还是会受到系统文件描述符的数量限制。</p>
-<p>但是poll和select并没有太大的本质区别，都是使用线性结构储存进程关注的Socket集合，因此都需要遍历文件描述符集合来找到可读或可写的Socket，**时间复杂度为O(n)**，而且也需要在用户态与内核态之间拷贝文件描述符集合，这种方式随着并发数上来，性能的损耗会呈指数级增长。</p>
+<p>但是poll和select并没有太大的本质区别，都是使用线性结构储存进程关注的Socket集合，因此都需要遍历文件描述符集合来找到可读或可写的Socket，<strong>时间复杂度为O(n)</strong> ，而且也需要在用户态与内核态之间拷贝文件描述符集合，这种方式随着并发数上来，性能的损耗会呈指数级增长。</p>
 <h4 id="4-2-epoll"><a href="#4-2-epoll" class="headerlink" title="4.2 epoll"></a>4.2 epoll</h4><p>epoll在两个方面解决select&#x2F;poll的问题</p>
-<p><strong>第一点</strong>，epoll在内核里使用<strong>红黑树来跟踪进程所有待检测的文件描述字</strong>，把需要监控的socket通过**epoll_ctl()**函数加入到内核中的红黑树里，红黑树是个高效的数据结构，增删查一般时间复杂度是O(logn)，通过维护内核中的这颗红黑树，就不需要像select&#x2F;poll每次操作时都传入整个socket集合，只需要传入一个待检测的socket，减少了内核和用户态间大量的数据拷贝和内存分配。</p>
-<p><strong>第二点</strong>，epoll使用<strong>事件驱动的机制</strong>，内核里<strong>维护了一个链表来记录就绪事件</strong>，当某个socket有事件发生时，通过回调函数内核会将其加入到这个就绪事件列表中，当用户调用**epoll_wait()**函数时，只会返回有事件发生的文件描述符，不需要像select&#x2F;poll一样遍历整个socket集合，大大提高了检测的效率。</p>
+<p><strong>第一点</strong>，epoll在内核里使用<strong>红黑树来跟踪进程所有待检测的文件描述字</strong>，把需要监控的socket通过 <strong>epoll_ctl()</strong> 函数加入到内核中的红黑树里，红黑树是个高效的数据结构，增删查一般时间复杂度是O(logn)，通过维护内核中的这颗红黑树，就不需要像select&#x2F;poll每次操作时都传入整个socket集合，只需要传入一个待检测的socket，减少了内核和用户态间大量的数据拷贝和内存分配。</p>
+<p><strong>第二点</strong>，epoll使用<strong>事件驱动的机制</strong>，内核里<strong>维护了一个链表来记录就绪事件</strong>，当某个socket有事件发生时，通过回调函数内核会将其加入到这个就绪事件列表中，当用户调用<strong>epoll_wait()</strong> 函数时，只会返回有事件发生的文件描述符，不需要像select&#x2F;poll一样遍历整个socket集合，大大提高了检测的效率。</p>
 <img src="epoll.png" alt="epoll" style="zoom:70%;" />
 
 <p>epoll的方式即使监听的Socket数量越多的时候，效率不会大幅度降低，能够同时监听Socket的数目也非常的多，上限就是系统定义的进程能够打开的最大文件描述符个数。因此epoll被称为解决C10K问题的利器。</p>
@@ -602,7 +602,7 @@
 <h5 id="2-3-2-生产者幂等性"><a href="#2-3-2-生产者幂等性" class="headerlink" title="2.3.2 生产者幂等性"></a>2.3.2 生产者幂等性</h5><blockquote>
 <p>Kafka的幂等性是单会话单分区幂等</p>
 </blockquote>
-<p>通过**&lt;PID，partition，SeqNumber&gt;**区分每一条数据。（单分区的原因看区分规则就知道，不同分区当成不同的消息）</p>
+<p>通过 <strong>&lt;PID，partition，SeqNumber&gt;</strong> 区分每一条数据。（单分区的原因看区分规则就知道，不同分区当成不同的消息）</p>
 <ul>
 <li><p><strong>PID（Producer ID）</strong>：对用户完全透明，是Producer每次连接上Kafka集群之后，都会向Broker申请一个全局唯一的PID，用来标识本次会话，<strong>如果Producer重启会导致PID的变化，所以Broker就会当成是一个新的生产者（单次会话的原因）</strong>。</p>
 </li>
@@ -746,8 +746,8 @@
 </ul>
 <p><strong>过程：</strong></p>
 <ul>
-<li>如果消费者已经保存了消费者组对应的 Group Coordinator 节点的信息，并且与它之间的网络连接是正常的，那么可以进入下一阶段；否则向 Kafka 集群中**负载最小的 Broker **发送 FindCoordinatorRequest 请求寻找 Group Coordinator。</li>
-<li>**Group Coordinator的选择方式是：BrokerId &#x3D;  PartitionLeader( Hash( GroupId ) % __consumer_offsets的分区数 )<strong>，即将 GroupId 取哈希之后对 <code>__consumer_offsets</code> 的分区数取余，然后</strong>这个余数就作为以后 消费者 offset 要写入的<code>__consumer_offsets</code> 的分区，这个分区 Partition Leader 所在的 Broker 中的 Group Coordinator 就负责这个消费者组的工作协调（非常绕，多看几遍）（其实就是消费者 offset 需要写入 __consumer_offsets分区的Leader所在 Broker中）。</li>
+<li>如果消费者已经保存了消费者组对应的 Group Coordinator 节点的信息，并且与它之间的网络连接是正常的，那么可以进入下一阶段；否则向 Kafka 集群中<strong>负载最小的 Broker</strong>发送 FindCoordinatorRequest 请求寻找 Group Coordinator。</li>
+<li><strong>Group Coordinator的选择方式是：BrokerId &#x3D;  PartitionLeader( Hash( GroupId ) % __consumer_offsets的分区数 )</strong> ，即将 GroupId 取哈希之后对 <code>__consumer_offsets</code> 的分区数取余，然后<strong>这个余数就作为以后 消费者 offset 要写入的<code>__consumer_offsets</code> 的分区，这个分区 Partition Leader 所在的 Broker 中的 Group Coordinator 就负责这个消费者组的工作协调</strong>（非常绕，多看几遍）（其实就是消费者 offset 需要写入 __consumer_offsets分区的Leader所在 Broker中）。</li>
 </ul>
 <h6 id="第二步-JOIN-GROUP"><a href="#第二步-JOIN-GROUP" class="headerlink" title="第二步 JOIN_GROUP"></a>第二步 JOIN_GROUP</h6><p>当消费者组成员加入组时，会向 Group Coordinator 发送 JoinGroup 请求，该请求中包含成员订阅的主题。</p>
 <p><strong>目的：</strong></p>
@@ -786,7 +786,7 @@
 <p>当 Kafka 集群中的第一个 Consumer 程序启动时，Kafka 会自动创建位移主题，Offset Topic 主题的 Key 和 Value 组成如下：</p>
 <ul>
 <li><strong>Key：</strong> 应该保存 3 部分的内容 <strong>&lt;GroupId, 主题名, 分区号&gt;</strong></li>
-<li><strong>Value：</strong> 应该保存的数据有 **&lt;offset, 时间戳， 元数据&gt;**，元数据是为了帮助 Kafka 执行各种各样的后续操作，比如删除过期位移消息等。</li>
+<li><strong>Value：</strong> 应该保存的数据有 <strong>&lt;offset, 时间戳， 元数据&gt;</strong> ，元数据是为了帮助 Kafka 执行各种各样的后续操作，比如删除过期位移消息等。</li>
 </ul>
 <p>具体消费者消费的 offset 储存到 <code>__consumer_offsets</code> 的哪个分区上，是根据<code>abs(GroupId.hashCode()) % NumPartitions</code>来计算（其中，NumPartitions 是 <code>__consumer_offsets的分区数</code>）</p>
 <h5 id="3-3-1-提交偏移量"><a href="#3-3-1-提交偏移量" class="headerlink" title="3.3.1 提交偏移量"></a>3.3.1 提交偏移量</h5><p>如果消费者消费到了 offset，则提交的偏移量位置是 offset + 1，指向下一跳消息的位置。</p>
@@ -800,8 +800,8 @@
 <p><strong>自动提交丢数据场景</strong>：消费者A，第一次 poll 了100条数据，刚好第一次提交偏移量也是 100+1（ 5 秒提交一次），但是拉取的这 100 条才处理了前 50 条，A 就挂了，相当于51 - 100 的数据已经提交了偏移量，但还没处理。因此发生了消费再平衡，由 B 来接着消费这个分区，B 从 101 开始消费，51-101 的数据就丢失了。</p>
 <p><strong>自动提交重复消费场景：</strong>消费者A，第一次 poll 了 100 条数据，刚好第一次提交偏移量也是 100+1（ 5 秒提交一次），在后面的 3 秒中，消费者 A 又 poll 了 2 次数据，每次 100 条，相当于此时消费者 A 已经消费到了偏移量 300 了，此时才过 3 秒，还没有到下一次触发自动提交的时间。此时，消费者 A 挂了，发生了消费再平衡，由 B 来接着消费这个分区，那 B 就是从 101 偏移量开始消费，那么101-300都被重复消费了。</p>
 <h6 id="手动提交"><a href="#手动提交" class="headerlink" title="手动提交"></a>手动提交</h6><p>使用手动提交的时候，需要将 <strong>enable.auto.commit</strong> 设置为 false。</p>
-<p>**同步提交commitSync()**：调用 commitSync() 时，Consumer 程序会处于阻塞状态，直到远端的 Broker 返回提交结果。</p>
-<p>**异步提交commitAsync()**：调用 commitAsync() 之后，它会立即返回，不会阻塞。commitAsync 的问题在于，出现问题时它不会自动重试。因为它是异步操作，倘若提交失败后自动重试，那么它重试时提交的位移值可能早已经 “过期” 或不是最新值了（重试之前，已经有另外一次提交）。</p>
+<p><strong>同步提交commitSync()</strong> ：调用 commitSync() 时，Consumer 程序会处于阻塞状态，直到远端的 Broker 返回提交结果。</p>
+<p><strong>异步提交commitAsync()</strong> ：调用 commitAsync() 之后，它会立即返回，不会阻塞。commitAsync 的问题在于，出现问题时它不会自动重试。因为它是异步操作，倘若提交失败后自动重试，那么它重试时提交的位移值可能早已经 “过期” 或不是最新值了（重试之前，已经有另外一次提交）。</p>
 <p><a href="https://learn.lianglianglee.com/%E4%B8%93%E6%A0%8F/Kafka%E6%A0%B8%E5%BF%83%E6%8A%80%E6%9C%AF%E4%B8%8E%E5%AE%9E%E6%88%98/18%20%20Kafka%E4%B8%AD%E4%BD%8D%E7%A7%BB%E6%8F%90%E4%BA%A4%E9%82%A3%E4%BA%9B%E4%BA%8B%E5%84%BF.md">Kafka中位移提交那些事儿</a></p>
 <h3 id="4-Broker工作原理"><a href="#4-Broker工作原理" class="headerlink" title="4. Broker工作原理"></a>4. Broker工作原理</h3><blockquote>
 <p>Kafka在2.8版本之前的集群信息管理依赖于Zookeeper，在2.8版本之后引入了Raft协议，去除了Zookeeper的依赖，但是还是提供多Zookeeper的版本（因为Raft协议的版本暂时还不成熟），下面主要以Zookeeper的版本介绍</p>
@@ -876,7 +876,7 @@
 <li>Partition 分区主要是为了解决 Kafka 存储的水平扩展问题而设计的，如果一个 Topic 的所有消息都只存储到一个 Kafka Broker 上的话， 对于 Kafka 每秒写入几百万消息的高并发系统来说，这个 Broker 肯定会出现瓶颈， 故障时候不好进行恢复，所以 Kafka 将 Topic 的消息划分成多个 Partition，然后均衡的分布到整个 Kafka Broker 集群中。</li>
 <li>Partition 分区内每条消息都会被分配一个唯一的消息 id，即我们通常所说的 偏移量 Offset，因此 Kafka 只能保证每个分区内部有序性，并不能保证全局有序性。</li>
 <li>然后每个 Partition 分区又被划分成了多个 LogSegment，这是为了防止 Log 日志过大，Kafka 又引入了日志分段（LogSegment）的概念，将 Log 切分为多个 LogSegement，相当于一个巨型文件被平均分割为一些相对较小的文件，这样也便于消息的查找、维护和清理。这样在做历史数据清理的时候，直接删除旧的 LogSegement 文件就可以了。</li>
-<li>Log 日志在物理上只是以文件夹的形式存储，文件夹的命名规则是<code>topic名称-分区号</code>，而每个 LogSegement 对应磁盘上的4个文件：<code>.index</code>索引文件（**.index文件中保存的是相对 Offset，相对于 Segment 中的第一条消息，能够保证 Offset 的值所占用的空间不会过大<strong>）、<code>.log</code>消息数据文件、<code>.snapshot</code>快照文件、<code>.timeindex</code>时间索引文件，</strong>这些文件以当前Segment的第一条消息的Offset命名**。</li>
+<li>Log 日志在物理上只是以文件夹的形式存储，文件夹的命名规则是<code>topic名称-分区号</code>，而每个 LogSegement 对应磁盘上的4个文件：<code>.index</code>索引文件（ <strong>.index文件中保存的是相对 Offset，相对于 Segment 中的第一条消息，能够保证 Offset 的值所占用的空间不会过大</strong>）、<code>.log</code>消息数据文件、<code>.snapshot</code>快照文件、<code>.timeindex</code>时间索引文件，<strong>这些文件以当前Segment的第一条消息的Offset命名</strong>。</li>
 </ul>
 <h4 id="4-4-PageCache和零拷贝"><a href="#4-4-PageCache和零拷贝" class="headerlink" title="4.4 PageCache和零拷贝"></a>4.4 PageCache和零拷贝</h4><blockquote>
 <p>在 Kafka 中，大量使用了 <strong>PageCache（ Java 中使用 mmap 实现，将进程的一段虚拟地址空间映射到文件的内存地址中，避免用户态和内核态之间的数据拷贝过程</strong>），这也是 Kafka 能实现高吞吐的重要因素之一。</p>
@@ -1071,7 +1071,7 @@
 <p>生产者端需要设置全局唯一Transaction ID，并且开启幂等性</p>
 </blockquote>
 <h5 id="6-2-1-寻找Transaction-Coordinator"><a href="#6-2-1-寻找Transaction-Coordinator" class="headerlink" title="6.2.1 寻找Transaction Coordinator"></a>6.2.1 寻找Transaction Coordinator</h5><p>Producer向任意一个Broker发送<strong>FindCoordinator请求</strong>，找到<strong>Transaction Coordinator</strong>所在的位置。</p>
-<p>Broker根据生产者发送过来的<strong>Transaction ID取Hash值</strong>，并根据Hash值<strong>对__transaction_state主题的分区数</strong>取余，即<code>Hash(TID) % Partition num</code>，**__transaction_state主题余数分区副本的Leader所在Broker中的Transaction Coordinator**就负责该生产者的事务记录。</p>
+<p>Broker根据生产者发送过来的<strong>Transaction ID取Hash值</strong>，并根据Hash值<strong>对__transaction_state主题的分区数</strong>取余，即<code>Hash(TID) % Partition num</code>， <strong>__transaction_state主题余数分区副本的Leader所在Broker中的Transaction Coordinator</strong>就负责该生产者的事务记录。</p>
 <h5 id="6-2-2-获取PID"><a href="#6-2-2-获取PID" class="headerlink" title="6.2.2 获取PID"></a>6.2.2 获取PID</h5><blockquote>
 <p>对于生产者来说，事务中需要保存两个参数，一个是PID，一个是Producer的Epoch</p>
 </blockquote>
@@ -1084,12 +1084,12 @@
 <h5 id="6-2-3-开启事务"><a href="#6-2-3-开启事务" class="headerlink" title="6.2.3 开启事务"></a>6.2.3 开启事务</h5><p>Kafka从0.11.0.0版本开始，提供<code>beginTransaction()</code>方法用于开启一个事务。<strong>调用该方法后，Producer本地会记录已经开启了事务，但<code>Transaction Coordinator</code>只有在Producer发送第一条消息后才认为事务已经开启。</strong></p>
 <h5 id="6-2-4-事务发送"><a href="#6-2-4-事务发送" class="headerlink" title="6.2.4 事务发送"></a>6.2.4 事务发送</h5><p>在这一个阶段包含整个事务数据处理过程，并且包含多种请求（以下按请求顺序）：</p>
 <ol>
-<li><strong>AddPartitionsToTxnRequest</strong>：一个Producer可能会给多个**&lt;Topic, Partition&gt;<strong>发送数据，在此之前，它需要先向Transaction Coordinator发送<code>AddPartitionsToTxnRequest</code>请求。Transaction Coordinator会将该</strong>&lt;Transaction, Topic, Partition&gt;<strong>存于Transaction Log内，并将其状态置为BEGIN（还会有事务超时时间的设置），如流程图4.1所示。有了该信息后，我们才可以在后续步骤中为每个</strong>&lt;Topic, Partition&gt;**设置COMMIT或者ABORT标记（如流程图5.2所示）。</li>
+<li><strong>AddPartitionsToTxnRequest</strong>：一个Producer可能会给多个 <strong>&lt;Topic, Partition&gt;</strong> 发送数据，在此之前，它需要先向Transaction Coordinator发送<code>AddPartitionsToTxnRequest</code>请求。Transaction Coordinator会将该 <strong>&lt;Transaction, Topic, Partition&gt;</strong> 存于Transaction Log内，并将其状态置为BEGIN（还会有事务超时时间的设置），如流程图4.1所示。有了该信息后，我们才可以在后续步骤中为每个 <strong>&lt;Topic, Partition&gt;</strong> 设置COMMIT或者ABORT标记（如流程图5.2所示）。</li>
 <li><strong>ProduceRequest</strong>：就是生产者实际需要发送的消息，除了Topic、Partition、Key、Value的数据，该请求还包含了<strong>PID、Epoch、SeqNumber</strong>。（流程图4.2所示）</li>
-<li><strong>AddOffsetsToTxnRequest</strong>：<code>sendOffsetsToTransaction</code>方法能够将<strong>多组消息的发送和消费放入同一批处理内</strong>，该方法会先判断当前事务中是否传入了相同的Group ID，如果是，则到下一个请求，不会发出<strong>AddOffsetsToTxnRequest</strong>请求；否则，生产者会向Transaction Coordinator发送<strong>AddOffsetsToTxnRequest</strong>请求，事务协调器会将**事务中所有的&lt;Topic, Partition&gt;**存于Transaction Log中，并将其状态记为BEGIN，流程图4.3所示。</li>
-<li><strong>TxnOffsetCommitRequest</strong>：Producer发送<strong>TxnOffsetCommitRequest</strong>请求给<strong>Consumer Coordinator</strong>，从而将本事务中包含的<strong>读操作相关</strong>的各个&lt;Topic， Partition&gt;的Offset持久化到内部的**__consumer_offsets主题<strong>中，如流程图4.4所示。</strong>Consumer Coordinator**会通过PID和对应的epoch来验证是否允许该Producer的请求。<ul>
-<li>写入**__consumer_offsets**的Offset信息在当前事务Commit前对外是不可见的。也即在当前事务被Commit前，可认为该Offset尚未Commit，也即对应的消息尚未被完成处理。</li>
-<li><strong>Consumer Coordinator</strong>并不会立即更新缓存中相应**&lt;Topic, Partition&gt;**的Offset，因为此时这些更新操作尚未被COMMIT或ABORT。</li>
+<li><strong>AddOffsetsToTxnRequest</strong>：<code>sendOffsetsToTransaction</code>方法能够将<strong>多组消息的发送和消费放入同一批处理内</strong>，该方法会先判断当前事务中是否传入了相同的Group ID，如果是，则到下一个请求，不会发出<strong>AddOffsetsToTxnRequest</strong>请求；否则，生产者会向Transaction Coordinator发送<strong>AddOffsetsToTxnRequest</strong>请求，事务协调器会将<strong>事务中所有的&lt;Topic, Partition&gt;</strong> 存于Transaction Log中，并将其状态记为BEGIN，流程图4.3所示。</li>
+<li><strong>TxnOffsetCommitRequest</strong>：Producer发送<strong>TxnOffsetCommitRequest</strong>请求给<strong>Consumer Coordinator</strong>，从而将本事务中包含的<strong>读操作相关</strong>的各个&lt;Topic， Partition&gt;的Offset持久化到内部的 <strong>__consumer_offsets主题</strong>中，如流程图4.4所示。<strong>Consumer Coordinator</strong>会通过PID和对应的epoch来验证是否允许该Producer的请求。<ul>
+<li>写入 <strong>__consumer_offsets</strong>的Offset信息在当前事务Commit前对外是不可见的。也即在当前事务被Commit前，可认为该Offset尚未Commit，也即对应的消息尚未被完成处理。</li>
+<li><strong>Consumer Coordinator</strong>并不会立即更新缓存中相应 <strong>&lt;Topic, Partition&gt;</strong> 的Offset，因为此时这些更新操作尚未被COMMIT或ABORT。</li>
 </ul>
 </li>
 </ol>
@@ -1113,83 +1113,6 @@
       </categories>
       <tags>
         <tag>Kafka</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>Linux中的login shell和non-login shell</title>
-    <url>/2022/10/10/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell/</url>
-    <content><![CDATA[<h3 id="1-简要介绍"><a href="#1-简要介绍" class="headerlink" title="1. 简要介绍"></a>1. 简要介绍</h3><p>Shell是用于为用户提供与Linux内核交互的工具，比如sh、bash、zch等都是shell。当我们使用Linux的时候，一进入系统就有一堆的变量可以使用，那么这些变量从哪里来呢？在Linux启动的时候，会按一定的顺序读取配置文件，并且将这些配置文件中的环境变量设置到当前的shell中，所以我们才能使用这些环境变量中目录里面的命令。</p>
-<p>因此我们就需要了解两个问题：</p>
-<ul>
-<li>Linux会按什么顺序读取哪些配置文件？</li>
-<li>login shell和non-login shell有什么区别？</li>
-</ul>
-<h3 id="2-login-shell和non-login-shell的区别"><a href="#2-login-shell和non-login-shell的区别" class="headerlink" title="2. login shell和non-login shell的区别"></a>2. login shell和non-login shell的区别</h3><ul>
-<li><strong>login shell</strong>：取得bash时需要完整的登录流程，就称为login shell。如：<ul>
-<li>登录到ubuntu之后需要输入用户名和密码才能操作用户界面，这就是一个login shell</li>
-<li>登录tty1~tty6时，也需要输入用户名和密码，这也是login sehll</li>
-</ul>
-</li>
-<li><strong>non-login shell</strong>：取得bash时不需要重复登录。如：<ul>
-<li>登录到ubuntu用户操作界面之后，通过鼠标打开的终端Terminal，就不需要输入用户名和密码，因此这就是non-login shell</li>
-<li>或者在原本bash环境下再次使用bash这个命令，会建立一个新的bash子进程，也不用输入账号密码，哪这个bash子程序也是non-login shell</li>
-</ul>
-</li>
-</ul>
-<h3 id="3-login-shell"><a href="#3-login-shell" class="headerlink" title="3. login shell"></a>3. login shell</h3><blockquote>
-<p>一般来说，login shell只会读取下面两个配置文件：</p>
-<ul>
-<li><strong>&#x2F;etc&#x2F;profile</strong>：系统整体的配置，一般尽量不要修改这个文件</li>
-<li><strong><del>&#x2F;.bash_profile或</del>&#x2F;.bash_login或~&#x2F;.profile</strong>：属于用户个人配置（从~目录就能看出），需要修改自己的数据，就写入这些文件。（bash的login shell配置只会读取上面三个文件的其中一个，而读取的顺序则是依照上面的顺序）</li>
-</ul>
-</blockquote>
-<h4 id="3-1-x2F-etc-x2F-profile公共配置内容"><a href="#3-1-x2F-etc-x2F-profile公共配置内容" class="headerlink" title="3.1 &#x2F;etc&#x2F;profile公共配置内容"></a>3.1 &#x2F;etc&#x2F;profile公共配置内容</h4><p><code>/etc/profile</code>文件中主要配置的环境变量包括：</p>
-<ul>
-<li>PATH：会根据UID来决定PATH变量中包不包含sbin的系统命令目录</li>
-<li>MAIL：将用户配置的mailbox配置到<code>/var/spool/mail/账户名</code></li>
-<li>USER：根据用户的账号配置这个变量内容</li>
-<li>HOSTNAME：根据主机的hostname配置</li>
-<li>HISTSIZE：历史命令的记录条数</li>
-</ul>
-<p>此外，<code>/etc/profile</code>文件还会按以下顺序读取外部配置文件：</p>
-<ol>
-<li><code>/etc/inputrc</code>：主要配置bash的热键、[tab]键需不需要有声音等</li>
-<li><code>/etc/profile.d/*.sh</code>：只要在<code>/etc/profile.d/</code>目录内，并且文件扩展名为 .sh，用户具有读的权限，那么该文件就会被&#x2F;etc&#x2F;profile读取。主要包括：bash操作界面的颜色，ll与ls命令的命令别名、which的命令别名等。<strong>如果需要给所有用户配置一些共享的命令别名时，可以在这个目录底下创建扩展名为.sh的文件，并将需要的数据写入</strong></li>
-<li><code>/etc/sysconfig/i18n</code>：这个文件是被<code>/etc/profile.d/lang.sh</code>文件调用，配置LANG变量，也就是bash默认使用什么语言</li>
-</ol>
-<h4 id="3-2-用户配置内容"><a href="#3-2-用户配置内容" class="headerlink" title="3.2 用户配置内容"></a>3.2 用户配置内容</h4><p>我们可以看下<code>~/.bash_profile</code>中的内容：</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">[junhao@localhost ~]$ cat ~/.bash_profile</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">.bash_profile</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Get the aliases and <span class="built_in">functions</span></span></span><br><span class="line">if [ -f ~/.bashrc ]; then</span><br><span class="line">    . ~/.bashrc</span><br><span class="line">fi</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">User specific environment and startup programs</span></span><br><span class="line"></span><br><span class="line">PATH=$PATH:$HOME/.local/bin:$HOME/bin</span><br><span class="line"></span><br><span class="line">export PATH</span><br><span class="line">[junhao@localhost ~]$ </span><br></pre></td></tr></table></figure>
-
-<blockquote>
-<p>可以看到if判断语句中的一段，判断home目录下的文件<code>~/.bashrc</code>是不是存在，如果存在则读入<code>~/.bashrc</code>中的配置。</p>
-<p>至于<code>~/.bash_login</code> 或<code>~/.profile</code>文件，前面提到过，bash的login shell只会读取上面三个文件中的其中一个，哪个文件存在就读取哪个文件，而最后读取的都是<code>~/.bashrc</code>中的配置。</p>
-</blockquote>
-<p>我们再看看<code>~/.bashrc</code>文件中的内容：</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">[junhao@localhost ~]$ cat ~/.bashrc</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">.bashrc</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Source global definitions</span></span><br><span class="line">if [ -f /etc/bashrc ]; then</span><br><span class="line">    . /etc/bashrc</span><br><span class="line">fi</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Uncomment the following line <span class="keyword">if</span> you don<span class="string">&#x27;t like systemctl&#x27;</span>s auto-paging feature:</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">export</span> SYSTEMD_PAGER=</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">User specific aliases and <span class="built_in">functions</span></span></span><br><span class="line">[junhao@localhost ~]$ </span><br></pre></td></tr></table></figure>
-
-<p>可以看到在<code>~/.bashrc</code>文件中，最后会读取<code>/etc/bashrc</code>文件中的配置，而<code>/etc/bashrc</code>也会读取<code>/etc/profile.d/*.sh</code>中的配置。</p>
-<h4 id="3-3-总结"><a href="#3-3-总结" class="headerlink" title="3.3 总结"></a>3.3 总结</h4><p><img src="/2022/10/10/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell/login_shell.png" alt="login shell 的配置文件读取流程"></p>
-<p>实线的方向是主线流程，虚线的方向则是被调用的配置文件，从上面的流程图可以看出，最终读取的配置文件是<code>~/.bashrc</code>，所以可以将用户特定的配置写入<code>~/.bashrc</code>文件中，而所有用户共用的配置写入<code>/etc/bashrc</code>文件中。</p>
-<h3 id="4-non-login-shell"><a href="#4-non-login-shell" class="headerlink" title="4. non-login shell"></a>4. non-login shell</h3><blockquote>
-<p>当获取non-login shell的时候，bash的配置文件仅仅会读取<code>~/.bashrc</code>文件中的内容</p>
-</blockquote>
-<p><code>~/.bashrc</code>中会调用<code>/etc/bashrc</code>，而<code>/etc/bashrc</code>主要负责：</p>
-<ul>
-<li>根据UID设置umask的值</li>
-<li>根据UID设置命令行提示即PS1变量</li>
-<li>调用<code>/etc/profile.d/*.sh</code>中的配置</li>
-</ul>
-<h3 id="5-其他相关的配置文件"><a href="#5-其他相关的配置文件" class="headerlink" title="5. 其他相关的配置文件"></a>5. 其他相关的配置文件</h3><ul>
-<li><code>/etc/man.config</code>：配置man相关属性</li>
-<li><code>~/.bash_history</code>：历史命令相关</li>
-<li><code>~/.bash_logout</code>：注销bash时，需要执行的操作</li>
-</ul>
-]]></content>
-      <categories>
-        <category>Linux基础知识</category>
-      </categories>
-      <tags>
-        <tag>Linux</tag>
       </tags>
   </entry>
   <entry>
@@ -1463,6 +1386,706 @@
       </tags>
   </entry>
   <entry>
+    <title>Kubeadm安装Kubernetes v1.26.1集群</title>
+    <url>/2023/01/19/Kubeadm%E5%AE%89%E8%A3%85Kubernetes%20v1.26.1%E9%9B%86%E7%BE%A4/</url>
+    <content><![CDATA[<h2 id="1-版本信息"><a href="#1-版本信息" class="headerlink" title="1. 版本信息"></a>1. 版本信息</h2><table>
+<thead>
+<tr>
+<th>软件名称</th>
+<th>版本号</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Oracle Virtual Box</td>
+<td>6.1.40 r154048 (Qt5.6.2)</td>
+</tr>
+<tr>
+<td>iKuai 路由 ISO</td>
+<td>3.6.3 x32 Build202204071133</td>
+</tr>
+<tr>
+<td>CentOS7 系统 ISO</td>
+<td>CentOS-7-x86_64-DVD-2009</td>
+</tr>
+<tr>
+<td>containerd</td>
+<td>github.com&#x2F;containerd&#x2F;containerd v1.6.15</td>
+</tr>
+<tr>
+<td>runc</td>
+<td>version 1.1.4</td>
+</tr>
+<tr>
+<td>Kubernetes</td>
+<td>v1.26.1</td>
+</tr>
+<tr>
+<td>Calico</td>
+<td>v3.25.0</td>
+</tr>
+<tr>
+<td>Kubernetes Dashboard</td>
+<td>v2.7.0</td>
+</tr>
+<tr>
+<td>Kube-Prometheus</td>
+<td>v0.12.0</td>
+</tr>
+<tr>
+<td>Helm</td>
+<td>v3.11.0</td>
+</tr>
+</tbody></table>
+<h2 id="2-网络拓补"><a href="#2-网络拓补" class="headerlink" title="2. 网络拓补"></a>2. 网络拓补</h2><blockquote>
+<p>网关包含两张网卡，一张用于内部局域网，一张用于万维网。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>地址</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>网关</td>
+<td>192.168.137.80</td>
+</tr>
+<tr>
+<td>master节点</td>
+<td>192.168.137.81</td>
+</tr>
+<tr>
+<td>node1节点</td>
+<td>192.168.137.82</td>
+</tr>
+<tr>
+<td>node2节点</td>
+<td>192.168.137.83</td>
+</tr>
+</tbody></table>
+<p><img src="/2023/01/19/Kubeadm%E5%AE%89%E8%A3%85Kubernetes%20v1.26.1%E9%9B%86%E7%BE%A4/image-20230124232330494.png" alt="image-20230124232330494"></p>
+<h2 id="3-虚拟机准备"><a href="#3-虚拟机准备" class="headerlink" title="3. 虚拟机准备"></a>3. 虚拟机准备</h2><h3 id="3-1-安装网关"><a href="#3-1-安装网关" class="headerlink" title="3.1 安装网关"></a>3.1 安装网关</h3><blockquote>
+<p>网关需要设置两张网卡，连接方式分别是<strong>仅主机（Host-only）网络</strong>、<strong>网络地址转换NAT</strong>。其中仅主机（Host-only）网络用于与 k8s 集群虚机通信，NAT 网络用于访问外部网络。</p>
+</blockquote>
+<blockquote>
+<p> 安装 ikuai 路由系统作为三台 k8s 虚拟机访问公网的出口，镜像文件从 <a href="https://www.ikuai8.com/component/download/">官网下载</a> 32位的镜像安装。</p>
+</blockquote>
+<blockquote>
+<p> 路由虚拟机的规格设置成 <strong>1核1G内存</strong> 即可，因为只是用来做路由的，所以不需要太多的资源。</p>
+</blockquote>
+<blockquote>
+<p> 注意虚拟机设置的时候需要开启 <strong>启用 PAE&#x2F;NX</strong>，设置路径在<code>设置-&gt;系统-&gt;处理器-&gt;扩展特性</code>。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>设备信息</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CPU</td>
+<td>1核</td>
+</tr>
+<tr>
+<td>内存</td>
+<td>1GB</td>
+</tr>
+<tr>
+<td>磁盘大小</td>
+<td>8GB</td>
+</tr>
+<tr>
+<td>网卡1</td>
+<td>MAC地址（08:00:27:CD:60:A8），NAT网络</td>
+</tr>
+<tr>
+<td>网卡2</td>
+<td>MAC地址（08:00:27:82:03:22），Host-Only网络</td>
+</tr>
+<tr>
+<td>启用 PAE&#x2F;NX</td>
+<td>设置路径<code>设置-&gt;系统-&gt;处理器-&gt;扩展特性</code></td>
+</tr>
+</tbody></table>
+<p><img src="/2023/01/19/Kubeadm%E5%AE%89%E8%A3%85Kubernetes%20v1.26.1%E9%9B%86%E7%BE%A4/image-20230119163334424.png" alt="image-20230119163334424"></p>
+<p><img src="/2023/01/19/Kubeadm%E5%AE%89%E8%A3%85Kubernetes%20v1.26.1%E9%9B%86%E7%BE%A4/image-20230119163722195.png" alt="image-20230119163722195"></p>
+<h4 id="3-1-1-网关配置"><a href="#3-1-1-网关配置" class="headerlink" title="3.1.1 网关配置"></a>3.1.1 网关配置</h4><ol>
+<li>设置网卡绑定，将 wan1 绑定到 NAT 网络的网卡，将 lan1绑定到 Host-Only 网络的网卡。以上图为例，<code>eth0 08:00:27:CD:60:A8</code>的网卡为 NAT 网络，<code>eth1 08:00:27:82:03:22</code>的网卡为 Host-Only 网络。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">输入菜单编号：1</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">set</span> wan1 eth0 <span class="comment"># 设置完 wan1 之后，就能够ping 通百度</span></span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">set</span> lan1 eth1</span></span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>设置 LAN 地址，即 Host-Only 网络的地址。<strong>注意，设置的地址要在 Host-Only 网络的网段内。不清楚所在网段，可以通过<code>ipconfig -all</code>命令查找VirtualBox Host-Only Ethernet Adapter网卡的信息</strong>。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">ipconfig -all</span></span><br><span class="line">以太网适配器 以太网 4:</span><br><span class="line">   连接特定的 DNS 后缀 . . . . . . . :</span><br><span class="line">   描述. . . . . . . . . . . . . . . : VirtualBox Host-Only Ethernet Adapter</span><br><span class="line">   物理地址. . . . . . . . . . . . . : 0A-00-27-00-00-14</span><br><span class="line">   DHCP 已启用 . . . . . . . . . . . : 否</span><br><span class="line">   自动配置已启用. . . . . . . . . . : 是</span><br><span class="line">   本地链接 IPv6 地址. . . . . . . . : fe80::bb9d:751f:f896:d3b1%20(首选)</span><br><span class="line">   IPv4 地址 . . . . . . . . . . . . : 192.168.137.1(首选)   # 网段信息</span><br><span class="line">   子网掩码  . . . . . . . . . . . . : 255.255.255.0         # 网段信息</span><br><span class="line">   默认网关. . . . . . . . . . . . . :</span><br><span class="line">   DHCPv6 IAID . . . . . . . . . . . : 201981991</span><br><span class="line">   DHCPv6 客户端 DUID  . . . . . . . : 00-01-00-01-2A-D3-D5-99-E4-B9-7A-9A-15-DC</span><br><span class="line">   DNS 服务器  . . . . . . . . . . . : fec0:0:0:ffff::1%1</span><br><span class="line">                                       fec0:0:0:ffff::2%1</span><br><span class="line">                                       fec0:0:0:ffff::3%1</span><br><span class="line">   TCPIP 上的 NetBIOS  . . . . . . . : 已启用</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">输入菜单编号：2    选择 设置LAN/WAN地址</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">输入菜单编号：0    选择 设置LAN1地址</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">请输入lan1地址：192.168.137.80/255.255.255.0</span></span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>设置完成后，即能够在本地主机上访问 Web 管理地址（用户名&#x2F;密码：admin&#x2F;admin）。</li>
+</ol>
+<p><img src="/2023/01/19/Kubeadm%E5%AE%89%E8%A3%85Kubernetes%20v1.26.1%E9%9B%86%E7%BE%A4/image-20230119171403828.png" alt="image-20230119171403828"></p>
+<p><img src="/2023/01/19/Kubeadm%E5%AE%89%E8%A3%85Kubernetes%20v1.26.1%E9%9B%86%E7%BE%A4/image-20230119171242386.png" alt="image-20230119171242386"></p>
+<h3 id="3-2-安装CentOS7"><a href="#3-2-安装CentOS7" class="headerlink" title="3.2 安装CentOS7"></a>3.2 安装CentOS7</h3><blockquote>
+<p>安装没有太多特别的操作，注意 k8s 要求机器至少为 <strong>2核2G内存</strong>。</p>
+<p>使用最小化安装 CentOS即可，只需要用到命令行界面。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>设备信息</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CPU</td>
+<td>master节点为 4 核，node节点为 3 核</td>
+</tr>
+<tr>
+<td>内存</td>
+<td>master节点为 4GB，node节点为 3GB</td>
+</tr>
+<tr>
+<td>磁盘大小</td>
+<td>100GB</td>
+</tr>
+<tr>
+<td>网卡1</td>
+<td>Host-Only 网络</td>
+</tr>
+</tbody></table>
+<ul>
+<li>master 节点</li>
+</ul>
+<p><img src="/2023/01/19/Kubeadm%E5%AE%89%E8%A3%85Kubernetes%20v1.26.1%E9%9B%86%E7%BE%A4/image-20230124233251532.png" alt="image-20230124233251532"></p>
+<ul>
+<li>node1 节点</li>
+</ul>
+<p><img src="/2023/01/19/Kubeadm%E5%AE%89%E8%A3%85Kubernetes%20v1.26.1%E9%9B%86%E7%BE%A4/image-20230124233336642.png" alt="image-20230124233336642"></p>
+<ul>
+<li>node2 节点</li>
+</ul>
+<p><img src="/2023/01/19/Kubeadm%E5%AE%89%E8%A3%85Kubernetes%20v1.26.1%E9%9B%86%E7%BE%A4/image-20230124233509813.png" alt="image-20230124233509813"></p>
+<h4 id="3-2-1-网络配置"><a href="#3-2-1-网络配置" class="headerlink" title="3.2.1 网络配置"></a>3.2.1 网络配置</h4><blockquote>
+<p>配置三台虚拟机的静态 IP 地址，并且将网关地址指向 ikuai 路由的 Host-Only 网络地址。</p>
+</blockquote>
+<blockquote>
+<p>因为三台虚机使用的也是 Host-Only 网络，因此 IP 地址也必须在 Host-Only 网络网段。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>节点</th>
+<th>IP 地址</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>master</td>
+<td>192.168.137.81&#x2F;24</td>
+</tr>
+<tr>
+<td>node1</td>
+<td>192.168.137.82&#x2F;24</td>
+</tr>
+<tr>
+<td>node2</td>
+<td>192.168.137.83&#x2F;24</td>
+</tr>
+<tr>
+<td>网关</td>
+<td>192.168.137.80</td>
+</tr>
+</tbody></table>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">编辑master网络配置文件</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">不同网卡可能设备名称不一样，需要自己修改对应的配置文件，这里机器的设备名是enp0s3</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo vi /etc/sysconfig/network-scripts/ifcfg-enp0s3</span></span><br><span class="line">TYPE=Ethernet                 # 网卡类型：为以太网</span><br><span class="line">PROXY_METHOD=none             # 代理方式：关闭状态</span><br><span class="line">BROWSER_ONLY=no               # 只是浏览器：否</span><br><span class="line">BOOTPROTO=static              # 网卡的引导协议：DHCP/static</span><br><span class="line">DEFROUTE=yes                  # 默认路由：是</span><br><span class="line">IPV4_FAILURE_FATAL=no         # 是不开启IPV4致命错误检测：否</span><br><span class="line">IPV6INIT=yes                  # IPV6是否自动初始化: 是[不会有任何影响, 现在还没用到IPV6]</span><br><span class="line">IPV6_AUTOCONF=yes             # IPV6是否自动配置：是[不会有任何影响, 现在还没用到IPV6]</span><br><span class="line">IPV6_DEFROUTE=yes             # IPV6是否可以为默认路由：是[不会有任何影响, 现在还没用到IPV6]</span><br><span class="line">IPV6_FAILURE_FATAL=no         # 是不开启IPV6致命错误检测：否</span><br><span class="line">IPV6_ADDR_GEN_MODE=stable-privacy  # IPV6地址生成模型：stable-privacy [这只一种生成IPV6的策略]</span><br><span class="line">NAME=enp0s3                   # 网卡物理设备名称</span><br><span class="line">UUID=8e65b860-dd77-42e3-ba16-d26790ec6e2d  # 通用唯一识别码, 每一个网卡都会有</span><br><span class="line">DEVICE=enp0s3                 # 网卡设备名称, 必须和 `NAME` 值一样</span><br><span class="line">ONBOOT=yes                    # 是否开机启动</span><br><span class="line">IPADDR=192.168.137.81         # IPv4地址</span><br><span class="line">NETMASK=255.255.255.0         # 子网掩码</span><br><span class="line">GATEWAY=192.168.137.80        # 网关地址</span><br><span class="line">DNS1=8.8.8.8                  # DNS1设置，其实这里DNS也可以设置成ikuai网关的地址，不过需要在ikuai管理界面开启DNS加速服务并设置为UDP代理模式</span><br><span class="line">DNS2=8.8.8.8                  # DNS2设置</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">重启网络</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo systemctl restart network</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="4-前期准备"><a href="#4-前期准备" class="headerlink" title="4. 前期准备"></a>4. 前期准备</h2><blockquote>
+<p>k8s对主机有硬性要求：</p>
+<ul>
+<li>至少 2核2GB内存</li>
+<li>每台主机的 hostname、MAC地址、product_uuid都是唯一的</li>
+<li>关闭 SWAP 功能</li>
+<li>开放 k8s 用到的网络端口</li>
+</ul>
+</blockquote>
+<h3 id="4-1-检查内核版本（必须）"><a href="#4-1-检查内核版本（必须）" class="headerlink" title="4.1 检查内核版本（必须）"></a>4.1 检查内核版本（必须）</h3><blockquote>
+<p>由于使用 containerd 作为底层 CRI，而 containerd 要求 Linux 内核版本在 3.10 以上。</p>
+</blockquote>
+<ol>
+<li>查看内核版本</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">内核版本为 3.10.0-1160.el7.x86_64</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">uname</span> -a</span></span><br><span class="line">Linux localhost.localdomain 3.10.0-1160.el7.x86_64 #1 SMP Mon Oct 19 16:18:59 UTC 2020 x86_64 x86_64 x86_64 GNU/Linux</span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>载入ELRepo公钥</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo rpm --import https://www.elrepo.org/RPM-GPG-KEY-elrepo.org</span></span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>安装ELRepo仓库</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo rpm -Uvh http://www.elrepo.org/elrepo-release-7.0-3.el7.elrepo.noarch.rpm</span></span><br></pre></td></tr></table></figure>
+
+<ol start="4">
+<li>载入 elrepo-kernel 元数据</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo yum --disablerepo=\* --enablerepo=elrepo-kernel repolist</span></span><br></pre></td></tr></table></figure>
+
+<ol start="5">
+<li>查看可用的 rpm 内核包</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">lt: long term support 长期支持版本</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">ml: main-line         主线版本</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo yum --disablerepo=\* --enablerepo=elrepo-kernel list kernel*</span></span><br><span class="line">Loaded plugins: fastestmirror</span><br><span class="line">Loading mirror speeds from cached hostfile</span><br><span class="line"> * elrepo-kernel: hkg.mirror.rackspace.com</span><br><span class="line">Installed Packages</span><br><span class="line">kernel.x86_64                           3.10.0-1160.el7                    @anaconda    </span><br><span class="line">kernel-tools.x86_64                     3.10.0-1160.el7                    @anaconda    </span><br><span class="line">kernel-tools-libs.x86_64                3.10.0-1160.el7                    @anaconda    </span><br><span class="line">Available Packages</span><br><span class="line">kernel-lt.x86_64                        5.4.229-1.el7.elrepo               elrepo-kernel   # 安装内核版本</span><br><span class="line">kernel-lt-devel.x86_64                  5.4.229-1.el7.elrepo               elrepo-kernel</span><br><span class="line">kernel-lt-doc.noarch                    5.4.229-1.el7.elrepo               elrepo-kernel</span><br><span class="line">kernel-lt-headers.x86_64                5.4.229-1.el7.elrepo               elrepo-kernel</span><br><span class="line">kernel-lt-tools.x86_64                  5.4.229-1.el7.elrepo               elrepo-kernel</span><br><span class="line">kernel-lt-tools-libs.x86_64             5.4.229-1.el7.elrepo               elrepo-kernel</span><br><span class="line">kernel-lt-tools-libs-devel.x86_64       5.4.229-1.el7.elrepo               elrepo-kernel</span><br><span class="line">kernel-ml.x86_64                        6.1.7-1.el7.elrepo                 elrepo-kernel</span><br><span class="line">kernel-ml-devel.x86_64                  6.1.7-1.el7.elrepo                 elrepo-kernel</span><br><span class="line">kernel-ml-doc.noarch                    6.1.7-1.el7.elrepo                 elrepo-kernel</span><br><span class="line">kernel-ml-headers.x86_64                6.1.7-1.el7.elrepo                 elrepo-kernel</span><br><span class="line">kernel-ml-tools.x86_64                  6.1.7-1.el7.elrepo                 elrepo-kernel</span><br><span class="line">kernel-ml-tools-libs.x86_64             6.1.7-1.el7.elrepo                 elrepo-kernel</span><br><span class="line">kernel-ml-tools-libs-devel.x86_64       6.1.7-1.el7.elrepo                 elrepo-kernel</span><br></pre></td></tr></table></figure>
+
+<ol start="6">
+<li>安装相应版本的内核</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo yum --disablerepo=\* --enablerepo=elrepo-kernel install  kernel-lt.x86_64  -y</span></span><br></pre></td></tr></table></figure>
+
+<ol start="7">
+<li>删除旧版本内核工具包</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo yum remove kernel-tools-libs.x86_64 kernel-tools.x86_64  -y</span></span><br></pre></td></tr></table></figure>
+
+<ol start="8">
+<li>安装新版本内核工具包</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo yum --disablerepo=\* --enablerepo=elrepo-kernel install kernel-lt-tools.x86_64  -y</span></span><br></pre></td></tr></table></figure>
+
+<ol start="9">
+<li>查看内核插入顺序</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">默认新内核是从头插入，默认启动顺序也是从 0 开始（当前顺序还未生效）</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo awk -F \<span class="string">&#x27; &#x27;</span><span class="variable">$1</span>==<span class="string">&quot;menuentry &quot;</span> &#123;<span class="built_in">print</span> i++ <span class="string">&quot; : &quot;</span> <span class="variable">$2</span>&#125;<span class="string">&#x27; /etc/grub2.cfg</span></span></span><br><span class="line">0 : CentOS Linux (4.20.12-1.el7.elrepo.x86_64) 7 (Core)</span><br><span class="line">1 : CentOS Linux (3.10.0-957.5.1.el7.x86_64) 7 (Core)</span><br><span class="line">2 : CentOS Linux (3.10.0-957.el7.x86_64) 7 (Core)</span><br><span class="line">3 : CentOS Linux (0-rescue-ca0f6fb3c5f24478abc0a2e275281d7a) 7 (Core)</span><br></pre></td></tr></table></figure>
+
+<ol start="10">
+<li>查看当前实际启动顺序</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">可以看到默认使用的还是旧内核</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo grub2-editenv list</span></span><br><span class="line">saved_entry=CentOS Linux (3.10.0-1160.el7.x86_64) 7 (Core)</span><br></pre></td></tr></table></figure>
+
+<ol start="11">
+<li>设置启动时默认使用新内核</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">0 表示 /etc/grub2.cfg 文件中的 0 : CentOS Linux (4.20.12-1.el7.elrepo.x86_64) 7 (Core)</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">也可以使用 sudo grub2-set-default CentOS Linux (4.20.12-1.el7.elrepo.x86_64) 7 (Core) 指定</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo grub2-set-default 0</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo grub2-editenv list</span></span><br><span class="line">saved_entry=0</span><br></pre></td></tr></table></figure>
+
+<ol start="12">
+<li>重启并检查是否已经使用新内核</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">reboot</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">uname</span> -r</span></span><br><span class="line">5.4.229-1.el7.elrepo.x86_64</span><br></pre></td></tr></table></figure>
+
+<ol start="13">
+<li>确认能够重启成功后，就能够把就内核删除。重启时，GRUB中多余的启动项也就不见了</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">列出已安装的内核</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">rpm -qa | grep kernel</span></span><br><span class="line">kernel-3.10.0-1160.el7.x86_64</span><br><span class="line">kernel-lt-5.4.229-1.el7.elrepo.x86_64</span><br><span class="line">kernel-lt-tools-5.4.229-1.el7.elrepo.x86_64</span><br><span class="line">kernel-lt-tools-libs-5.4.229-1.el7.elrepo.x86_64</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">删除旧内核</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo yum remove kernel-3.10.0-1160.el7.x86_64 -y</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="4-2配置Hostname（必须）"><a href="#4-2配置Hostname（必须）" class="headerlink" title="4.2配置Hostname（必须）"></a>4.2配置Hostname（必须）</h3><blockquote>
+<p>k8s 会将主机的 hostname 作为节点的名称，所以不同节点的 hostname 需要不同。</p>
+</blockquote>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在master主机上执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">hostnamectl set-hostname k8s-master01</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在node1主机上执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">hostnamectl set-hostname k8s-node01</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在node2主机上执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">hostnamectl set-hostname k8s-node02</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看hostname</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">hostname</span></span><br></pre></td></tr></table></figure>
+
+<p>编辑 host 文件，使得各台主机间能够通过 hostname 访问（如果有自己搭建的 DNS 解析就可以不配）。</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo vi /etc/hosts</span></span><br><span class="line">127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4</span><br><span class="line">::1         localhost localhost.localdomain localhost6 localhost6.localdomain6</span><br><span class="line"></span><br><span class="line">192.168.137.81 k8s-master01</span><br><span class="line">192.168.137.82 k8s-node01</span><br><span class="line">192.168.137.83 k8s-node02</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="4-3-确认MAC地址及product-uuid（必须）"><a href="#4-3-确认MAC地址及product-uuid（必须）" class="headerlink" title="4.3 确认MAC地址及product_uuid（必须）"></a>4.3 确认MAC地址及product_uuid（必须）</h3><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">确保 MAC 地址不同</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">ip addr</span></span><br><span class="line">1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000</span><br><span class="line">    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00</span><br><span class="line">    inet 127.0.0.1/8 scope host lo</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">    inet6 ::1/128 scope host </span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">2: enp0s3: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP group default qlen 1000</span><br><span class="line">    link/ether 08:00:27:d2:2a:9c brd ff:ff:ff:ff:ff:ff</span><br><span class="line">    inet 192.168.137.81/24 brd 192.168.137.255 scope global noprefixroute enp0s3</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">    inet6 fe80::604b:c311:f2b:89f8/64 scope link noprefixroute </span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">确保每台机器 product_uuid 不同</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo <span class="built_in">cat</span> /sys/class/dmi/id/product_uuid</span></span><br><span class="line">ca04e099-d4d9-8848-8cba-d2ae5af25dd3</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="4-4-关闭-SWAP（必须）"><a href="#4-4-关闭-SWAP（必须）" class="headerlink" title="4.4 关闭 SWAP（必须）"></a>4.4 关闭 SWAP（必须）</h3><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">可以看到主机上是有使用swap的</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">free -h</span></span><br><span class="line">              total        used        free      shared  buff/cache   available</span><br><span class="line">Mem:           2.9G        140M        2.6G        8.5M        171M        2.6G</span><br><span class="line">Swap:          3.0G          0B        3.0G</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">关闭 swap</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">取消 swap 挂载的时候会将 swap 内网逐步复制到内存中，swap 占用越大需要的时间越长</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo swapoff -a</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">永久关闭 swap，编辑/etc/fstab 文件注释掉swap</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo vi /etc/fstab</span></span><br><span class="line">/dev/mapper/centos-root /                       xfs     defaults        0 0</span><br><span class="line">UUID=651682c7-3cc0-40fd-99ea-0cfa9ae147be /boot xfs     defaults        0 0</span><br><span class="line">/dev/mapper/centos-home /home                   xfs     defaults        0 0</span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">/dev/mapper/centos-swap swap                    swap    defaults        0 0</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看 swap 挂载情况，没有输出则表明已经没有 swap 挂载</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">swapon -s</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="4-5-放通-iptables-及安装IPVS（必须）"><a href="#4-5-放通-iptables-及安装IPVS（必须）" class="headerlink" title="4.5 放通 iptables 及安装IPVS（必须）"></a>4.5 放通 iptables 及安装IPVS（必须）</h3><blockquote>
+<p>如果没有安装 IPVS（IP Virtual Server），k8s 默认使用的是 iptables，性能方面有一点影响。</p>
+</blockquote>
+<ol>
+<li>设置防火墙为iptables并且设置规则为空（即放通所有）。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo yum install iptables iptables-services -y</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo systemctl start iptables</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo systemctl <span class="built_in">enable</span> iptables</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo iptables -F   <span class="comment"># 清空规则</span></span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo service iptables save  <span class="comment"># 保存iptables配置</span></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">可以看到规则为空</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo iptables -L</span></span><br><span class="line">Chain INPUT (policy ACCEPT)</span><br><span class="line">target     prot opt source               destination         </span><br><span class="line"></span><br><span class="line">Chain FORWARD (policy ACCEPT)</span><br><span class="line">target     prot opt source               destination         </span><br><span class="line"></span><br><span class="line">Chain OUTPUT (policy ACCEPT)</span><br><span class="line">target     prot opt source               destination  </span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>安装 IPVS 相关依赖包。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo yum install -y ipvsadm ipset</span></span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>添加 kube-proxy 需要 ipvs 加载的模块至脚本中。<a href="https://github.com/kubernetes/kubernetes/blob/master/pkg/proxy/ipvs/README.md">kube-proxy 使用 ipvs 模式要求</a>。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">内核4.19之前是 nf_conntrack_ipv4</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">内核4.19之后是 nf_conntrack</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">cat</span> &lt;&lt;<span class="string">EOF | sudo tee /etc/sysconfig/modules/ipvs.modules</span></span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash"><span class="string">!/bin/bash</span></span></span><br><span class="line">modprobe -- ip_vs</span><br><span class="line">modprobe -- ip_vs_rr</span><br><span class="line">modprobe -- ip_vs_wrr</span><br><span class="line">modprobe -- ip_vs_sh</span><br><span class="line">modprobe -- nf_conntrack</span><br><span class="line">EOF</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="string">添加执行权限</span></span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="string">sudo chmod +x /etc/sysconfig/modules/ipvs.modules</span></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="string">执行脚本</span></span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="string">sudo /bin/bash /etc/sysconfig/modules/ipvs.modules</span></span></span><br></pre></td></tr></table></figure>
+
+<ol start="4">
+<li>查看对应模块是否已经加载成功。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">lsmod | grep -e ip_vs -e nf_conntrack</span></span><br><span class="line">ip_vs_sh               16384  0 </span><br><span class="line">ip_vs_wrr              16384  0 </span><br><span class="line">ip_vs_rr               16384  0 </span><br><span class="line">ip_vs                 155648  6 ip_vs_rr,ip_vs_sh,ip_vs_wrr</span><br><span class="line">nf_conntrack          147456  2 xt_conntrack,ip_vs</span><br><span class="line">nf_defrag_ipv6         24576  2 nf_conntrack,ip_vs</span><br><span class="line">nf_defrag_ipv4         16384  1 nf_conntrack</span><br><span class="line">libcrc32c              16384  3 nf_conntrack,xfs,ip_vs</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="4-6-设置时间同步服务器（可选）"><a href="#4-6-设置时间同步服务器（可选）" class="headerlink" title="4.6 设置时间同步服务器（可选）"></a>4.6 设置时间同步服务器（可选）</h3><blockquote>
+<p>如果有条件的可以在 k8s 集群中设置 ntp 服务器，这样就不用依赖外部的时间同步服务器了。</p>
+</blockquote>
+<ol>
+<li>安装相关软件包。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo yum install -y ntp ntpdate</span></span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>设置时区</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">timedatectl list-timezones | grep -i shang</span></span><br><span class="line">Asia/Shanghai</span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo timedatectl set-timezone Asia/Shanghai</span></span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>编辑 master 节点主机 ntp 配置文件。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在master主机中执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo vi /etc/chrony.conf</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">server 0.centos.pool.ntp.org iburst  注释掉</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">server 1.centos.pool.ntp.org iburst  注释掉</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">server 2.centos.pool.ntp.org iburst  注释掉</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">server 3.centos.pool.ntp.org iburst  注释掉</span></span><br><span class="line">server ntp1.aliyun.com iburst</span><br><span class="line">server ntp2.aliyun.com iburst</span><br><span class="line">server ntp3.aliyun.com iburst</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">允许本地网段从本主机同步时间</span></span><br><span class="line">allow 192.168.137.0/24</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">设置本主机时间的权重</span></span><br><span class="line">local stratum 10</span><br></pre></td></tr></table></figure>
+
+<ol start="4">
+<li>设置 node 节点从 master 节点中同步时间。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在node1、node2主机上执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo vi /etc/chrony.conf</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">server 0.centos.pool.ntp.org iburst  注释掉</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">server 1.centos.pool.ntp.org iburst  注释掉</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">server 2.centos.pool.ntp.org iburst  注释掉</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">server 3.centos.pool.ntp.org iburst  注释掉</span></span><br><span class="line">server 192.168.137.81 iburst</span><br></pre></td></tr></table></figure>
+
+<ol start="5">
+<li>在所有机器上重启 ntp 服务，并设置开机自启动。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo systemctl restart chronyd</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo systemctl <span class="built_in">enable</span> chronyd</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">写入硬件时钟</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">timedatectl set-local-rtc 0</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="4-7-关闭SELinux和防火墙（可选）"><a href="#4-7-关闭SELinux和防火墙（可选）" class="headerlink" title="4.7 关闭SELinux和防火墙（可选）"></a>4.7 关闭SELinux和防火墙（可选）</h3><blockquote>
+<p>也可以选择放通 k8s 集群需要用到的端口，用到的端口可以在<a href="https://kubernetes.io/docs/reference/networking/ports-and-protocols/">官网</a>中查到</p>
+</blockquote>
+<h4 id="4-7-1-关闭-SELinux"><a href="#4-7-1-关闭-SELinux" class="headerlink" title="4.7.1 关闭 SELinux"></a>4.7.1 关闭 SELinux</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看 SELinux 运行状态，Enforcing 表明已开启</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">getenforce</span></span><br><span class="line">Enforcing</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">修改配置文件永久关闭 SELinux</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo sed -i <span class="string">&#x27;s/SELINUX=enforcing/SELINUX=disabled/&#x27;</span> /etc/selinux/config</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">因为修改配置文件要重启才生效，而可以使用 setenforce 0 临时关闭 SELinux</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo setenforce 0</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="4-7-2-关闭防火墙"><a href="#4-7-2-关闭防火墙" class="headerlink" title="4.7.2 关闭防火墙"></a>4.7.2 关闭防火墙</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看防火墙状态</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo systemctl status firewalld</span></span><br><span class="line">● firewalld.service - firewalld - dynamic firewall daemon</span><br><span class="line">   Loaded: loaded (/usr/lib/systemd/system/firewalld.service; enabled; vendor preset: enabled)</span><br><span class="line">   Active: active (running) since Fri 2023-01-20 00:27:43 EST; 1h 2min ago</span><br><span class="line">     Docs: man:firewalld(1)</span><br><span class="line"> Main PID: 739 (firewalld)</span><br><span class="line">   CGroup: /system.slice/firewalld.service</span><br><span class="line">           └─739 /usr/bin/python2 -Es /usr/sbin/firewalld --nofork --nopid</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">关闭防火墙</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo systemctl stop firewalld</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">取消开机自启动</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo systemctl <span class="built_in">disable</span> firewalld</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="4-8-修改YUM镜像源（可选）"><a href="#4-8-修改YUM镜像源（可选）" class="headerlink" title="4.8 修改YUM镜像源（可选）"></a>4.8 修改YUM镜像源（可选）</h3><blockquote>
+<p>这里提供两个开源镜像站，只需要选择其中一个修改即可。</p>
+</blockquote>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">先备份原本镜像配置文件</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo <span class="built_in">cp</span> -R /etc/yum.repos.d /etc/yum.repos.d.bak</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="4-8-1-清华大学开源镜像站"><a href="#4-8-1-清华大学开源镜像站" class="headerlink" title="4.8.1 清华大学开源镜像站"></a>4.8.1 清华大学开源镜像站</h4><blockquote>
+<p><a href="https://mirrors.tuna.tsinghua.edu.cn/">清华大学开源软件镜像站官网</a></p>
+</blockquote>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">对于 CentOS 7</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo sed -e <span class="string">&#x27;s|^mirrorlist=|#mirrorlist=|g&#x27;</span> \</span></span><br><span class="line"><span class="language-bash">         -e <span class="string">&#x27;s|^#baseurl=http://mirror.centos.org|baseurl=https://mirrors.tuna.tsinghua.edu.cn|g&#x27;</span> \</span></span><br><span class="line"><span class="language-bash">         -i.bak \</span></span><br><span class="line"><span class="language-bash">         /etc/yum.repos.d/CentOS-*.repo</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">更新软件包缓存</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo yum makecache</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="4-8-2-阿里巴巴开源镜像站"><a href="#4-8-2-阿里巴巴开源镜像站" class="headerlink" title="4.8.2 阿里巴巴开源镜像站"></a>4.8.2 阿里巴巴开源镜像站</h4><blockquote>
+<p><a href="https://developer.aliyun.com/mirror/">阿里巴巴开源镜像站官网</a>，吐槽一句阿里的官方帮助文档没有清华大学的写得好。</p>
+</blockquote>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">对于 CentOS 7</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo curl -o /etc/yum.repos.d/CentOS-Base.repo https://mirrors.aliyun.com/repo/Centos-7.repo</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo sed -i -e <span class="string">&#x27;/mirrors.cloud.aliyuncs.com/d&#x27;</span> -e <span class="string">&#x27;/mirrors.aliyuncs.com/d&#x27;</span> /etc/yum.repos.d/CentOS-Base.repo</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">更新软件包缓存</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo yum makecache</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="5-Kubernetes-集群部署"><a href="#5-Kubernetes-集群部署" class="headerlink" title="5. Kubernetes 集群部署"></a>5. Kubernetes 集群部署</h2><blockquote>
+<p>k8s 集群部署麻烦的点在于谷歌官方提供的镜像地址被墙了，所以无法直接安装。但是可以先在 cri 容器运行时中先把镜像下下来，然后重新打 tag，就能够正常安装 k8s。</p>
+</blockquote>
+<h3 id="5-1-容器运行时-CRI"><a href="#5-1-容器运行时-CRI" class="headerlink" title="5.1 容器运行时 CRI"></a>5.1 容器运行时 CRI</h3><blockquote>
+<p>containerd 是从 Docker 项目中分离出来的，被捐赠给 CNCF，实现了 CRI（Container Runtime Interface）规范，为容器社区提供创建新容器解决方案的基础。</p>
+</blockquote>
+<blockquote>
+<p>在早期的 k8s 版本中会内置一个 dockershim 组件，用于与 Docker 进行交互。但是从 Kubernetes v1.24 发行版本开始，dockershim 已经从 k8s 组件中移除，如果还想用 Docker 作为底层 CRI 的实现，需要另外安装 cri-dockerd。（但是其实安装 Docker 的时候，containerd 会一并安装，因为 Docker 底层依赖的还是 containerd）。</p>
+</blockquote>
+<h4 id="5-1-1-containerd-安装"><a href="#5-1-1-containerd-安装" class="headerlink" title="5.1.1 containerd 安装"></a>5.1.1 containerd 安装</h4><blockquote>
+<p> 只需要安装 containerd，runc 是可选的，CNI 插件会在 k8s 部署完之后安装的 Flannel 中包含。</p>
+</blockquote>
+<blockquote>
+<p>有两种方式安装 containerd，一种是从 Github 中下载包进行安装，一种是导入 docker-ce 的镜像仓库使用 yum 安装（安装containerd.io 包）。这里从 <a href="https://github.com/containerd/containerd/blob/main/docs/getting-started.md">containerd Github 页面</a> 中下载包进行安装。</p>
+</blockquote>
+<ol>
+<li>安装 containerd。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">cd</span> ~ &amp;&amp; wget https://github.com/containerd/containerd/releases/download/v1.6.15/containerd-1.6.15-linux-amd64.tar.gz</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">将文件安装到 /usr/local 目录下(不要修改安装目录，因为后续containerd.service脚本是写死安装目录的)</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo tar Czxvf /usr/local containerd-1.6.15-linux-amd64.tar.gz</span></span><br><span class="line">bin/</span><br><span class="line">bin/containerd-stress</span><br><span class="line">bin/containerd-shim</span><br><span class="line">bin/containerd-shim-runc-v1</span><br><span class="line">bin/containerd-shim-runc-v2</span><br><span class="line">bin/containerd</span><br><span class="line">bin/ctr</span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>设置 containerd 服务开机自启动。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">下载服务配置文件</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">cd</span> ~ &amp;&amp; wget https://raw.githubusercontent.com/containerd/containerd/main/containerd.service</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">放置到/usr/lib/systemd/system 目录下</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo <span class="built_in">cp</span> containerd.service /usr/lib/systemd/system/</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">systemctl daemon-reload</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">systemctl start containerd</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">systemctl <span class="built_in">enable</span> containerd</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看containerd服务状态，running运行中</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">systemctl status containerd</span></span><br><span class="line">● containerd.service - containerd container runtime</span><br><span class="line">   Loaded: loaded (/usr/lib/systemd/system/containerd.service; enabled; vendor preset: disabled)</span><br><span class="line">   Active: active (running) since Fri 2023-01-20 21:10:25 CST; 14s ago</span><br><span class="line">     Docs: https://containerd.io</span><br><span class="line"> Main PID: 3857 (containerd)</span><br><span class="line">   CGroup: /system.slice/containerd.service</span><br><span class="line">           └─3857 /usr/local/bin/containerd</span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>安装 runc。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">cd</span> ~ &amp;&amp; wget https://github.com/opencontainers/runc/releases/download/v1.1.4/runc.amd64</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo install -m 755 runc.amd64 /usr/local/sbin/runc</span></span><br></pre></td></tr></table></figure>
+
+<ol start="4">
+<li>检查是否安装成功。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">ctr --version</span></span><br><span class="line">ctr github.com/containerd/containerd v1.6.15</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">要用/usr/local/bin/ctr路径，因为root的PATH变量没有/usr/local</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">此外，因为/run/containerd/containerd.sock的权限是 srw-rw---- 1 root root</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">所以要用root用户才有权限连接，否则会出现transport: error <span class="keyword">while</span> dialing: dial unix /run/containerd/containerd.sock: connect: permission denied</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo /usr/local/bin/ctr image <span class="built_in">ls</span></span></span><br><span class="line">REF TYPE DIGEST SIZE PLATFORMS LABELS</span><br></pre></td></tr></table></figure>
+
+<ol start="5">
+<li>生成 containerd 的配置文件。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo <span class="built_in">mkdir</span> /etc/containerd -p</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">cd</span> /usr/local/bin/ &amp;&amp; ./containerd config default | sudo <span class="built_in">tee</span> /etc/containerd/config.toml</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo vi /etc/containerd/config.toml</span></span><br><span class="line">---</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">1. 确保 cri 不在 disabled_plugins 列表中</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">2. 配置 runc 使用 SystemdCgroup</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">3. 修改sandbox_image</span></span><br><span class="line">disabled_plugins = []</span><br><span class="line">[plugins.&quot;io.containerd.grpc.v1.cri&quot;.containerd.runtimes.runc]</span><br><span class="line">  ...</span><br><span class="line">  [plugins.&quot;io.containerd.grpc.v1.cri&quot;.containerd.runtimes.runc.options]</span><br><span class="line">    # SystemdCgroup = false</span><br><span class="line">    SystemdCgroup = true</span><br><span class="line">    </span><br><span class="line">[plugins.&quot;io.containerd.grpc.v1.cri&quot;]</span><br><span class="line"><span class="meta prompt_">  #</span><span class="language-bash">sandbox_image = <span class="string">&quot;registry.k8s.io/pause:3.6&quot;</span> 这个镜像地址是被墙的</span></span><br><span class="line">  sandbox_image = &quot;registry.aliyuncs.com/google_containers/pause:3.6&quot;</span><br><span class="line">---</span><br></pre></td></tr></table></figure>
+
+<ol start="6">
+<li>重启 containerd 服务。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">默认读取/etc/containerd/config.toml配置文件</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo systemctl restart containerd</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="5-1-2-内核参数配置"><a href="#5-1-2-内核参数配置" class="headerlink" title="5.1.2 内核参数配置"></a>5.1.2 内核参数配置</h4><blockquote>
+<p>需要开启 br_netfilter 模块，用于将网桥的流量转发至 iptables 链。</p>
+<p>网桥流量的转发会影响 k8s service 将流量转发给同一 node 上的 pod。</p>
+</blockquote>
+<blockquote>
+<p>详细解析可以参考博客 <a href="https://blog.csdn.net/qq_43684922/article/details/127333368">k8s 中为什么需要 br_netfilter 与 net.bridge.bridge-nf-call-iptables&#x3D;1</a>。</p>
+</blockquote>
+<ol>
+<li>加载 overlay 和 br_netfilter 模块。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">开机加载模块</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">cat</span> &lt;&lt;<span class="string">EOF | sudo tee /etc/modules-load.d/k8s.conf</span></span></span><br><span class="line">overlay</span><br><span class="line">br_netfilter</span><br><span class="line">EOF</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="string">立即加载模块</span></span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="string">sudo modprobe overlay</span></span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="string">sudo modprobe br_netfilter</span></span></span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>设置内核参数，设置ipv4流量转发，且经过网桥的流量都经过 iptables 处理。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">重启后生效</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">cat</span> &lt;&lt;<span class="string">EOF | sudo tee /etc/sysctl.d/k8s.conf</span></span></span><br><span class="line">net.bridge.bridge-nf-call-iptables  = 1</span><br><span class="line">net.bridge.bridge-nf-call-ip6tables = 1</span><br><span class="line">net.ipv4.ip_forward                 = 1</span><br><span class="line">EOF</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="string">立即生效</span></span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="string">sudo sysctl --system</span></span></span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>验证 overlay 和 br_netfilter 模块是否已经加载运行。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">lsmod | grep br_netfilter</span></span><br><span class="line">br_netfilter           28672  0</span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">lsmod | grep overlay</span></span><br><span class="line">overlay               114688  0</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="5-2-安装-kubeadm-kubelet-kubectl"><a href="#5-2-安装-kubeadm-kubelet-kubectl" class="headerlink" title="5.2 安装 kubeadm, kubelet, kubectl"></a>5.2 安装 kubeadm, kubelet, kubectl</h3><blockquote>
+<p>由于谷歌的仓库被墙了，因此这里使用阿里云的镜像仓库</p>
+</blockquote>
+<ol>
+<li>添加镜像仓库源。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">cat</span> &lt;&lt;<span class="string">EOF | sudo tee /etc/yum.repos.d/kubernetes.repo</span></span></span><br><span class="line">[kubernetes]</span><br><span class="line">name=Kubernetes</span><br><span class="line">baseurl=https://mirrors.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64/</span><br><span class="line">enabled=1</span><br><span class="line">gpgcheck=1</span><br><span class="line">repo_gpgcheck=1</span><br><span class="line">gpgkey=https://mirrors.aliyun.com/kubernetes/yum/doc/yum-key.gpg https://mirrors.aliyun.com/kubernetes/yum/doc/rpm-package-key.gpg</span><br><span class="line">EOF</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="string">sudo yum makecache -y</span></span></span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>安装kubeadm, kubelet, kubectl。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">检查版本信息，可以看到当前最新版本是1.26.1</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo yum list kubeadm kubectl kubelet</span></span><br><span class="line">Available Packages</span><br><span class="line">kubeadm.x86_64         1.26.1-0           kubernetes</span><br><span class="line">kubectl.x86_64         1.26.1-0           kubernetes</span><br><span class="line">kubelet.x86_64         1.26.1-0           kubernetes</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">gpg 检查失败时，使用yum install -y --nogpgcheck kubelet kubeadm kubectl安装</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes</span></span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>设置开机启动 kubelet。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo systemctl <span class="built_in">enable</span> kubelet</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="5-3-构建-k8s-集群"><a href="#5-3-构建-k8s-集群" class="headerlink" title="5.3 构建 k8s 集群"></a>5.3 构建 k8s 集群</h3><h4 id="5-3-1-准备集群需要的镜像"><a href="#5-3-1-准备集群需要的镜像" class="headerlink" title="5.3.1 准备集群需要的镜像"></a>5.3.1 准备集群需要的镜像</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">版本号与k8s版本号相同</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubeadm config images list --kubernetes-version=v1.26.1</span></span><br><span class="line">registry.k8s.io/kube-apiserver:v1.26.1</span><br><span class="line">registry.k8s.io/kube-controller-manager:v1.26.1</span><br><span class="line">registry.k8s.io/kube-scheduler:v1.26.1</span><br><span class="line">registry.k8s.io/kube-proxy:v1.26.1</span><br><span class="line">registry.k8s.io/pause:3.9</span><br><span class="line">registry.k8s.io/etcd:3.5.6-0</span><br><span class="line">registry.k8s.io/coredns/coredns:v1.9.3</span><br></pre></td></tr></table></figure>
+
+<h4 id="5-3-2-kubeadm-初始化配置"><a href="#5-3-2-kubeadm-初始化配置" class="headerlink" title="5.3.2 kubeadm 初始化配置"></a>5.3.2 kubeadm 初始化配置</h4><blockquote>
+<p>其实也可以用命令行追加参数的形式配置，但是使用配置文件的方式初始化集群比较方便调试。</p>
+</blockquote>
+<blockquote>
+<p>此外，如果需要离线安装，只需要在 containerd 中准备好 k8s 需要的镜像即可(使用 ctr 命令)。</p>
+</blockquote>
+<blockquote>
+<p>关于 kubeadm 配置文件详情可以在<a href="https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/">kubeadm Configuration (v1beta3)</a>中查看。</p>
+</blockquote>
+<ol>
+<li><strong>在 master 主机</strong>生成 kubeadm 默认配置文件。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubeadm config <span class="built_in">print</span> init-defaults &gt; kubeadm-config.yaml</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">cat</span> kubeadm-config.yaml</span></span><br><span class="line">apiVersion: kubeadm.k8s.io/v1beta3</span><br><span class="line">bootstrapTokens:</span><br><span class="line">- groups:</span><br><span class="line">  - system:bootstrappers:kubeadm:default-node-token</span><br><span class="line">  token: abcdef.0123456789abcdef  # 有需要的话可以修改连接集群的token</span><br><span class="line">  ttl: 24h0m0s</span><br><span class="line">  usages:</span><br><span class="line">  - signing</span><br><span class="line">  - authentication</span><br><span class="line">kind: InitConfiguration</span><br><span class="line">localAPIEndpoint:</span><br><span class="line">  advertiseAddress: 1.2.3.4       # 集群通告地址</span><br><span class="line">  bindPort: 6443                  # apiserver端口</span><br><span class="line">nodeRegistration:</span><br><span class="line">  criSocket: unix:///var/run/containerd/containerd.sock</span><br><span class="line">  imagePullPolicy: IfNotPresent</span><br><span class="line">  name: node                      # 节点名称</span><br><span class="line">  taints: null                    # 污点</span><br><span class="line">---</span><br><span class="line">apiServer:</span><br><span class="line">  timeoutForControlPlane: 4m0s</span><br><span class="line">apiVersion: kubeadm.k8s.io/v1beta3</span><br><span class="line">certificatesDir: /etc/kubernetes/pki</span><br><span class="line">clusterName: kubernetes</span><br><span class="line">controllerManager: &#123;&#125;</span><br><span class="line">dns: &#123;&#125;</span><br><span class="line">etcd:</span><br><span class="line">  local:</span><br><span class="line">    dataDir: /var/lib/etcd</span><br><span class="line">imageRepository: registry.k8s.io  # 镜像仓库地址</span><br><span class="line">kind: ClusterConfiguration</span><br><span class="line">kubernetesVersion: 1.26.0        # k8s 版本 </span><br><span class="line">networking:</span><br><span class="line">  dnsDomain: cluster.local</span><br><span class="line">  serviceSubnet: 10.96.0.0/12     # 集群内部虚拟网络，Pod统一访问入口</span><br><span class="line">scheduler: &#123;&#125;</span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>修改 kubeadm-config.yaml 配置文件。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">1. 添加KubeletConfiguration，并配置kubelet使用systemd驱动（官方推荐）</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">2. 修改集群通告地址advertiseAddress，即node节点从哪里寻找apiserver（即master节点）</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">3. 修改镜像源仓库地址imageRepository</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">4. 修改节点名称name</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">5. 添加CNI插件地址</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">6. 修改k8s部署版本kubernetesVersion</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">7. 添加KubeProxyConfiguration配置代理模式为ipvs</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">vi kubeadm-config.yaml</span></span><br><span class="line">apiVersion: kubeadm.k8s.io/v1beta3</span><br><span class="line">bootstrapTokens:</span><br><span class="line">- groups:</span><br><span class="line">  - system:bootstrappers:kubeadm:default-node-token</span><br><span class="line">  token: abcdef.0123456789abcdef</span><br><span class="line">  ttl: 24h0m0s</span><br><span class="line">  usages:</span><br><span class="line">  - signing</span><br><span class="line">  - authentication</span><br><span class="line">kind: InitConfiguration</span><br><span class="line">localAPIEndpoint:</span><br><span class="line">  advertiseAddress: 192.168.137.81            # 修改集群通告地址advertiseAddress</span><br><span class="line">  bindPort: 6443</span><br><span class="line">nodeRegistration:</span><br><span class="line">  criSocket: unix:///var/run/containerd/containerd.sock</span><br><span class="line">  imagePullPolicy: IfNotPresent</span><br><span class="line">  name: k8s-master01                          # 修改节点名称name</span><br><span class="line">  taints: null</span><br><span class="line">---</span><br><span class="line">apiServer:</span><br><span class="line">  timeoutForControlPlane: 4m0s</span><br><span class="line">apiVersion: kubeadm.k8s.io/v1beta3</span><br><span class="line">certificatesDir: /etc/kubernetes/pki</span><br><span class="line">clusterName: kubernetes</span><br><span class="line">controllerManager: &#123;&#125;</span><br><span class="line">dns: &#123;&#125;</span><br><span class="line">etcd:</span><br><span class="line">  local:</span><br><span class="line">    dataDir: /var/lib/etcd</span><br><span class="line">imageRepository: registry.aliyuncs.com/google_containers  # 修改镜像源仓库地址imageRepository</span><br><span class="line">kind: ClusterConfiguration</span><br><span class="line">kubernetesVersion: 1.26.1                     # 修改k8s部署版本kubernetesVersion</span><br><span class="line">networking:</span><br><span class="line">  dnsDomain: cluster.local</span><br><span class="line">  serviceSubnet: 10.96.0.0/12</span><br><span class="line">  podSubnet: 10.244.0.0/16                    # 添加CNI插件地址</span><br><span class="line">scheduler: &#123;&#125;</span><br><span class="line">---</span><br><span class="line">kind: KubeletConfiguration                    # 添加KubeletConfiguration</span><br><span class="line">apiVersion: kubelet.config.k8s.io/v1beta1</span><br><span class="line">cgroupDriver: systemd</span><br><span class="line">---</span><br><span class="line">apiVersion: kubeproxy.config.k8s.io/v1alpha1</span><br><span class="line">kind: KubeProxyConfiguration                  # 添加KubeProxyConfiguration配置代理模式为ipvs</span><br><span class="line">mode: ipvs</span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>初始化 master 节点。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">如果初始化过程出现问题，可以使用 sudo kubeadm reset -f 命令还原</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装完成后会有以下输出</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo kubeadm init --config=./kubeadm-config.yaml --upload-certs | <span class="built_in">tee</span> kubeadm-init.log</span></span><br><span class="line">Your Kubernetes control-plane has initialized successfully!</span><br><span class="line"></span><br><span class="line">To start using your cluster, you need to run the following as a regular user:</span><br><span class="line"></span><br><span class="line">  mkdir -p $HOME/.kube</span><br><span class="line">  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config</span><br><span class="line">  sudo chown $(id -u):$(id -g) $HOME/.kube/config</span><br><span class="line"></span><br><span class="line">Alternatively, if you are the root user, you can run:</span><br><span class="line"></span><br><span class="line">  export KUBECONFIG=/etc/kubernetes/admin.conf</span><br><span class="line"></span><br><span class="line">You should now deploy a pod network to the cluster.</span><br><span class="line">Run &quot;kubectl apply -f [podnetwork].yaml&quot; with one of the options listed at:</span><br><span class="line">  https://kubernetes.io/docs/concepts/cluster-administration/addons/</span><br><span class="line"></span><br><span class="line">Then you can join any number of worker nodes by running the following on each as root:</span><br><span class="line"></span><br><span class="line">kubeadm join 192.168.137.81:6443 --token abcdef.0123456789abcdef \</span><br><span class="line">    --discovery-token-ca-cert-hash sha256:0bd9da58b2ec3a16024a29d419a55c915e5aa2f735e62ecf1c5490872a24d6a1</span><br></pre></td></tr></table></figure>
+
+<ol start="4">
+<li>查看 k8s 下载的容器镜像。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">k8s下载的容器镜像会在 containerd 的 k8s.io 命名空间中</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo /usr/local/bin/ctr namespace <span class="built_in">ls</span></span></span><br><span class="line">NAME    LABELS </span><br><span class="line">default        </span><br><span class="line">k8s.io</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">下载下来的镜像</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo /usr/local/bin/ctr -n k8s.io image <span class="built_in">ls</span></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">k8s 运行中的镜像</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo /usr/local/bin/ctr -n k8s.io container <span class="built_in">ls</span></span></span><br></pre></td></tr></table></figure>
+
+<ol start="5">
+<li>创建 kubectl 配置文件。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">mkdir</span> -p <span class="variable">$HOME</span>/.kube</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo <span class="built_in">cp</span> -i /etc/kubernetes/admin.conf <span class="variable">$HOME</span>/.kube/config</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo <span class="built_in">chown</span> $(<span class="built_in">id</span> -u):$(<span class="built_in">id</span> -g) <span class="variable">$HOME</span>/.kube/config</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">之后就能看到集群状态了</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl get node</span></span><br><span class="line">NAME           STATUS     ROLES           AGE   VERSION</span><br><span class="line">k8s-master01   NotReady   control-plane   42m   v1.26.1</span><br></pre></td></tr></table></figure>
+
+<ol start="6">
+<li><strong>在node主机</strong>中执行以下命令，加入至 k8s 集群。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">kubeadm init 初始化 master 节点之后中的输出</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo kubeadm <span class="built_in">join</span> 192.168.137.81:6443 --token abcdef.0123456789abcdef \</span></span><br><span class="line"><span class="language-bash">    --discovery-token-ca-cert-hash sha256:0bd9da58b2ec3a16024a29d419a55c915e5aa2f735e62ecf1c5490872a24d6a1</span></span><br></pre></td></tr></table></figure>
+
+<ol start="7">
+<li>查看集群状态，由于还未部署容器网络插件，所以所有节点的状态都是 NotReady。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl get node -A</span></span><br><span class="line">NAME           STATUS     ROLES           AGE     VERSION</span><br><span class="line">k8s-master01   NotReady   control-plane   3m44s   v1.26.1</span><br><span class="line">k8s-node01     NotReady   &lt;none&gt;          2m14s   v1.26.1</span><br><span class="line">k8s-node02     NotReady   &lt;none&gt;          97s     v1.26.1</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="5-3-3-部署-Calico-容器网络插件"><a href="#5-3-3-部署-Calico-容器网络插件" class="headerlink" title="5.3.3 部署 Calico 容器网络插件"></a>5.3.3 部署 Calico 容器网络插件</h4><blockquote>
+<p>容器网络插件有很多种，只需要部署其中一个即可。详情可以参照<a href="https://kubernetes.io/docs/concepts/cluster-administration/addons/">官方文档</a>。</p>
+</blockquote>
+<blockquote>
+<p>Calico是一个纯三层的数据中心网络方案，Calico支持广泛的平台，包括Kubernetes、OpenStack等。</p>
+<p>Calico 在每一个计算节点利用 Linux Kernel 实现了一个高效的虚拟路由器（ vRouter） 来负责数据转发，而每个 vRouter 通过 BGP 协议负责把自己上运行的 workload 的路由信息向整个 Calico 网络内传播。</p>
+<p>此外，Calico 项目还实现了 Kubernetes 网络策略，提供ACL功能。</p>
+</blockquote>
+<ol>
+<li>下载 calico 资源文件。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Tigera Calico operator 资源文件</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">wget https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/tigera-operator.yaml</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">自定义配置资源文件</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">wget https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/custom-resources.yaml</span></span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>修改 pod 网络配置。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">vi custom-resources.yaml</span></span><br><span class="line">spec:</span><br><span class="line"><span class="meta prompt_">  # </span><span class="language-bash">Configures Calico networking.</span></span><br><span class="line">  calicoNetwork:</span><br><span class="line">    # Note: The ipPools section cannot be modified post-install.</span><br><span class="line">    ipPools:</span><br><span class="line">    - blockSize: 26</span><br><span class="line">      cidr: 10.244.0.0/16          # 修改为podSubnet设置的地址</span><br><span class="line">      encapsulation: VXLANCrossSubnet</span><br><span class="line">      natOutgoing: Enabled</span><br><span class="line">      nodeSelector: all()</span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>移除 master 节点上的污点。</li>
+</ol>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">kubectl taint nodes --all node-role.kubernetes.io/control-plane- node-role.kubernetes.io/master-</span><br></pre></td></tr></table></figure>
+
+<ol start="4">
+<li>部署 Calico。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl create -f tigera-operator.yaml</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl create -f custom-resources.yaml</span></span><br></pre></td></tr></table></figure>
+
+<ol start="5">
+<li>查看 Calico 的所有 pod 是否都已经处于 Running 状态。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl get pods -n calico-system -o wide</span></span><br><span class="line">NAME                                       READY   STATUS    RESTARTS        AGE     IP               NODE           NOMINATED NODE   READINESS GATES</span><br><span class="line">calico-kube-controllers-6b7b9c649d-d9zxt   1/1     Running   0               24m     10.244.32.129    k8s-master01   &lt;none&gt;           &lt;none&gt;</span><br><span class="line">calico-node-flght                          1/1     Running   0               24m     192.168.137.81   k8s-master01   &lt;none&gt;           &lt;none&gt;</span><br><span class="line">calico-node-kjkzt                          1/1     Running   0               24m     192.168.137.82   k8s-node01     &lt;none&gt;           &lt;none&gt;</span><br><span class="line">calico-node-qwqq4                          1/1     Running   0               24m     192.168.137.83   k8s-node02     &lt;none&gt;           &lt;none&gt;</span><br><span class="line">calico-typha-677d9c67f8-5dp9w              1/1     Running   2 (5m53s ago)   23m     192.168.137.82   k8s-node01     &lt;none&gt;           &lt;none&gt;</span><br><span class="line">calico-typha-677d9c67f8-tvh58              1/1     Running   0               24m     192.168.137.83   k8s-node02     &lt;none&gt;           &lt;none&gt;</span><br><span class="line">csi-node-driver-jps9z                      2/2     Running   0               3m58s   10.244.85.193    k8s-node01     &lt;none&gt;           &lt;none&gt;</span><br><span class="line">csi-node-driver-ns65f                      2/2     Running   0               14m     10.244.58.193    k8s-node02     &lt;none&gt;           &lt;none&gt;</span><br><span class="line">csi-node-driver-ztdnt                      2/2     Running   0               16m     10.244.32.131    k8s-master01   &lt;none&gt;           &lt;none&gt;</span><br></pre></td></tr></table></figure>
+
+<ol start="6">
+<li>查看 k8s 集群状态。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">可以看到所有节点都已经处于 Ready 状态了</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl get node</span></span><br><span class="line">NAME           STATUS   ROLES           AGE   VERSION</span><br><span class="line">k8s-master01   Ready    control-plane   76m   v1.26.1</span><br><span class="line">k8s-node01     Ready    &lt;none&gt;          74m   v1.26.1</span><br><span class="line">k8s-node02     Ready    &lt;none&gt;          73m   v1.26.1</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-4-部署-Dashboard-服务"><a href="#5-4-部署-Dashboard-服务" class="headerlink" title="5.4 部署 Dashboard 服务"></a>5.4 部署 Dashboard 服务</h3><blockquote>
+<p>Dashboard 是基于网页的 Kubernetes 用户界面。 你可以使用 Dashboard 将容器应用部署到 Kubernetes 集群中，也可以对容器应用排错，还能管理集群资源。 你可以使用 Dashboard 获取运行在集群中的应用的概览信息，也可以创建或者修改 Kubernetes 资源 （如 Deployment，Job，DaemonSet 等等）。 例如，你可以对 Deployment 实现弹性伸缩、发起滚动升级、重启 Pod 或者使用向导创建新的应用。</p>
+<p>Dashboard 同时展示了 Kubernetes 集群中的资源状态信息和所有报错信息。</p>
+</blockquote>
+<blockquote>
+<p><strong>使用 Dashboard 要注意用户权限问题，不然别人就能随意使用你的 k8s 集群</strong>。</p>
+</blockquote>
+<ol>
+<li>下载资源文件。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">wget https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml</span></span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>修改资源文件，使得外部网络能够访问 Dashboard 服务。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">vi recommended.yaml</span></span><br><span class="line">kind: Service</span><br><span class="line">apiVersion: v1</span><br><span class="line">metadata:</span><br><span class="line">  labels:</span><br><span class="line">    k8s-app: kubernetes-dashboard</span><br><span class="line">  name: kubernetes-dashboard</span><br><span class="line">  namespace: kubernetes-dashboard</span><br><span class="line">spec:</span><br><span class="line">  type: NodePort             # Service 类型设置为 NodePort</span><br><span class="line">  ports:</span><br><span class="line">    - port: 443</span><br><span class="line">      targetPort: 8443</span><br><span class="line">      nodePort: 30001        # 向外部暴露 30001 端口</span><br><span class="line">  selector:</span><br><span class="line">    k8s-app: kubernetes-dashboard</span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>应用资源文件到 k8s 集群。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl apply -f recommended.yaml</span></span><br></pre></td></tr></table></figure>
+
+<ol start="4">
+<li>查看 Dashboard 服务状态。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl get pod -n kubernetes-dashboard</span></span><br><span class="line">NAME                                        READY   STATUS    RESTARTS   AGE</span><br><span class="line">dashboard-metrics-scraper-7bc864c59-qn9q8   1/1     Running   0          16m</span><br><span class="line">kubernetes-dashboard-6c7ccbcf87-cpz46       1/1     Running   0          6s</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl get svc -n kubernetes-dashboard</span></span><br><span class="line">NAME                        TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)         AGE</span><br><span class="line">dashboard-metrics-scraper   ClusterIP   10.102.45.245   &lt;none&gt;        8000/TCP        17s</span><br><span class="line">kubernetes-dashboard        NodePort    10.97.112.165   &lt;none&gt;        443:30001/TCP   18s</span><br></pre></td></tr></table></figure>
+
+<ol start="5">
+<li>通过 <a href="https://192.168.137.81:30001/">https://192.168.137.81:30001/</a> 访问 Dashboard 面板。</li>
+</ol>
+<p><img src="/2023/01/19/Kubeadm%E5%AE%89%E8%A3%85Kubernetes%20v1.26.1%E9%9B%86%E7%BE%A4/image-20230121220733660.png" alt="image-20230121220733660"></p>
+<ol start="6">
+<li>创建 Dashboard 用户。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">vi dashboard-user.yaml</span></span><br><span class="line">apiVersion: v1</span><br><span class="line">kind: ServiceAccount</span><br><span class="line">metadata:</span><br><span class="line">  name: admin-user</span><br><span class="line">  namespace: kubernetes-dashboard</span><br><span class="line">---</span><br><span class="line">apiVersion: rbac.authorization.k8s.io/v1</span><br><span class="line">kind: ClusterRoleBinding</span><br><span class="line">metadata:</span><br><span class="line">  name: admin-user</span><br><span class="line">roleRef:</span><br><span class="line">  apiGroup: rbac.authorization.k8s.io</span><br><span class="line">  kind: ClusterRole</span><br><span class="line">  name: cluster-admin</span><br><span class="line">subjects:</span><br><span class="line">- kind: ServiceAccount</span><br><span class="line">  name: admin-user</span><br><span class="line">  namespace: kubernetes-dashboard</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl apply -f dashboard-user.yaml</span></span><br></pre></td></tr></table></figure>
+
+<ol start="7">
+<li>创建用户凭证 token。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl -n kubernetes-dashboard create token admin-user</span></span><br><span class="line">eyJhbGciOiJSUzI1NiIsImtpZCI6Ii0zS1Izc0lPOWVQUE41akhRVndoSWh1eE5hRF8tVFJ5TGtTQ0ZvLVZvOHcifQ.eyJhdWQiOlsiaHR0cHM6Ly9rdWJlcm5ldGVzLmRlZmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWwiXSwiZXhwIjoxNjc0MzE0MDgxLCJpYXQiOjE2NzQzMTA0ODEsImlzcyI6Imh0dHBzOi8va3ViZXJuZXRlcy5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsIiwia3ViZXJuZXRlcy5pbyI6eyJuYW1lc3BhY2UiOiJrdWJlcm5ldGVzLWRhc2hib2FyZCIsInNlcnZpY2VhY2NvdW50Ijp7Im5hbWUiOiJhZG1pbi11c2VyIiwidWlkIjoiNGM0NGZkNjktZjc4Zi00M2VmLWFhYzAtZDE2ZmRkODIxNWIzIn19LCJuYmYiOjE2NzQzMTA0ODEsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlcm5ldGVzLWRhc2hib2FyZDphZG1pbi11c2VyIn0.ooQ2muvXZFPu1oJ1J79EE_nDew03rSfOqnVVIj6GDUATTREGcehc9IzrmYb1FMx7nKFZLcCORRyLZLTmezUG6AAMVR26NyyDqemShIo5KU-Y1h8TQaLfuoPpGQa9IaFu7NlNAE01N2mFFT8vzN8-zFnhNjPhyTH8QpUWLQt6LRM7uhIdBvUNsbFuODXnlEa3uPpaSFP9wGXkR53T0TGInD_zC4QTZtxqjGyxGod_3gn8yogr_tuSndvpX1Fs5LgfBDKofC0bmiX7_ghqIQ7hgAZVAYPjbgtrIqGxd5xYDMuO6WN4mclHvQmqSPmk-WmNDOdXtRBxvAaxkwWSlznb_A</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">如果想要删除用户，使用以下命令</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">kubectl -n kubernetes-dashboard delete serviceaccount admin-user</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">kubectl -n kubernetes-dashboard delete clusterrolebinding admin-user</span></span><br></pre></td></tr></table></figure>
+
+<ol start="8">
+<li>使用生成的凭证 token 即可登录 Dashboard 页面。</li>
+</ol>
+<p><img src="/2023/01/19/Kubeadm%E5%AE%89%E8%A3%85Kubernetes%20v1.26.1%E9%9B%86%E7%BE%A4/image-20230121221612439.png" alt="image-20230121221612439"></p>
+<h3 id="5-5-部署-kube-prometheus-监控"><a href="#5-5-部署-kube-prometheus-监控" class="headerlink" title="5.5 部署 kube-prometheus 监控"></a>5.5 部署 kube-prometheus 监控</h3><blockquote>
+<p>kube-prometheus 是一整套监控解决方案，它使用 Prometheus 采集集群指标，Grafana 做展示，包含如下组件:</p>
+<ul>
+<li>The <a href="https://github.com/prometheus-operator/prometheus-operator">Prometheus Operator</a></li>
+<li>Highly available <a href="https://prometheus.io/">Prometheus</a></li>
+<li>Highly available <a href="https://github.com/prometheus/alertmanager">Alertmanager</a></li>
+<li><a href="https://github.com/prometheus/node_exporter">Prometheus node-exporter</a></li>
+<li><a href="https://github.com/kubernetes-sigs/prometheus-adapter">Prometheus Adapter for Kubernetes Metrics APIs</a></li>
+<li><a href="https://github.com/kubernetes/kube-state-metrics">kube-state-metrics</a></li>
+<li><a href="https://grafana.com/">Grafana</a></li>
+</ul>
+</blockquote>
+<ol>
+<li>下载 kube-prometheus 代码。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">先安装 git</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo yum install -y git</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">克隆官方仓库</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">git <span class="built_in">clone</span> https://github.com/prometheus-operator/kube-prometheus.git</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">cd</span> kube-prometheus</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">切换到 release-0.12 版本分支</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">git checkout release-0.12</span></span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>替换镜像源。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">找到所有 quay.io 仓库的镜像</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">grep -nr <span class="string">&quot;quay.io&quot;</span> ./manifests</span></span><br><span class="line">./manifests/alertmanager-alertmanager.yaml:13:  image: quay.io/prometheus/alertmanager:v0.25.0</span><br><span class="line">./manifests/blackboxExporter-deployment.yaml:33:        image: quay.io/prometheus/blackbox-exporter:v0.23.0</span><br><span class="line">./manifests/blackboxExporter-deployment.yaml:88:        image: quay.io/brancz/kube-rbac-proxy:v0.14.0</span><br><span class="line">./manifests/kubeStateMetrics-deployment.yaml:56:        image: quay.io/brancz/kube-rbac-proxy:v0.14.0</span><br><span class="line">./manifests/kubeStateMetrics-deployment.yaml:82:        image: quay.io/brancz/kube-rbac-proxy:v0.14.0</span><br><span class="line">./manifests/nodeExporter-daemonset.yaml:39:        image: quay.io/prometheus/node-exporter:v1.5.0</span><br><span class="line">./manifests/nodeExporter-daemonset.yaml:75:        image: quay.io/brancz/kube-rbac-proxy:v0.14.0</span><br><span class="line">./manifests/prometheus-prometheus.yaml:21:  image: quay.io/prometheus/prometheus:v2.41.0</span><br><span class="line">./manifests/prometheusOperator-deployment.yaml:32:        - --prometheus-config-reloader=quay.io/prometheus-operator/prometheus-config-reloader:v0.62.0</span><br><span class="line">./manifests/prometheusOperator-deployment.yaml:33:        image: quay.io/prometheus-operator/prometheus-operator:v0.62.0</span><br><span class="line">./manifests/prometheusOperator-deployment.yaml:56:        image: quay.io/brancz/kube-rbac-proxy:v0.14.0</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">替换镜像源为 中科大镜像源 quay.mirrors.ustc.edu.cn</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sed -i <span class="string">&#x27;s/quay.io/quay.mirrors.ustc.edu.cn/g&#x27;</span> $(grep -nrl <span class="string">&quot;quay.io&quot;</span> ./manifests)</span></span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>应用资源文件。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">创建命名空间和 CustomResourceDefinitions，然后等待操作完成</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl apply --server-side -f manifests/setup</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl <span class="built_in">wait</span> \</span></span><br><span class="line"><span class="language-bash">    --<span class="keyword">for</span> condition=Established \</span></span><br><span class="line"><span class="language-bash">    --all CustomResourceDefinition \</span></span><br><span class="line"><span class="language-bash">    --namespace=monitoring</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">应用其他资源文件</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl apply -f manifests/</span></span><br></pre></td></tr></table></figure>
+
+<ol start="4">
+<li>访问 Prometheus 服务、 Grafana 页面或者 Alert Manager 服务。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Prometheus</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">通过 kubectl 的端口转发功能，能够将 svc 的端口绑定到集群主机的端口上</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">使用 http://192.168.137.81:9090 访问 或者 http://localhost:9090</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl --namespace monitoring port-forward svc/prometheus-k8s 9090</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Grafana</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">使用 http://192.168.137.81:3000 访问 或者 http://localhost:3000（用户名密码：admin/admin）</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl --namespace monitoring port-forward svc/grafana 3000</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Alert Manager</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">使用 http://192.168.137.81:9093 访问 或者 http://localhost:9093</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl --namespace monitoring port-forward svc/alertmanager-main 9093</span></span><br></pre></td></tr></table></figure>
+
+<ol start="5">
+<li>kube-prometheus 移除命令。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl delete --ignore-not-found=<span class="literal">true</span> -f manifests/ -f manifests/setup</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="6-Helm-包管理工具"><a href="#6-Helm-包管理工具" class="headerlink" title="6.  Helm 包管理工具"></a>6.  Helm 包管理工具</h2><p><a href="http://helm.sh/">Helm</a> 是一个 Kubernetes 应用的包管理工具，用来管理 <a href="https://github.com/helm/charts">chart</a>—— 预先配置好的安装包资源，有点类似于 Ubuntu 的 APT 和 CentOS 中的 YUM。2019 年 11 月 13 日，<a href="https://helm.sh/blog/helm-3-released/">Helm 3 发布</a>，2020 年 4 月 30 日，从 CNCF 中<a href="https://helm.sh/blog/celebrating-helms-cncf-graduation/">毕业</a>。本文基于 Helm 3。</p>
+<p>Helm chart 是用来封装 Kubernetes 原生应用程序的 YAML 文件，可以在你部署应用的时候自定义应用程序的一些 metadata，便与应用程序的分发。</p>
+<p>Helm 和 chart 的主要作用是：</p>
+<ul>
+<li>应用程序封装</li>
+<li>版本管理</li>
+<li>依赖检查</li>
+<li>便于应用程序分发</li>
+</ul>
+<p>Helm 可以安装本地或者远程的 chart，当 chart 安装到 Kubernetes 中后就会创建一个 release，每次更新该 chart 的配置并执行 <code>helm upgrade</code>， release 的版本数就会加 1。同一个 chart 可以部署多次。</p>
+<p><img src="/2023/01/19/Kubeadm%E5%AE%89%E8%A3%85Kubernetes%20v1.26.1%E9%9B%86%E7%BE%A4/helm-chart.png" alt="Helm 架构图"></p>
+<h3 id="6-1-Helm-安装"><a href="#6-1-Helm-安装" class="headerlink" title="6.1 Helm 安装"></a>6.1 Helm 安装</h3><blockquote>
+<p>把官方的包下载解压下来就能够使用了。</p>
+</blockquote>
+<ol>
+<li>下载官方二进制压缩包。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">wget https://get.helm.sh/helm-v3.11.0-linux-amd64.tar.gz</span></span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>解压压缩包。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">tar -zxvf helm-v3.11.0-linux-amd64.tar.gz</span></span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>移动 helm 文件到 <code>/usr/local/bin</code>目录。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">mv</span> linux-amd64/helm /usr/local/bin/helm</span></span><br></pre></td></tr></table></figure>
+
+<ol start="4">
+<li>添加可用的 chart 仓库。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">helm repo add bitnami https://charts.bitnami.com/bitnami</span></span><br></pre></td></tr></table></figure>
+
+<ol start="5">
+<li>查询可用的 chart。</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">helm search repo bitnami</span></span><br></pre></td></tr></table></figure>
+
+]]></content>
+      <categories>
+        <category>k8s</category>
+      </categories>
+      <tags>
+        <tag>k8s</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>MySQL储存过程游标使用踩坑（NOT FOUND）</title>
     <url>/2022/08/30/MySQL%E5%82%A8%E5%AD%98%E8%BF%87%E7%A8%8B%E6%B8%B8%E6%A0%87%E4%BD%BF%E7%94%A8%E8%B8%A9%E5%9D%91%EF%BC%88NOT-FOUND%EF%BC%89/</url>
     <content><![CDATA[<h3 id="1-具体问题"><a href="#1-具体问题" class="headerlink" title="1. 具体问题"></a>1. 具体问题</h3><p>在使用游标的过程中，通常都会使用未找到（NOT FOUND或者SQLSTATE ‘02000’）的条件来标识游标的结束。</p>
@@ -1491,6 +2114,83 @@
       </categories>
       <tags>
         <tag>MySQL</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Linux中的login shell和non-login shell</title>
+    <url>/2022/10/10/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell/</url>
+    <content><![CDATA[<h3 id="1-简要介绍"><a href="#1-简要介绍" class="headerlink" title="1. 简要介绍"></a>1. 简要介绍</h3><p>Shell是用于为用户提供与Linux内核交互的工具，比如sh、bash、zch等都是shell。当我们使用Linux的时候，一进入系统就有一堆的变量可以使用，那么这些变量从哪里来呢？在Linux启动的时候，会按一定的顺序读取配置文件，并且将这些配置文件中的环境变量设置到当前的shell中，所以我们才能使用这些环境变量中目录里面的命令。</p>
+<p>因此我们就需要了解两个问题：</p>
+<ul>
+<li>Linux会按什么顺序读取哪些配置文件？</li>
+<li>login shell和non-login shell有什么区别？</li>
+</ul>
+<h3 id="2-login-shell和non-login-shell的区别"><a href="#2-login-shell和non-login-shell的区别" class="headerlink" title="2. login shell和non-login shell的区别"></a>2. login shell和non-login shell的区别</h3><ul>
+<li><strong>login shell</strong>：取得bash时需要完整的登录流程，就称为login shell。如：<ul>
+<li>登录到ubuntu之后需要输入用户名和密码才能操作用户界面，这就是一个login shell</li>
+<li>登录tty1~tty6时，也需要输入用户名和密码，这也是login sehll</li>
+</ul>
+</li>
+<li><strong>non-login shell</strong>：取得bash时不需要重复登录。如：<ul>
+<li>登录到ubuntu用户操作界面之后，通过鼠标打开的终端Terminal，就不需要输入用户名和密码，因此这就是non-login shell</li>
+<li>或者在原本bash环境下再次使用bash这个命令，会建立一个新的bash子进程，也不用输入账号密码，哪这个bash子程序也是non-login shell</li>
+</ul>
+</li>
+</ul>
+<h3 id="3-login-shell"><a href="#3-login-shell" class="headerlink" title="3. login shell"></a>3. login shell</h3><blockquote>
+<p>一般来说，login shell只会读取下面两个配置文件：</p>
+<ul>
+<li><strong>&#x2F;etc&#x2F;profile</strong>：系统整体的配置，一般尽量不要修改这个文件</li>
+<li><strong><del>&#x2F;.bash_profile或</del>&#x2F;.bash_login或~&#x2F;.profile</strong>：属于用户个人配置（从~目录就能看出），需要修改自己的数据，就写入这些文件。（bash的login shell配置只会读取上面三个文件的其中一个，而读取的顺序则是依照上面的顺序）</li>
+</ul>
+</blockquote>
+<h4 id="3-1-x2F-etc-x2F-profile公共配置内容"><a href="#3-1-x2F-etc-x2F-profile公共配置内容" class="headerlink" title="3.1 &#x2F;etc&#x2F;profile公共配置内容"></a>3.1 &#x2F;etc&#x2F;profile公共配置内容</h4><p><code>/etc/profile</code>文件中主要配置的环境变量包括：</p>
+<ul>
+<li>PATH：会根据UID来决定PATH变量中包不包含sbin的系统命令目录</li>
+<li>MAIL：将用户配置的mailbox配置到<code>/var/spool/mail/账户名</code></li>
+<li>USER：根据用户的账号配置这个变量内容</li>
+<li>HOSTNAME：根据主机的hostname配置</li>
+<li>HISTSIZE：历史命令的记录条数</li>
+</ul>
+<p>此外，<code>/etc/profile</code>文件还会按以下顺序读取外部配置文件：</p>
+<ol>
+<li><code>/etc/inputrc</code>：主要配置bash的热键、[tab]键需不需要有声音等</li>
+<li><code>/etc/profile.d/*.sh</code>：只要在<code>/etc/profile.d/</code>目录内，并且文件扩展名为 .sh，用户具有读的权限，那么该文件就会被&#x2F;etc&#x2F;profile读取。主要包括：bash操作界面的颜色，ll与ls命令的命令别名、which的命令别名等。<strong>如果需要给所有用户配置一些共享的命令别名时，可以在这个目录底下创建扩展名为.sh的文件，并将需要的数据写入</strong></li>
+<li><code>/etc/sysconfig/i18n</code>：这个文件是被<code>/etc/profile.d/lang.sh</code>文件调用，配置LANG变量，也就是bash默认使用什么语言</li>
+</ol>
+<h4 id="3-2-用户配置内容"><a href="#3-2-用户配置内容" class="headerlink" title="3.2 用户配置内容"></a>3.2 用户配置内容</h4><p>我们可以看下<code>~/.bash_profile</code>中的内容：</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">[junhao@localhost ~]$ cat ~/.bash_profile</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">.bash_profile</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Get the aliases and <span class="built_in">functions</span></span></span><br><span class="line">if [ -f ~/.bashrc ]; then</span><br><span class="line">    . ~/.bashrc</span><br><span class="line">fi</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">User specific environment and startup programs</span></span><br><span class="line"></span><br><span class="line">PATH=$PATH:$HOME/.local/bin:$HOME/bin</span><br><span class="line"></span><br><span class="line">export PATH</span><br><span class="line">[junhao@localhost ~]$ </span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>可以看到if判断语句中的一段，判断home目录下的文件<code>~/.bashrc</code>是不是存在，如果存在则读入<code>~/.bashrc</code>中的配置。</p>
+<p>至于<code>~/.bash_login</code> 或<code>~/.profile</code>文件，前面提到过，bash的login shell只会读取上面三个文件中的其中一个，哪个文件存在就读取哪个文件，而最后读取的都是<code>~/.bashrc</code>中的配置。</p>
+</blockquote>
+<p>我们再看看<code>~/.bashrc</code>文件中的内容：</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">[junhao@localhost ~]$ cat ~/.bashrc</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">.bashrc</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Source global definitions</span></span><br><span class="line">if [ -f /etc/bashrc ]; then</span><br><span class="line">    . /etc/bashrc</span><br><span class="line">fi</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Uncomment the following line <span class="keyword">if</span> you don<span class="string">&#x27;t like systemctl&#x27;</span>s auto-paging feature:</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">export</span> SYSTEMD_PAGER=</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">User specific aliases and <span class="built_in">functions</span></span></span><br><span class="line">[junhao@localhost ~]$ </span><br></pre></td></tr></table></figure>
+
+<p>可以看到在<code>~/.bashrc</code>文件中，最后会读取<code>/etc/bashrc</code>文件中的配置，而<code>/etc/bashrc</code>也会读取<code>/etc/profile.d/*.sh</code>中的配置。</p>
+<h4 id="3-3-总结"><a href="#3-3-总结" class="headerlink" title="3.3 总结"></a>3.3 总结</h4><p><img src="/2022/10/10/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell/login_shell.png" alt="login shell 的配置文件读取流程"></p>
+<p>实线的方向是主线流程，虚线的方向则是被调用的配置文件，从上面的流程图可以看出，最终读取的配置文件是<code>~/.bashrc</code>，所以可以将用户特定的配置写入<code>~/.bashrc</code>文件中，而所有用户共用的配置写入<code>/etc/bashrc</code>文件中。</p>
+<h3 id="4-non-login-shell"><a href="#4-non-login-shell" class="headerlink" title="4. non-login shell"></a>4. non-login shell</h3><blockquote>
+<p>当获取non-login shell的时候，bash的配置文件仅仅会读取<code>~/.bashrc</code>文件中的内容</p>
+</blockquote>
+<p><code>~/.bashrc</code>中会调用<code>/etc/bashrc</code>，而<code>/etc/bashrc</code>主要负责：</p>
+<ul>
+<li>根据UID设置umask的值</li>
+<li>根据UID设置命令行提示即PS1变量</li>
+<li>调用<code>/etc/profile.d/*.sh</code>中的配置</li>
+</ul>
+<h3 id="5-其他相关的配置文件"><a href="#5-其他相关的配置文件" class="headerlink" title="5. 其他相关的配置文件"></a>5. 其他相关的配置文件</h3><ul>
+<li><code>/etc/man.config</code>：配置man相关属性</li>
+<li><code>~/.bash_history</code>：历史命令相关</li>
+<li><code>~/.bash_logout</code>：注销bash时，需要执行的操作</li>
+</ul>
+]]></content>
+      <categories>
+        <category>Linux基础知识</category>
+      </categories>
+      <tags>
+        <tag>Linux</tag>
       </tags>
   </entry>
   <entry>
@@ -2225,7 +2925,7 @@
 <h3 id="6-3-如何将服务注册到服务中心"><a href="#6-3-如何将服务注册到服务中心" class="headerlink" title="6.3 如何将服务注册到服务中心"></a>6.3 如何将服务注册到服务中心</h3><blockquote>
 <p>在 6.1 小节中我们知道，Curator 框架可以通过调用<code>ServiceDiscovery</code> 的<code>start()</code>方法或者是<code>registerService()</code>方法进行服务注册。那我们就需要寻找一下在哪里调用的<code>start()</code>方法或者是<code>registerService()</code>方法。</p>
 </blockquote>
-<p>依然是看到**自动配置类<code>ZookeeperAutoServiceRegistrationAutoConfiguration.java</code>**，其中另外一个注入的 Bean 实例是 <code>ZookeeperAutoServiceRegistration</code>。</p>
+<p>依然是看到<strong>自动配置类<code>ZookeeperAutoServiceRegistrationAutoConfiguration.java</code></strong> ，其中另外一个注入的 Bean 实例是 <code>ZookeeperAutoServiceRegistration</code>。</p>
 <figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ZookeeperAutoServiceRegistration</span> <span class="keyword">extends</span> <span class="title class_">AbstractAutoServiceRegistration</span>&lt;ZookeeperRegistration&gt;&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">register</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (!<span class="built_in">this</span>.properties.isRegister()) &#123;</span><br><span class="line">            log.debug(<span class="string">&quot;Registration disabled.&quot;</span>);</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (<span class="built_in">this</span>.registration.getPort() == <span class="number">0</span>) &#123;</span><br><span class="line">            <span class="built_in">this</span>.registration.setPort(getPort().get());</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="built_in">super</span>.register();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>可以看到，<code>ZookeeperAutoServiceRegistration类</code>中有一个<code>register()</code>方法，非常像是服务注册的逻辑，其中调用了父类的<code>register()</code>方法。</p>
@@ -2244,7 +2944,7 @@
 </ul>
 </blockquote>
 <blockquote>
-<p><strong>第一个问题</strong>比较简单，在<code>ZookeeperAutoServiceRegistrationAutoConfiguration配置类</code>中构建<code>ZookeeperAutoServiceRegistration实例Bean</code>的时候，传入了一个<code>ZookeeperRegistration实例Bean</code>，而6.2 小节中创建的<code>ServiceInstanceRegistration实例Bean</code>实现了<code>ZookeeperRegistration接口</code>，而调用<code>getServiceInstance()</code>就能获取到 **<code>ServiceInstance实例</code>**。</p>
+<p><strong>第一个问题</strong>比较简单，在<code>ZookeeperAutoServiceRegistrationAutoConfiguration配置类</code>中构建<code>ZookeeperAutoServiceRegistration实例Bean</code>的时候，传入了一个<code>ZookeeperRegistration实例Bean</code>，而6.2 小节中创建的<code>ServiceInstanceRegistration实例Bean</code>实现了<code>ZookeeperRegistration接口</code>，而调用<code>getServiceInstance()</code>就能获取到 <strong><code>ServiceInstance实例</code></strong> 。</p>
 </blockquote>
 <blockquote>
 <p><strong>第二和第三个问题是一起的</strong>，<code>zookeeperAutoServiceRegistration()</code>方法中注入了一个<code>ZookeeperServiceRegistry实例Bean</code>作为<code>ZookeeperAutoServiceRegistration构造函数</code>的入参。这个<code>ZookeeperServiceRegistry实例Bean</code>是在<code>ZookeeperServiceRegistryAutoConfiguration配置类</code>中创建的。</p>
@@ -2440,7 +3140,7 @@
 <li><strong>第一列，时分秒毫秒</strong> ：11:21:04.212251</li>
 <li><strong>第二列，网络协议</strong> ：IP</li>
 <li><strong>第三列，发送方 IP + 端口</strong>：IP - 172.25.122.140 | 端口 - 40236</li>
-<li>**第四列，数据流向 &gt;**：从 172.25.122.140.40236 流向 14.215.177.39.443</li>
+<li><strong>第四列，数据流向 &gt;</strong> ：从 172.25.122.140.40236 流向 14.215.177.39.443</li>
 <li><strong>第五列，接收方 IP + 端口</strong>：IP - 14.215.177.39 | 端口 - 443</li>
 <li><strong>第六列，冒号</strong><code>：</code></li>
 <li><strong>第七列， 数据包内容</strong>：包括 Flags 标识符，seq 号，ack 号，win 窗口，数据长度 length</li>
