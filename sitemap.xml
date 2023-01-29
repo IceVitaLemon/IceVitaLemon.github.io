@@ -2,6 +2,17 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>http://example.com/2023/01/28/%E6%96%87%E4%BB%B6%E5%90%8D%E5%A4%A7%E5%B0%8F%E5%86%99%E5%BC%95%E8%B5%B7%E7%9A%84%E8%A1%80%E6%A1%88/</loc>
+    
+    <lastmod>2023-01-29T09:51:38.758Z</lastmod>
+    
+    <date>1674870445000</date>
+    <title>文件名大小写引起的血案 | IceVitalemon's Blog</title>
+    
+    <desc>关于Windows下文件夹/文件名不区分大小写，以及Git默认对文件名大小写不敏感。</desc>
+  </url>
+  
+  <url>
     <loc>http://example.com/2023/01/19/Kubeadm%E5%AE%89%E8%A3%85Kubernetes%20v1.26.1%E9%9B%86%E7%BE%A4/</loc>
     
     <lastmod>2023-01-28T07:52:30.804Z</lastmod>
@@ -10,17 +21,6 @@
     <title>Kubeadm安装Kubernetes v1.26.1集群 | IceVitalemon's Blog</title>
     
     <desc>使用VirtualBox创建一个网关路由、三台CentOS7虚拟机，搭建集群网络，利用Kubeadm安装一个master节点两个node节点的Kubernates集群，containerd提供底层容器运行时接口服务，calico提供容器网络，Kubernetes Dashboard用户页面，Kube-Prometheus集群监控，Helm包管理工具。其实k8s集群搭建最麻烦的是因为有墙，整体流程还</desc>
-  </url>
-  
-  <url>
-    <loc>http://example.com/2023/01/28/%E6%96%87%E4%BB%B6%E5%90%8D%E5%A4%A7%E5%B0%8F%E5%86%99%E5%BC%95%E8%B5%B7%E7%9A%84%E8%A1%80%E6%A1%88/</loc>
-    
-    <lastmod>2023-01-28T03:23:19.042Z</lastmod>
-    
-    <date>1674870445000</date>
-    <title>文件名大小写引起的血案 | IceVitalemon's Blog</title>
-    
-    <desc>关于Windows下文件夹/文件名不区分大小写，以及Git默认对文件名大小写不敏感。</desc>
   </url>
   
   <url>
