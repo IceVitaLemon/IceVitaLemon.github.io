@@ -509,6 +509,54 @@
       </tags>
   </entry>
   <entry>
+    <title>Java基于String实现同步锁</title>
+    <url>/2023/02/21/Java%E5%9F%BA%E4%BA%8EString%E5%AE%9E%E7%8E%B0%E5%90%8C%E6%AD%A5%E9%94%81/</url>
+    <content><![CDATA[<h2 id="1-前言"><a href="#1-前言" class="headerlink" title="1. 前言"></a>1. 前言</h2><p>在分布式应用中，能够通过 Redis、Zookeeper 等组件实现分布式锁。针对一个订单号、任务 ID 进行加锁，避免其它进程或者线程操作相同的资源。</p>
+<p>但是，如果项目不依赖这些组件，单进程的情况下，针对不同订单号、任务 ID 进行加锁就变得比较困难。像是 ReentrantLock 或者 CountDownLatch 这种 JUC 实现的锁，都是针对单个资源的锁，不能用于变换莫测的 String。</p>
+<h2 id="2-需要考虑的问题"><a href="#2-需要考虑的问题" class="headerlink" title="2. 需要考虑的问题"></a>2. 需要考虑的问题</h2><blockquote>
+<ul>
+<li>基于 String 的锁字典</li>
+<li>内存泄漏问题</li>
+</ul>
+</blockquote>
+<p>我们需要做的，是根据 String 获取一把锁，来锁定该 String 代表的资源。既然不同的 String 代表着不同的锁，我们需要的是使用一个池子，来缓存 String 及其对应的锁，即 String 锁的字典。</p>
+<p>这个锁字典的生命周期基本上是伴随着整个进程，因为我们使用的场景就是单个进程下根据 String  来获取锁。那么，如果大量地根据不同的 String 获取锁，就会在池子中缓存了大量的 key，value，不及时释放可能会导致内存泄漏问题。</p>
+<h2 id="3-实现方法"><a href="#3-实现方法" class="headerlink" title="3. 实现方法"></a>3. 实现方法</h2><h3 id="3-1-基于-JVM-的字符串常量池"><a href="#3-1-基于-JVM-的字符串常量池" class="headerlink" title="3.1 基于 JVM 的字符串常量池"></a>3.1 基于 JVM 的字符串常量池</h3><blockquote>
+<p>JVM里面有一块内存是用于储存字符串常量的，从这里面拿出来的字符串都是同一个对象。</p>
+<p>但是我们自己创建的字符串是不同的对象，不在这个字符串常量池里面，而 synchronized是向对象加锁的，所以直接对字符串对象加锁，可能加到两个两个不同的对象上，就会出问题了。</p>
+<p>因此可以使用 String 类的 intern() 方法，将字符串加到字符串常量池中，调用方法后，返回的是字符串常量池中的字符串对象。</p>
+</blockquote>
+<h4 id="3-1-1-实现"><a href="#3-1-1-实现" class="headerlink" title="3.1.1 实现"></a>3.1.1 实现</h4><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">StringMutexLock</span> &#123;  </span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">operation</span><span class="params">(String bizId)</span>&#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">lock</span> <span class="operator">=</span> bizId; <span class="comment">// 业务ID</span></span><br><span class="line">        lock = lock.intern();</span><br><span class="line">        <span class="keyword">synchronized</span> (lock)&#123;</span><br><span class="line">            <span class="comment">// 实际业务</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-1-2-存在的问题"><a href="#3-1-2-存在的问题" class="headerlink" title="3.1.2 存在的问题"></a>3.1.2 存在的问题</h4><p>这种方法问题很大，因为字符串常量池中的对象不一定会被垃圾回收器回收，因此可能会造成内存泄露的问题。</p>
+<h3 id="3-2-基于-ConcurrentHashMap-和-CountDownLatch"><a href="#3-2-基于-ConcurrentHashMap-和-CountDownLatch" class="headerlink" title="3.2 基于 ConcurrentHashMap 和 CountDownLatch"></a>3.2 基于 ConcurrentHashMap 和 CountDownLatch</h3><blockquote>
+<p>使用 ConcurrentHashMap 来储存 key 和对应的锁，加锁时判断 ConcurrentHashMap 是否已经存在对应的锁对象，解锁时将锁对象从 ConcurrentHashMap 中移除。</p>
+</blockquote>
+<h4 id="3-2-1-实现"><a href="#3-2-1-实现" class="headerlink" title="3.2.1 实现"></a>3.2.1 实现</h4><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> lombok.extern.slf4j.Slf4j;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.ConcurrentHashMap;</span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.CountDownLatch;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Slf4j</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">StringMutexLock</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> ConcurrentHashMap&lt;String, CountDownLatch&gt; lockHolder = <span class="keyword">new</span> <span class="title class_">ConcurrentHashMap</span>&lt;&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 基于lockKey上锁，同步执行</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> lockKey</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">lock</span><span class="params">(String lockKey)</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">        <span class="keyword">while</span> (!tryLock(lockKey))&#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                log.info(<span class="string">&quot;Get lock[&#123;&#125;] failed, waiting...&quot;</span>, lockKey);</span><br><span class="line">                blockOnLock(lockKey);</span><br><span class="line">            &#125;<span class="keyword">catch</span> (InterruptedException e)&#123;</span><br><span class="line">                <span class="type">String</span> <span class="variable">errMsg</span> <span class="operator">=</span> String.format(<span class="string">&quot;Error occur while get lock[%s]: %s&quot;</span>, lockKey, e.getMessage());</span><br><span class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">InterruptedException</span>(errMsg);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 基于lockKey, 释放锁, 只要调用者传入正确的lockKey, 锁就会被释放</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> lockKey</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">unlock</span><span class="params">(String lockKey)</span>&#123;</span><br><span class="line">        <span class="type">CountDownLatch</span> <span class="variable">lock</span> <span class="operator">=</span> lockHolder.remove(lockKey);</span><br><span class="line">        lock.countDown();</span><br><span class="line">        log.info(<span class="string">&quot;Release lock[&#123;&#125;] success.&quot;</span>, lockKey);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    </span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 尝试给指定字符串上锁</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> lockKey 字符串</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> true: 上锁成功  false：上锁失败</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="type">boolean</span> <span class="title function_">tryLock</span><span class="params">(String lockKey)</span>&#123;</span><br><span class="line">        <span class="comment">// 这里每次调用都会创建一个 CountDownLatch 对象，对GC不太友好</span></span><br><span class="line">        <span class="keyword">return</span> lockHolder.putIfAbsent(lockKey, <span class="keyword">new</span> <span class="title class_">CountDownLatch</span>(<span class="number">1</span>)) == <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 获取实际锁对象，并阻塞等待</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> lockKey</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@throws</span> InterruptedException</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">blockOnLock</span><span class="params">(String lockKey)</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">        <span class="type">CountDownLatch</span> <span class="variable">lock</span> <span class="operator">=</span> lockHolder.get(lockKey);</span><br><span class="line">        <span class="keyword">if</span> (lock != <span class="literal">null</span>)&#123;</span><br><span class="line">            lock.await();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-2-2-存在的问题"><a href="#3-2-2-存在的问题" class="headerlink" title="3.2.2 存在的问题"></a>3.2.2 存在的问题</h4><ul>
+<li>每次调用 tryLock 都会创建一个 CountDownLatch 对象，对 GC 不太友好。</li>
+<li>不会记录获取锁的线程，其他线程通过 String 获取锁对象之后，可能会误释放锁。</li>
+<li>不支持的超时设置，需要主动释放锁。</li>
+</ul>
+<h3 id="3-3-Guava包的常量池"><a href="#3-3-Guava包的常量池" class="headerlink" title="3.3 Guava包的常量池"></a>3.3 Guava包的常量池</h3><blockquote>
+<p>Google 的第三方工具包 Guava 里面提供了常量池的实现，能够创建<strong>基于弱引用的常量池</strong>，避免 GC 问题。</p>
+</blockquote>
+<h4 id="3-3-1-实现"><a href="#3-3-1-实现" class="headerlink" title="3.3.1 实现"></a>3.3.1 实现</h4><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> com.google.common.collect.Interner;</span><br><span class="line"><span class="keyword">import</span> com.google.common.collect.Interners;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">StringMutexLock</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Interner&lt;String&gt; internPool = Interners.newWeakInterner();</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">operation</span><span class="params">(String bizId)</span>&#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">lock</span> <span class="operator">=</span> internPool.intern(bizId);</span><br><span class="line">        <span class="keyword">synchronized</span> (lock)&#123;</span><br><span class="line">            <span class="comment">// 具体业务</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-3-2-存在的问题"><a href="#3-3-2-存在的问题" class="headerlink" title="3.3.2 存在的问题"></a>3.3.2 存在的问题</h4><ul>
+<li>不会记录获取锁的线程，其他线程通过 String 获取锁对象之后，可能会误释放锁。</li>
+<li>不支持的超时设置，需要主动释放锁。</li>
+</ul>
+]]></content>
+      <categories>
+        <category>Java</category>
+      </categories>
+      <tags>
+        <tag>Java</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Kafka知识总结</title>
     <url>/2022/12/05/Kafka%E7%9F%A5%E8%AF%86%E6%80%BB%E7%BB%93/</url>
     <content><![CDATA[<h3 id="1-基本概念"><a href="#1-基本概念" class="headerlink" title="1. 基本概念"></a>1. 基本概念</h3><blockquote>
@@ -936,7 +984,7 @@
 <p>AR（All Replica）就是所有副本，ISR 与 OSR 的并集，存的是 Broker ID</p>
 </blockquote>
 <p>副本 Leader 选举是由 Controller Leader 来处理的。只有在 ISR 集合中的副本才有资格参选，随后选取 AR 中排序靠前的作为 Leader Replica。</p>
-<h5 id="5-4-1-优先副本"><a href="#5-4-1-优先副本" class="headerlink" title="5.4.1 优先副本"></a>5.4.1 优先副本</h5><p>优先副本即 AR 集合列表中的第 1 个副本，比如 AR [1, 2, 0]，那么分区优先副本即为 1。引入优先副本的概念是为了 所以分区的 Leader Replica 在所有 Broker 中均匀分布，避免消费者或者生产者的请求集中在某几个 Broker 中。</p>
+<h5 id="5-4-1-优先副本"><a href="#5-4-1-优先副本" class="headerlink" title="5.4.1 优先副本"></a>5.4.1 优先副本</h5><p>优先副本即 AR 集合列表中的第 1 个副本，比如 AR [1, 2, 0]，那么分区优先副本即为 1。引入优先副本的概念是为了 所有分区的 Leader Replica 在所有 Broker 中均匀分布，避免消费者或者生产者的请求集中在某几个 Broker 中。</p>
 <p>如果优先副本被选举为 Leader Replica，则该Leader 称为 <strong>Prefect Leader</strong>。</p>
 <h5 id="5-4-2-Leader-Replica-自动平衡"><a href="#5-4-2-Leader-Replica-自动平衡" class="headerlink" title="5.4.2 Leader Replica 自动平衡"></a>5.4.2 Leader Replica 自动平衡</h5><p>正常情况下，Kafka 本身会把 Leader Replica 均匀地分散在各个机器上，来保证每台机器的读写吞吐量都是均匀的。但是如果某些 Broker 宕机，Leader Replica重新选举之后会导致所有 Topic 中的 Leader Replica 过于集中在其他部分几台 Broker 上，造成集群负载不均衡。所以 Kafka 提供了 Leader Replica 自动平衡的机制。</p>
 <p>当 Broker 中 中存在的 Leader Replica 不是优先副本的时候，不平衡数就会加 1，当不平衡比率达到设定阈值的时候就会触发自动平衡。</p>
@@ -1113,6 +1161,276 @@
       </categories>
       <tags>
         <tag>Kafka</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>LVS负载均衡实战</title>
+    <url>/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/</url>
+    <content><![CDATA[<h3 id="1-前言"><a href="#1-前言" class="headerlink" title="1. 前言"></a>1. 前言</h3><p>LVS的作用就是用作<strong>四层</strong>的<strong>负载均衡</strong>，四层是指<code>TCP/IP</code>七层协议中的传输层。目的是请求按一定的<strong>调度策略</strong>把用户的请求分发到多台后端设备上。区别于nginx，nginx是七层的负载均衡，能够看到http协议，而LVS只能看到四层的协议，即TCP协议等，所以无法通过Http cookie处理session。</p>
+<h3 id="2-简介"><a href="#2-简介" class="headerlink" title="2. 简介"></a>2. 简介</h3><p><a href="http://www.linuxvirtualserver.org/">LVS（Linux Virtual Server）</a>即Linux虚拟服务器，由章文嵩博士开发并已贡献给开源社区，用于构建高性能、高可用的Linux服务器集群，具有良好的可靠性、可扩展性和可操作性。</p>
+<blockquote>
+<p>LVS的高可用需要结合Keepalived，不然的话其实只有一个前端负载均衡节点负责着绑定到LVS上的IP流量，所以当这个前端负载均衡节点挂了之后，IP流量就无法分发到后端真实工作服务器上。Keepalived的作用就是保证前端负载均衡节点的高可用。</p>
+</blockquote>
+<h4 id="2-1-LVS的组成"><a href="#2-1-LVS的组成" class="headerlink" title="2.1 LVS的组成"></a>2.1 LVS的组成</h4><p>LVS主要由<code>ipvs</code>和<code>ipvsadm</code>两部分组成。</p>
+<ol>
+<li><code>ipvs(ip virtual server)</code>是工作在Linux内核态的四层负载均衡，是真正实现调度的程序，基于内核底层<code>netfilter</code>实现，通过<code>netfilter</code>的处理链上的钩子实现包的处理和转发。</li>
+<li><code>ipvsadm</code>工作在用户空间，负责与ipvs之间的交互，为ipvs框架编写规则，定义谁是前端负载均衡节点，谁是后端的真实服务器</li>
+</ol>
+<h4 id="2-2-LVS的三种工作模式"><a href="#2-2-LVS的三种工作模式" class="headerlink" title="2.2 LVS的三种工作模式"></a>2.2 LVS的三种工作模式</h4><ul>
+<li><p>VS&#x2F;NAT（Virtual Server via Network Address Translation）</p>
+<ul>
+<li>通过网络地址转换NAT实现</li>
+<li>调度器重写请求报文的目标地址，将请求分派到后端的真实服务器</li>
+<li>真实服务器将响应报文交给调度器，响应报文的源地址被重写，再转发给客户</li>
+<li>请求和响应都经过调度器</li>
+</ul>
+</li>
+<li><p>VS&#x2F;TUN（Virtual Server via IP Tunneling）</p>
+<ul>
+<li>通过IP隧道实现</li>
+<li>请求报文到达调度器之后，通过IP隧道转发到后端真实服务器</li>
+<li>真实服务器将响应报文直接返回给客户</li>
+<li>调度器只处理请求报文</li>
+</ul>
+</li>
+<li><p>VS&#x2F;DR（Virtual Server via Direct Routing）</p>
+<ul>
+<li>通过改写请求报文的MCA地址实现</li>
+<li>请求报文到达调度器之后，改写报文的MAC地址，发送到后端真实服务器</li>
+<li>真实服务器将响应报文直接返回给客户</li>
+<li>调度器只处理请求报文</li>
+</ul>
+</li>
+</ul>
+<h5 id="2-2-1-三种模式的主要区别"><a href="#2-2-1-三种模式的主要区别" class="headerlink" title="2.2.1 三种模式的主要区别"></a>2.2.1 三种模式的主要区别</h5><table>
+<thead>
+<tr>
+<th>模式与特点</th>
+<th>NAT模式</th>
+<th>TUN模式</th>
+<th>DR模式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>服务器要求</td>
+<td>服务器节点可以使用任何操作系统</td>
+<td>必须支持IP隧道</td>
+<td>服务器节点支持虚拟网卡设备，能够禁用设备的ARP响应</td>
+</tr>
+<tr>
+<td>网络要求</td>
+<td>拥有私有IP地址的局域网络</td>
+<td>拥有合法IP地址的局域网或广域网</td>
+<td>拥有合法IP地址的局域网，服务器节点与调度器必须在同一个网段</td>
+</tr>
+<tr>
+<td>支持节点数</td>
+<td>10到20个，根据调度器的处理能力而定</td>
+<td>较高，可以支持100个服务节点</td>
+<td>较高，可以支持100个服务节点</td>
+</tr>
+<tr>
+<td>网关</td>
+<td>调度器为服务器节点网关</td>
+<td>服务器节点同自己的网关或者路由器连接，不经过负载均衡器</td>
+<td>服务器节点同自己的网关或者路由器连接，不经过负载均衡器</td>
+</tr>
+<tr>
+<td>IP要求</td>
+<td>仅需要一个合法的IP地址作为调度器的VIP地址</td>
+<td>除了VIP地址外，每个服务器需要有能够路由到客户端的IP地址</td>
+<td>除了VIP地址外，每个服务器需要有能够路由到客户端的IP地址</td>
+</tr>
+<tr>
+<td>特点</td>
+<td>地址转换</td>
+<td>封装IP</td>
+<td>修改MAC地址</td>
+</tr>
+</tbody></table>
+<h4 id="2-3-调度算法"><a href="#2-3-调度算法" class="headerlink" title="2.3 调度算法"></a>2.3 调度算法</h4><blockquote>
+<p>只做简单介绍，其中缩写英文用于在ipvsadm命令中指定集群调度算法</p>
+</blockquote>
+<ul>
+<li>轮询算法 <code>rr</code>（Round Robin）</li>
+<li>加权轮询算法 <code>wrr</code> （Weighted Round Robin）</li>
+<li>源地址哈希算法 <code>sh</code> （Source Hashing）</li>
+<li>目标地址哈希算法 <code>dh</code> （Destination Hashing）</li>
+<li>最少连接算法 <code>lc</code> （Least Connections）</li>
+<li>加权最少连接算法 <code>wlc</code> （Weighted Least Connection）</li>
+<li>最短期望延迟算法 <code>sed</code> （Shortest Expected Delay Scheduling）</li>
+<li>最少队列算法 <code>nq</code> （Never Queue Scheduling）</li>
+<li>基于局部的最少连接算法 <code>lblc</code> （Locality-Based Least Connections）</li>
+<li>带复制的基于局部的最少连接算法 <code>lblcr</code> （Locality-Based Least Connections with Replication）</li>
+<li>FO算法 <code>fo</code> （Weighted Fail Over）</li>
+<li>OVF算法 <code>ovf</code> （Overflow-connection）</li>
+</ul>
+<h3 id="3-工作原理"><a href="#3-工作原理" class="headerlink" title="3. 工作原理"></a>3. 工作原理</h3><blockquote>
+<p>重点理解报文包源和目的IP地址、源和目的MAC地址的变化</p>
+</blockquote>
+<h4 id="3-1-别称约定"><a href="#3-1-别称约定" class="headerlink" title="3.1 别称约定"></a>3.1 别称约定</h4><ul>
+<li>服务器<ul>
+<li>DS (Director Server)，指的是前端负载均衡器节点，即调度器</li>
+<li>RS (Real Server)，后端真实的工作服务器</li>
+</ul>
+</li>
+<li>IP地址<ul>
+<li>CIP (Client IP)，访问客户端的 IP 地址</li>
+<li>VIP (Virtual IP)，虚拟的 IP 地址，向外部直接面向用户请求，作为用户请求的目标的 IP 地址</li>
+<li>DIP (Director IP)，主要用于和内部主机通讯的 IP 地址</li>
+<li>RIP (Real Server IP)，后端服务器的 IP 地址</li>
+</ul>
+</li>
+<li>netfilter的五个阶段<ul>
+<li>PREROUTING</li>
+<li>INPUT</li>
+<li>OUTPUT</li>
+<li>FORWARD</li>
+<li>POSTROUTING</li>
+</ul>
+</li>
+</ul>
+<h4 id="3-2-LVS-x2F-NAT和FULLNAT"><a href="#3-2-LVS-x2F-NAT和FULLNAT" class="headerlink" title="3.2 LVS&#x2F;NAT和FULLNAT"></a>3.2 LVS&#x2F;NAT和FULLNAT</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_NAT.png" alt="LVS_NAT"></p>
+<blockquote>
+<p>还有一种工作模式是LVS&#x2F;FULLNAT。在DS将请求报文转发给RS时（即第三步），LVS&#x2F;NAT模式只修改目标IP为RIP，而LVS&#x2F;FULLNAT则同时将CIP和VIP分别修改为DIP和RIP。NAT模式DS和RS都需要在同一个子网（因为RS的网关为DS），FULLNAT模式DS和RS只要能通信可以不在同一个子网。</p>
+</blockquote>
+<ol>
+<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
+<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
+<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，则修改数据包的目标IP地址为RS的RIP地址，然后将数据包发送至<code>POSTROUTING</code>调用链。此时，请求报文的<strong>源IP为CIP，目标IP为RIP</strong></li>
+<li><code>POSTROUTING</code>链通过路由，将数据包发送给RS</li>
+<li>RS接收到请求报文，开始构建响应报文返回给DS（因为DS是RS的网关，所以一定得经过DS）。此时响应报文的<strong>源IP为RIP，目标IP为CIP</strong></li>
+<li>DS在将响应报文发送给Client前，会将源IP地址修改为自己的VIP地址，然后发送给Client。此时报文的<strong>源IP为VIP，目标IP为CIP</strong></li>
+</ol>
+<h4 id="3-3-LVS-x2F-TUN"><a href="#3-3-LVS-x2F-TUN" class="headerlink" title="3.3 LVS&#x2F;TUN"></a>3.3 LVS&#x2F;TUN</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_TUN.png" alt="LVS_TUN"></p>
+<blockquote>
+<p>通过IP隧道时，在原有的IP报文外再次封装多一层IP首部，内层IP首部（源为CIP，目的为VIP），外层IP首部（源为DIP，目的为RIP）</p>
+</blockquote>
+<ol>
+<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
+<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
+<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，将整个请求包作为数据封装到一个新的IP报文中，新的封装报文<strong>源IP为DIP，目的IP为RIP</strong>。然后将新报文发送到<code>POSTROUTING</code>调用链</li>
+<li><code>POSTROUTING</code>根据新封装报文的目的IP地址将报文路由到RS，此时新报文<strong>源IP为DIP，目的IP为RIP</strong></li>
+<li>RS接收到报文之后，拆除掉外层的IP首部，会发现里面还有一层IP首部，而且目标IP是自己的lo接口VIP。此时，RS处理请求，将响应报文通过lo接口送给eth0网卡(与外网相接)，然后将报文路由到Client。此时<strong>源IP为VIP，目的IP为CIP</strong></li>
+<li>响应报文最终路由到Client</li>
+</ol>
+<h4 id="3-3-LVS-x2F-DR"><a href="#3-3-LVS-x2F-DR" class="headerlink" title="3.3 LVS&#x2F;DR"></a>3.3 LVS&#x2F;DR</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_DR.png" alt="LVS_DR"></p>
+<blockquote>
+<p>DS与RS必须在同一个物理网络中</p>
+</blockquote>
+<ol>
+<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
+<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
+<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，则将请求报文中的<strong>源MAC地址修改为DIP的MAC地址，将目标MAC地址修改为RIP的MAC地址</strong>，然后将数据包发送至<code>POSTROUTING</code>调用链。此时的源IP和目的IP均未修改，仅修改了源MAC地址和目的MAC地址</li>
+<li>由于DS和RS在同一个网络中，所以是通过数据链路层来传输。<code>POSTROUTING</code>检查目标MAC地址为RIP的MAC地址，那么此时数据包将会通过交换机发送至RS（因为在同一个网段，所以不会发送到网关，而是发送到内部网络中）</li>
+<li>RS接收到报文之后，发现MAC地址为自己的MAC地址，接收此报文并转交给上层协议。处理完成后，响应报文通过lo接口的VIP传送给eth0网卡向外发出。此时，响应报文的<strong>源IP为VIP，目的IP为CIP</strong></li>
+<li>响应报文最终路由到Client</li>
+</ol>
+<blockquote>
+<p>其中第3、5步是最为关键的，三个问题：</p>
+<ul>
+<li>DS如何知道RS的MAC地址</li>
+<li>RS如何接收目标IP为VIP的报文</li>
+<li>如何保证RS在源IP为VIP的情况下，将响应报文发送至外网</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>第一个问题：DS如何知道RS的MAC地址？</p>
+<ul>
+<li>这个问题比较简单，因为DS必须要知道管理的RS的RIP地址，所以用ARP协议发送一个带有RIP的广播包。RS接收到这个广播包之后，打开并查看其中的IP是自己的RIP，就发送一个响应包，目的MAC地址是DS网卡接口的，而源MAC地址是RS网卡接口的。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>第二个问题：RS如何接收目标IP为VIP的报文</p>
+<ul>
+<li>要解决这个问题需要借助回环接口。在回环接口上配置VIP，在eth0上设置arp_ignore&#x3D;1。</li>
+<li>首先，RS通过请求报文中的目的MAC地址接收到报文后，会将其交给上层协议，即网络层，然后回判断目的IP地址是不是自己。正常情况下，这里的目的IP地址是VIP，但是我RS的网络接口地址是RIP，对不上，会不处理。</li>
+<li>于是需要配一个VIP地址到接口上。配到哪里呢？如果是配到eth0上，那在内部网络中使用ARP协议查找DS时，RS的eth0接口也会将自己的MAC地址返回，那不是发生IP冲突了？因此需要回环接口。<strong>回环接口是个逻辑接口，没有MAC地址，不会接收到ARP请求，因此也不会发送ARP响应，但是能够接收到IP数据报文</strong>。所以应该将VIP配置在回环接口上，但是有一个问题是，在默认arp_ignore&#x3D;0（代表回应任何网络接口上对任何本地IP地址的ARP查询请求）的情况下，eth0接口收到了对回环接口上的VIP地址的ARP请求，会将自己eth0接口的MAC地址响应出去，同样会发生IP冲突。所以需要将arg_ignore设置为1，即只响应目标IP地址为绑定在本接口的IP地址的ARP查询请求。如果有多张网卡，多张网卡都需要设置为1。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>第三个问题：如何保证RS在源IP为VIP的情况下，将响应报文发送至外网</p>
+<ul>
+<li>为什么会有这个问题呢？因为linux默认是使用IP报文的源IP作为ARP查询请求中的源IP地址，那么当RS发出ARP查询请求寻找能到达Client的网关MAC地址时，内部网络中的交换机会记录ARP查询请求中VIP地址和MAC地址作为以后转发接口使用，这样就会跟DS中配置的VIP网卡的MAC地址冲突了。</li>
+<li>咋办呢？配置eth0接口的arp_announce为2。arp_announce &#x3D; 0 (默认)表示在任意网络接口上的任何本地地址；arp_announce&#x3D; 2 表示对查询目标使用最适当的本地地址，此模式下将忽略这个IP数据包的源地址并尝试选择与能跟该地址通信的本地地址。优先选择所有网络接口的子网中外出访问子网中包含该目标 IP 地址的本地地址；如果没有合适的地址被发现，将选择当前的发送网络接口或其他的有可能接受到该 ARP 回应的网络接口来进行发送。</li>
+</ul>
+</blockquote>
+<h3 id="4-实战"><a href="#4-实战" class="headerlink" title="4. 实战"></a>4. 实战</h3><blockquote>
+<p>主要了解ipvsadm命令的使用，以及实际的路由规则</p>
+</blockquote>
+<h4 id="4-1-环境信息"><a href="#4-1-环境信息" class="headerlink" title="4.1 环境信息"></a>4.1 环境信息</h4><ul>
+<li>操作系统：Centos 7</li>
+<li>内核版本： 3.10.0-1160.el7.x86_64</li>
+<li>LVS工作模式：NAT</li>
+<li>网络信息</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>主机地址</th>
+<th>Director Server 01</th>
+<th>Real Server 01</th>
+<th>Real Server 02</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>IP</td>
+<td>172.23.118.10（内网IP）<br />192.23.118.13（VIP，对外访问）</td>
+<td>172.23.118.11（RIP）</td>
+<td>172.23.118.12（RIP）</td>
+</tr>
+<tr>
+<td>端口</td>
+<td>80</td>
+<td>80</td>
+<td>80</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>需要事先将RS的默认网关设置为DS的内网地址172.23.118.10</strong>（反正要保证RS对客户端的响应能够先到达DS）</p>
+<p>其实这里DS的内网IP和VIP可以设置成同一个，但是通常在生产环境中，为了对外提供LVS集群服务，需要一个外网IP作为VIP</p>
+<p>我这里把DS的VIP绑定在了另外一个网卡上</p>
+</blockquote>
+<h4 id="4-2-LVS安装"><a href="#4-2-LVS安装" class="headerlink" title="4.2 LVS安装"></a>4.2 LVS安装</h4><p>Linux内核2.4版本以上基本都支持LVS，即已经有了<code>ipvs</code>，所以要想使用LVS只需要再装一个LVS管理工具<code>ipvsadm</code>。</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">sudo yum install ipvsadm -y</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-3-Nginx安装"><a href="#4-3-Nginx安装" class="headerlink" title="4.3 Nginx安装"></a>4.3 Nginx安装</h4><p>安装nginx主要是为了方便测试请求被路由到那台服务器上</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">所有机器上执行</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装nginx</span></span><br><span class="line">sudo yum install nginx -y</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">启动nginx服务，默认80端口</span></span><br><span class="line">sudo servcie start nginx</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在DS上执行</span></span><br><span class="line">echo &#x27;DS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS01上执行</span></span><br><span class="line">echo &#x27;RS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS02上执行</span></span><br><span class="line">echo &#x27;RS02&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-4-关闭linux防火墙"><a href="#4-4-关闭linux防火墙" class="headerlink" title="4.4 关闭linux防火墙"></a>4.4 关闭linux防火墙</h4><p>不然无法从DS访问到RS的80端口。在生产环境下，通常只放开需要的端口。</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">关闭linux防火墙</span></span><br><span class="line">sudo systemctl stop firewalld</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-5-配置LVS"><a href="#4-5-配置LVS" class="headerlink" title="4.5 配置LVS"></a>4.5 配置LVS</h4><p>开始设置LVS集群</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">ipvsadm常用配置参数</span></span><br><span class="line">-A     添加虚拟服务VIP</span><br><span class="line">-D     删除虚拟服务VIP</span><br><span class="line">-L     查看虚拟服务VIP</span><br><span class="line">-C     清除所有虚拟服务VIP</span><br><span class="line"></span><br><span class="line">-t     指定虚拟服务及端口 VIP:Port</span><br><span class="line">-r     指定真实服务及端口 RS:Port </span><br><span class="line">-s     指定算法，rr（轮询）、wrr（加权轮询）、lc（最少连接）、sh（源地址散列）、dh(目标地址散列) 等等</span><br><span class="line">-w     指定权重</span><br><span class="line">-m     指定转发模式为NAT</span><br><span class="line">-g     指定转发模式为DR</span><br><span class="line">-i     指定转发模式为IP隧道</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在DS01上执行</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">开启IP数据包转发功能</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">以下命令只是暂时开启转发，重启后会失效</span></span><br><span class="line">echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">清除先前所有的ipvs配置信息</span></span><br><span class="line">sudo ipvsadm -C</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">添加一个LVS集群并且指定调度算法</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-A:添加集群 -t:VIP和端口 -s:调度算法</span></span><br><span class="line">sudo ipvsadm -A -t 192.23.118.13:80 -s rr</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">向LVS集群中添加真实服务器</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-a:添加真实服务器 -t:VIP和端口 -r:RIP和端口 -m:NAT模式 -w:转发权重</span></span><br><span class="line">sudo ipvsadm -a -t 192.23.118.13:80 -r 172.23.118.11:80 -m -w 1</span><br><span class="line">sudo ipvsadm -a -t 192.23.118.13:80 -r 172.23.118.12:80 -m -w 1</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">可以查看路由信息</span></span><br><span class="line">sudo watch ipvsadm -L -n -c</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-6-结果"><a href="#4-6-结果" class="headerlink" title="4.6 结果"></a>4.6 结果</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看LVS集群信息</span></span><br><span class="line">[junhao@localhost ~]$ sudo ipvsadm --list</span><br><span class="line">IP Virtual Server version 1.2.1 (size=4096)</span><br><span class="line">Prot LocalAddress:Port Scheduler Flags</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">RemoteAddress:Port           Forward Weight ActiveConn InActConn</span></span><br><span class="line">TCP  192.23.118.13:http rr</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.23.118.11:http           Masq    1      0          0</span>         </span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.23.118.12:http           Masq    1      0          0</span> </span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">访问LVS集群VIP</span></span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS01</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS01</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-7-操作过程中的一些问题"><a href="#4-7-操作过程中的一些问题" class="headerlink" title="4.7 操作过程中的一些问题"></a>4.7 操作过程中的一些问题</h4><ul>
+<li>在RS中会无法访问VIP（即内网中无法访问VIP）</li>
+</ul>
+<p>其实问题的本质跟着请求的源地址和目的地址走一遍就知道了，在RS1中发出请求（RIP1，VIP）。请求是能够到达DS的，LVS进行负载均衡后请求变为（RIP1，RIP），<strong>注意这里LVS只改变了目标地址，不改变源地址</strong>，请求被分配到随便一台真实服务器，RS1、RS2都可以。然后真实服务器接收到请求，处理之后根据源地址RIP1发出响应，<strong>注意这里因为RS1和RS2都在一个网段，所以响应发出后不会经过网关，即DS，而是在内网中发到RS1</strong>。然后没经过DS处理的响应（RIP，RIP1）就回到RS1中，然后<strong>RS1发现响应的源地址和目标地址与自己发出的请求（RIP1，VIP）不一致，就会把这个响应丢弃，而期望的响应是（VIP，RIP1）</strong>。所以在RS1中就无法访问VIP。</p>
+<ul>
+<li>IP转发的配置好像没用</li>
+</ul>
+<p>在实际操作过程中，试着把ip_forward设置成0再curl，但是也能通，没啥问题，这是因为把VIP绑定在了网卡上，所以肯定是能接收到的。然后试着把VIP解绑，即不绑定在任何网卡上，但是这个时候网络就不通了，即使ip_forward设置成1也不行，不清楚原因。</p>
+]]></content>
+      <categories>
+        <category>计算机网络</category>
+      </categories>
+      <tags>
+        <tag>LVS</tag>
       </tags>
   </entry>
   <entry>
@@ -1819,273 +2137,34 @@
       </tags>
   </entry>
   <entry>
-    <title>LVS负载均衡实战</title>
-    <url>/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/</url>
-    <content><![CDATA[<h3 id="1-前言"><a href="#1-前言" class="headerlink" title="1. 前言"></a>1. 前言</h3><p>LVS的作用就是用作<strong>四层</strong>的<strong>负载均衡</strong>，四层是指<code>TCP/IP</code>七层协议中的传输层。目的是请求按一定的<strong>调度策略</strong>把用户的请求分发到多台后端设备上。区别于nginx，nginx是七层的负载均衡，能够看到http协议，而LVS只能看到四层的协议，即TCP协议等，所以无法通过Http cookie处理session。</p>
-<h3 id="2-简介"><a href="#2-简介" class="headerlink" title="2. 简介"></a>2. 简介</h3><p><a href="http://www.linuxvirtualserver.org/">LVS（Linux Virtual Server）</a>即Linux虚拟服务器，由章文嵩博士开发并已贡献给开源社区，用于构建高性能、高可用的Linux服务器集群，具有良好的可靠性、可扩展性和可操作性。</p>
-<blockquote>
-<p>LVS的高可用需要结合Keepalived，不然的话其实只有一个前端负载均衡节点负责着绑定到LVS上的IP流量，所以当这个前端负载均衡节点挂了之后，IP流量就无法分发到后端真实工作服务器上。Keepalived的作用就是保证前端负载均衡节点的高可用。</p>
-</blockquote>
-<h4 id="2-1-LVS的组成"><a href="#2-1-LVS的组成" class="headerlink" title="2.1 LVS的组成"></a>2.1 LVS的组成</h4><p>LVS主要由<code>ipvs</code>和<code>ipvsadm</code>两部分组成。</p>
-<ol>
-<li><code>ipvs(ip virtual server)</code>是工作在Linux内核态的四层负载均衡，是真正实现调度的程序，基于内核底层<code>netfilter</code>实现，通过<code>netfilter</code>的处理链上的钩子实现包的处理和转发。</li>
-<li><code>ipvsadm</code>工作在用户空间，负责与ipvs之间的交互，为ipvs框架编写规则，定义谁是前端负载均衡节点，谁是后端的真实服务器</li>
-</ol>
-<h4 id="2-2-LVS的三种工作模式"><a href="#2-2-LVS的三种工作模式" class="headerlink" title="2.2 LVS的三种工作模式"></a>2.2 LVS的三种工作模式</h4><ul>
-<li><p>VS&#x2F;NAT（Virtual Server via Network Address Translation）</p>
-<ul>
-<li>通过网络地址转换NAT实现</li>
-<li>调度器重写请求报文的目标地址，将请求分派到后端的真实服务器</li>
-<li>真实服务器将响应报文交给调度器，响应报文的源地址被重写，再转发给客户</li>
-<li>请求和响应都经过调度器</li>
+    <title>MySQL储存过程游标使用踩坑（NOT FOUND）</title>
+    <url>/2022/08/30/MySQL%E5%82%A8%E5%AD%98%E8%BF%87%E7%A8%8B%E6%B8%B8%E6%A0%87%E4%BD%BF%E7%94%A8%E8%B8%A9%E5%9D%91%EF%BC%88NOT-FOUND%EF%BC%89/</url>
+    <content><![CDATA[<h3 id="1-具体问题"><a href="#1-具体问题" class="headerlink" title="1. 具体问题"></a>1. 具体问题</h3><p>在使用游标的过程中，通常都会使用未找到（NOT FOUND或者SQLSTATE ‘02000’）的条件来标识游标的结束。</p>
+<p>即定义一个变量finished初始化为FALSE，并且定义一个事件处理程序处理NOT FOUND异常（FETCH时，游标已经达到末尾）将变量finished设置为TRUE，并通过检查变量finished来结束循环。</p>
+<h3 id="2-问题原因"><a href="#2-问题原因" class="headerlink" title="2. 问题原因"></a>2. 问题原因</h3><p>坑就在这个NOT FOUNT异常，作用范围是整个储存过程。当FETCH获取下一行数据为空时，会抛出NOT FOUND异常。但是！但是！当使用普通的SELECT语句时，查询为空也会抛出NOT FOUND异常，就会触发设定好的NOT FOUND异常处理程序，所以如果遍历游标的循环体内如果存在查询为空，会导致循环提前退出。</p>
+<h3 id="3-复现"><a href="#3-复现" class="headerlink" title="3. 复现"></a>3. 复现</h3><h4 id="3-1-相关的表"><a href="#3-1-相关的表" class="headerlink" title="3.1 相关的表"></a>3.1 相关的表</h4><ul>
+<li>inst（inst_id, tenant_id, user_id）</li>
+<li>data_resource(resource_id, inst_id)</li>
 </ul>
-</li>
-<li><p>VS&#x2F;TUN（Virtual Server via IP Tunneling）</p>
-<ul>
-<li>通过IP隧道实现</li>
-<li>请求报文到达调度器之后，通过IP隧道转发到后端真实服务器</li>
-<li>真实服务器将响应报文直接返回给客户</li>
-<li>调度器只处理请求报文</li>
-</ul>
-</li>
-<li><p>VS&#x2F;DR（Virtual Server via Direct Routing）</p>
-<ul>
-<li>通过改写请求报文的MCA地址实现</li>
-<li>请求报文到达调度器之后，改写报文的MAC地址，发送到后端真实服务器</li>
-<li>真实服务器将响应报文直接返回给客户</li>
-<li>调度器只处理请求报文</li>
-</ul>
-</li>
-</ul>
-<h5 id="2-2-1-三种模式的主要区别"><a href="#2-2-1-三种模式的主要区别" class="headerlink" title="2.2.1 三种模式的主要区别"></a>2.2.1 三种模式的主要区别</h5><table>
-<thead>
-<tr>
-<th>模式与特点</th>
-<th>NAT模式</th>
-<th>TUN模式</th>
-<th>DR模式</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>服务器要求</td>
-<td>服务器节点可以使用任何操作系统</td>
-<td>必须支持IP隧道</td>
-<td>服务器节点支持虚拟网卡设备，能够禁用设备的ARP响应</td>
-</tr>
-<tr>
-<td>网络要求</td>
-<td>拥有私有IP地址的局域网络</td>
-<td>拥有合法IP地址的局域网或广域网</td>
-<td>拥有合法IP地址的局域网，服务器节点与调度器必须在同一个网段</td>
-</tr>
-<tr>
-<td>支持节点数</td>
-<td>10到20个，根据调度器的处理能力而定</td>
-<td>较高，可以支持100个服务节点</td>
-<td>较高，可以支持100个服务节点</td>
-</tr>
-<tr>
-<td>网关</td>
-<td>调度器为服务器节点网关</td>
-<td>服务器节点同自己的网关或者路由器连接，不经过负载均衡器</td>
-<td>服务器节点同自己的网关或者路由器连接，不经过负载均衡器</td>
-</tr>
-<tr>
-<td>IP要求</td>
-<td>仅需要一个合法的IP地址作为调度器的VIP地址</td>
-<td>除了VIP地址外，每个服务器需要有能够路由到客户端的IP地址</td>
-<td>除了VIP地址外，每个服务器需要有能够路由到客户端的IP地址</td>
-</tr>
-<tr>
-<td>特点</td>
-<td>地址转换</td>
-<td>封装IP</td>
-<td>修改MAC地址</td>
-</tr>
-</tbody></table>
-<h4 id="2-3-调度算法"><a href="#2-3-调度算法" class="headerlink" title="2.3 调度算法"></a>2.3 调度算法</h4><blockquote>
-<p>只做简单介绍，其中缩写英文用于在ipvsadm命令中指定集群调度算法</p>
-</blockquote>
-<ul>
-<li>轮询算法 <code>rr</code>（Round Robin）</li>
-<li>加权轮询算法 <code>wrr</code> （Weighted Round Robin）</li>
-<li>源地址哈希算法 <code>sh</code> （Source Hashing）</li>
-<li>目标地址哈希算法 <code>dh</code> （Destination Hashing）</li>
-<li>最少连接算法 <code>lc</code> （Least Connections）</li>
-<li>加权最少连接算法 <code>wlc</code> （Weighted Least Connection）</li>
-<li>最短期望延迟算法 <code>sed</code> （Shortest Expected Delay Scheduling）</li>
-<li>最少队列算法 <code>nq</code> （Never Queue Scheduling）</li>
-<li>基于局部的最少连接算法 <code>lblc</code> （Locality-Based Least Connections）</li>
-<li>带复制的基于局部的最少连接算法 <code>lblcr</code> （Locality-Based Least Connections with Replication）</li>
-<li>FO算法 <code>fo</code> （Weighted Fail Over）</li>
-<li>OVF算法 <code>ovf</code> （Overflow-connection）</li>
-</ul>
-<h3 id="3-工作原理"><a href="#3-工作原理" class="headerlink" title="3. 工作原理"></a>3. 工作原理</h3><blockquote>
-<p>重点理解报文包源和目的IP地址、源和目的MAC地址的变化</p>
-</blockquote>
-<h4 id="3-1-别称约定"><a href="#3-1-别称约定" class="headerlink" title="3.1 别称约定"></a>3.1 别称约定</h4><ul>
-<li>服务器<ul>
-<li>DS (Director Server)，指的是前端负载均衡器节点，即调度器</li>
-<li>RS (Real Server)，后端真实的工作服务器</li>
-</ul>
-</li>
-<li>IP地址<ul>
-<li>CIP (Client IP)，访问客户端的 IP 地址</li>
-<li>VIP (Virtual IP)，虚拟的 IP 地址，向外部直接面向用户请求，作为用户请求的目标的 IP 地址</li>
-<li>DIP (Director IP)，主要用于和内部主机通讯的 IP 地址</li>
-<li>RIP (Real Server IP)，后端服务器的 IP 地址</li>
-</ul>
-</li>
-<li>netfilter的五个阶段<ul>
-<li>PREROUTING</li>
-<li>INPUT</li>
-<li>OUTPUT</li>
-<li>FORWARD</li>
-<li>POSTROUTING</li>
-</ul>
-</li>
-</ul>
-<h4 id="3-2-LVS-x2F-NAT和FULLNAT"><a href="#3-2-LVS-x2F-NAT和FULLNAT" class="headerlink" title="3.2 LVS&#x2F;NAT和FULLNAT"></a>3.2 LVS&#x2F;NAT和FULLNAT</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_NAT.png" alt="LVS_NAT"></p>
-<blockquote>
-<p>还有一种工作模式是LVS&#x2F;FULLNAT。在DS将请求报文转发给RS时（即第三步），LVS&#x2F;NAT模式只修改目标IP为RIP，而LVS&#x2F;FULLNAT则同时将CIP和VIP分别修改为DIP和RIP。NAT模式DS和RS都需要在同一个子网（因为RS的网关为DS），FULLNAT模式DS和RS只要能通信可以不在同一个子网。</p>
-</blockquote>
-<ol>
-<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
-<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
-<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，则修改数据包的目标IP地址为RS的RIP地址，然后将数据包发送至<code>POSTROUTING</code>调用链。此时，请求报文的<strong>源IP为CIP，目标IP为RIP</strong></li>
-<li><code>POSTROUTING</code>链通过路由，将数据包发送给RS</li>
-<li>RS接收到请求报文，开始构建响应报文返回给DS（因为DS是RS的网关，所以一定得经过DS）。此时响应报文的<strong>源IP为RIP，目标IP为CIP</strong></li>
-<li>DS在将响应报文发送给Client前，会将源IP地址修改为自己的VIP地址，然后发送给Client。此时报文的<strong>源IP为VIP，目标IP为CIP</strong></li>
-</ol>
-<h4 id="3-3-LVS-x2F-TUN"><a href="#3-3-LVS-x2F-TUN" class="headerlink" title="3.3 LVS&#x2F;TUN"></a>3.3 LVS&#x2F;TUN</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_TUN.png" alt="LVS_TUN"></p>
-<blockquote>
-<p>通过IP隧道时，在原有的IP报文外再次封装多一层IP首部，内层IP首部（源为CIP，目的为VIP），外层IP首部（源为DIP，目的为RIP）</p>
-</blockquote>
-<ol>
-<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
-<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
-<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，将整个请求包作为数据封装到一个新的IP报文中，新的封装报文<strong>源IP为DIP，目的IP为RIP</strong>。然后将新报文发送到<code>POSTROUTING</code>调用链</li>
-<li><code>POSTROUTING</code>根据新封装报文的目的IP地址将报文路由到RS，此时新报文<strong>源IP为DIP，目的IP为RIP</strong></li>
-<li>RS接收到报文之后，拆除掉外层的IP首部，会发现里面还有一层IP首部，而且目标IP是自己的lo接口VIP。此时，RS处理请求，将响应报文通过lo接口送给eth0网卡(与外网相接)，然后将报文路由到Client。此时<strong>源IP为VIP，目的IP为CIP</strong></li>
-<li>响应报文最终路由到Client</li>
-</ol>
-<h4 id="3-3-LVS-x2F-DR"><a href="#3-3-LVS-x2F-DR" class="headerlink" title="3.3 LVS&#x2F;DR"></a>3.3 LVS&#x2F;DR</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_DR.png" alt="LVS_DR"></p>
-<blockquote>
-<p>DS与RS必须在同一个物理网络中</p>
-</blockquote>
-<ol>
-<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
-<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
-<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，则将请求报文中的<strong>源MAC地址修改为DIP的MAC地址，将目标MAC地址修改为RIP的MAC地址</strong>，然后将数据包发送至<code>POSTROUTING</code>调用链。此时的源IP和目的IP均未修改，仅修改了源MAC地址和目的MAC地址</li>
-<li>由于DS和RS在同一个网络中，所以是通过数据链路层来传输。<code>POSTROUTING</code>检查目标MAC地址为RIP的MAC地址，那么此时数据包将会通过交换机发送至RS（因为在同一个网段，所以不会发送到网关，而是发送到内部网络中）</li>
-<li>RS接收到报文之后，发现MAC地址为自己的MAC地址，接收此报文并转交给上层协议。处理完成后，响应报文通过lo接口的VIP传送给eth0网卡向外发出。此时，响应报文的<strong>源IP为VIP，目的IP为CIP</strong></li>
-<li>响应报文最终路由到Client</li>
-</ol>
-<blockquote>
-<p>其中第3、5步是最为关键的，三个问题：</p>
-<ul>
-<li>DS如何知道RS的MAC地址</li>
-<li>RS如何接收目标IP为VIP的报文</li>
-<li>如何保证RS在源IP为VIP的情况下，将响应报文发送至外网</li>
-</ul>
-</blockquote>
-<blockquote>
-<p>第一个问题：DS如何知道RS的MAC地址？</p>
-<ul>
-<li>这个问题比较简单，因为DS必须要知道管理的RS的RIP地址，所以用ARP协议发送一个带有RIP的广播包。RS接收到这个广播包之后，打开并查看其中的IP是自己的RIP，就发送一个响应包，目的MAC地址是DS网卡接口的，而源MAC地址是RS网卡接口的。</li>
-</ul>
-</blockquote>
-<blockquote>
-<p>第二个问题：RS如何接收目标IP为VIP的报文</p>
-<ul>
-<li>要解决这个问题需要借助回环接口。在回环接口上配置VIP，在eth0上设置arp_ignore&#x3D;1。</li>
-<li>首先，RS通过请求报文中的目的MAC地址接收到报文后，会将其交给上层协议，即网络层，然后回判断目的IP地址是不是自己。正常情况下，这里的目的IP地址是VIP，但是我RS的网络接口地址是RIP，对不上，会不处理。</li>
-<li>于是需要配一个VIP地址到接口上。配到哪里呢？如果是配到eth0上，那在内部网络中使用ARP协议查找DS时，RS的eth0接口也会将自己的MAC地址返回，那不是发生IP冲突了？因此需要回环接口。<strong>回环接口是个逻辑接口，没有MAC地址，不会接收到ARP请求，因此也不会发送ARP响应，但是能够接收到IP数据报文</strong>。所以应该将VIP配置在回环接口上，但是有一个问题是，在默认arp_ignore&#x3D;0（代表回应任何网络接口上对任何本地IP地址的ARP查询请求）的情况下，eth0接口收到了对回环接口上的VIP地址的ARP请求，会将自己eth0接口的MAC地址响应出去，同样会发生IP冲突。所以需要将arg_ignore设置为1，即只响应目标IP地址为绑定在本接口的IP地址的ARP查询请求。如果有多张网卡，多张网卡都需要设置为1。</li>
-</ul>
-</blockquote>
-<blockquote>
-<p>第三个问题：如何保证RS在源IP为VIP的情况下，将响应报文发送至外网</p>
-<ul>
-<li>为什么会有这个问题呢？因为linux默认是使用IP报文的源IP作为ARP查询请求中的源IP地址，那么当RS发出ARP查询请求寻找能到达Client的网关MAC地址时，内部网络中的交换机会记录ARP查询请求中VIP地址和MAC地址作为以后转发接口使用，这样就会跟DS中配置的VIP网卡的MAC地址冲突了。</li>
-<li>咋办呢？配置eth0接口的arp_announce为2。arp_announce &#x3D; 0 (默认)表示在任意网络接口上的任何本地地址；arp_announce&#x3D; 2 表示对查询目标使用最适当的本地地址，此模式下将忽略这个IP数据包的源地址并尝试选择与能跟该地址通信的本地地址。优先选择所有网络接口的子网中外出访问子网中包含该目标 IP 地址的本地地址；如果没有合适的地址被发现，将选择当前的发送网络接口或其他的有可能接受到该 ARP 回应的网络接口来进行发送。</li>
-</ul>
-</blockquote>
-<h3 id="4-实战"><a href="#4-实战" class="headerlink" title="4. 实战"></a>4. 实战</h3><blockquote>
-<p>主要了解ipvsadm命令的使用，以及实际的路由规则</p>
-</blockquote>
-<h4 id="4-1-环境信息"><a href="#4-1-环境信息" class="headerlink" title="4.1 环境信息"></a>4.1 环境信息</h4><ul>
-<li>操作系统：Centos 7</li>
-<li>内核版本： 3.10.0-1160.el7.x86_64</li>
-<li>LVS工作模式：NAT</li>
-<li>网络信息</li>
-</ul>
-<table>
-<thead>
-<tr>
-<th>主机地址</th>
-<th>Director Server 01</th>
-<th>Real Server 01</th>
-<th>Real Server 02</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>IP</td>
-<td>172.23.118.10（内网IP）<br />192.23.118.13（VIP，对外访问）</td>
-<td>172.23.118.11（RIP）</td>
-<td>172.23.118.12（RIP）</td>
-</tr>
-<tr>
-<td>端口</td>
-<td>80</td>
-<td>80</td>
-<td>80</td>
-</tr>
-</tbody></table>
-<blockquote>
-<p><strong>需要事先将RS的默认网关设置为DS的内网地址172.23.118.10</strong>（反正要保证RS对客户端的响应能够先到达DS）</p>
-<p>其实这里DS的内网IP和VIP可以设置成同一个，但是通常在生产环境中，为了对外提供LVS集群服务，需要一个外网IP作为VIP</p>
-<p>我这里把DS的VIP绑定在了另外一个网卡上</p>
-</blockquote>
-<h4 id="4-2-LVS安装"><a href="#4-2-LVS安装" class="headerlink" title="4.2 LVS安装"></a>4.2 LVS安装</h4><p>Linux内核2.4版本以上基本都支持LVS，即已经有了<code>ipvs</code>，所以要想使用LVS只需要再装一个LVS管理工具<code>ipvsadm</code>。</p>
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">sudo yum install ipvsadm -y</span><br></pre></td></tr></table></figure>
+<h4 id="3-2-错误示例"><a href="#3-2-错误示例" class="headerlink" title="3.2 错误示例"></a>3.2 错误示例</h4><p>这里在游标循环里面使用inst_id查询了关联表data_resource，但是当data_resource表中没有这条数据的时候就会出现NOT FOUND异常，将finished设置为TRUE，提前结束游标循环。如，本来是要显示inst_id为1、2、3这三行，但是当inst_id&#x3D;2时，data_resource表查询为空，就只显示inst_id为1这一行。</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">    DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">    DECLARE v_tenant_id BIGINT;</span><br><span class="line">    DECLARE v_user_id BIGINT;</span><br><span class="line">    DECLARE v_resource_id BIGINT;</span><br><span class="line">    -- 定义游标循环结束条件</span><br><span class="line">    DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">    -- 定义游标</span><br><span class="line">    DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">    -- 定义NOT FOUND结束处理程序</span><br><span class="line">    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">    </span><br><span class="line">    -- 开始使用游标</span><br><span class="line">    OPEN my_cursor;</span><br><span class="line">        foreach_inst: LOOP</span><br><span class="line">        FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 判断游标是否已经达到末尾</span><br><span class="line">            IF finished = TRUE THEN</span><br><span class="line">                LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">            END IF;</span><br><span class="line">            -- 显示当前行</span><br><span class="line">            SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 问题行！！！！</span><br><span class="line">            SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">            -- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">        -- 回到标签foreach_inst</span><br><span class="line">        END LOOP foreach_inst;</span><br><span class="line">    -- 关闭游标</span><br><span class="line">    CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
 
 
 
-<h4 id="4-3-Nginx安装"><a href="#4-3-Nginx安装" class="headerlink" title="4.3 Nginx安装"></a>4.3 Nginx安装</h4><p>安装nginx主要是为了方便测试请求被路由到那台服务器上</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">所有机器上执行</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装nginx</span></span><br><span class="line">sudo yum install nginx -y</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">启动nginx服务，默认80端口</span></span><br><span class="line">sudo servcie start nginx</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在DS上执行</span></span><br><span class="line">echo &#x27;DS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS01上执行</span></span><br><span class="line">echo &#x27;RS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS02上执行</span></span><br><span class="line">echo &#x27;RS02&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br></pre></td></tr></table></figure>
+<h4 id="3-3-正确示例"><a href="#3-3-正确示例" class="headerlink" title="3.3 正确示例"></a>3.3 正确示例</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">    DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">    DECLARE v_tenant_id BIGINT;</span><br><span class="line">    DECLARE v_user_id BIGINT;</span><br><span class="line">    DECLARE v_resource_id BIGINT;</span><br><span class="line">    -- 定义游标循环结束条件</span><br><span class="line">    DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">    -- 定义游标</span><br><span class="line">    DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">    -- 定义NOT FOUND结束处理程序</span><br><span class="line">    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">    </span><br><span class="line">    -- 开始使用游标</span><br><span class="line">    OPEN my_cursor;</span><br><span class="line">        foreach_inst: LOOP</span><br><span class="line">        FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 判断游标是否已经达到末尾</span><br><span class="line">            IF finished = TRUE THEN</span><br><span class="line">                LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">            END IF;</span><br><span class="line">            -- 显示当前行</span><br><span class="line">            SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 问题行！！！！</span><br><span class="line">            -- SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">            SET v_resource_id = (SELECT resource_id FROM data_resource WHERE inst_id = v_inst_id);</span><br><span class="line">            -- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">        -- 回到标签foreach_inst</span><br><span class="line">        END LOOP foreach_inst;</span><br><span class="line">    -- 关闭游标</span><br><span class="line">    CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
 
 
 
-<h4 id="4-4-关闭linux防火墙"><a href="#4-4-关闭linux防火墙" class="headerlink" title="4.4 关闭linux防火墙"></a>4.4 关闭linux防火墙</h4><p>不然无法从DS访问到RS的80端口。在生产环境下，通常只放开需要的端口。</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">关闭linux防火墙</span></span><br><span class="line">sudo systemctl stop firewalld</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-5-配置LVS"><a href="#4-5-配置LVS" class="headerlink" title="4.5 配置LVS"></a>4.5 配置LVS</h4><p>开始设置LVS集群</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">ipvsadm常用配置参数</span></span><br><span class="line">-A     添加虚拟服务VIP</span><br><span class="line">-D     删除虚拟服务VIP</span><br><span class="line">-L     查看虚拟服务VIP</span><br><span class="line">-C     清除所有虚拟服务VIP</span><br><span class="line"></span><br><span class="line">-t     指定虚拟服务及端口 VIP:Port</span><br><span class="line">-r     指定真实服务及端口 RS:Port </span><br><span class="line">-s     指定算法，rr（轮询）、wrr（加权轮询）、lc（最少连接）、sh（源地址散列）、dh(目标地址散列) 等等</span><br><span class="line">-w     指定权重</span><br><span class="line">-m     指定转发模式为NAT</span><br><span class="line">-g     指定转发模式为DR</span><br><span class="line">-i     指定转发模式为IP隧道</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在DS01上执行</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">开启IP数据包转发功能</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">以下命令只是暂时开启转发，重启后会失效</span></span><br><span class="line">echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">清除先前所有的ipvs配置信息</span></span><br><span class="line">sudo ipvsadm -C</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">添加一个LVS集群并且指定调度算法</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-A:添加集群 -t:VIP和端口 -s:调度算法</span></span><br><span class="line">sudo ipvsadm -A -t 192.23.118.13:80 -s rr</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">向LVS集群中添加真实服务器</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-a:添加真实服务器 -t:VIP和端口 -r:RIP和端口 -m:NAT模式 -w:转发权重</span></span><br><span class="line">sudo ipvsadm -a -t 192.23.118.13:80 -r 172.23.118.11:80 -m -w 1</span><br><span class="line">sudo ipvsadm -a -t 192.23.118.13:80 -r 172.23.118.12:80 -m -w 1</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">可以查看路由信息</span></span><br><span class="line">sudo watch ipvsadm -L -n -c</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-6-结果"><a href="#4-6-结果" class="headerlink" title="4.6 结果"></a>4.6 结果</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看LVS集群信息</span></span><br><span class="line">[junhao@localhost ~]$ sudo ipvsadm --list</span><br><span class="line">IP Virtual Server version 1.2.1 (size=4096)</span><br><span class="line">Prot LocalAddress:Port Scheduler Flags</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">RemoteAddress:Port           Forward Weight ActiveConn InActConn</span></span><br><span class="line">TCP  192.23.118.13:http rr</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.23.118.11:http           Masq    1      0          0</span>         </span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.23.118.12:http           Masq    1      0          0</span> </span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">访问LVS集群VIP</span></span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS01</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS01</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-7-操作过程中的一些问题"><a href="#4-7-操作过程中的一些问题" class="headerlink" title="4.7 操作过程中的一些问题"></a>4.7 操作过程中的一些问题</h4><ul>
-<li>在RS中会无法访问VIP（即内网中无法访问VIP）</li>
+<h3 id="4-解决办法"><a href="#4-解决办法" class="headerlink" title="4. 解决办法"></a>4. 解决办法</h3><ul>
+<li>保证循环中的查询不会出现 NOT FOUND 异常</li>
+<li>使用<code>SET variable = (SELECT cloumn FROM table);</code> 来设置变量，替代<code>SELECT cloumn INTO variable FROM table;</code> 的方式</li>
 </ul>
-<p>其实问题的本质跟着请求的源地址和目的地址走一遍就知道了，在RS1中发出请求（RIP1，VIP）。请求是能够到达DS的，LVS进行负载均衡后请求变为（RIP1，RIP），<strong>注意这里LVS只改变了目标地址，不改变源地址</strong>，请求被分配到随便一台真实服务器，RS1、RS2都可以。然后真实服务器接收到请求，处理之后根据源地址RIP1发出响应，<strong>注意这里因为RS1和RS2都在一个网段，所以响应发出后不会经过网关，即DS，而是在内网中发到RS1</strong>。然后没经过DS处理的响应（RIP，RIP1）就回到RS1中，然后<strong>RS1发现响应的源地址和目标地址与自己发出的请求（RIP1，VIP）不一致，就会把这个响应丢弃，而期望的响应是（VIP，RIP1）</strong>。所以在RS1中就无法访问VIP。</p>
-<ul>
-<li>IP转发的配置好像没用</li>
-</ul>
-<p>在实际操作过程中，试着把ip_forward设置成0再curl，但是也能通，没啥问题，这是因为把VIP绑定在了网卡上，所以肯定是能接收到的。然后试着把VIP解绑，即不绑定在任何网卡上，但是这个时候网络就不通了，即使ip_forward设置成1也不行，不清楚原因。</p>
 ]]></content>
       <categories>
-        <category>计算机网络</category>
+        <category>日常踩坑</category>
       </categories>
       <tags>
-        <tag>LVS</tag>
+        <tag>MySQL</tag>
       </tags>
   </entry>
   <entry>
@@ -2163,37 +2242,6 @@
       </categories>
       <tags>
         <tag>Linux</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>MySQL储存过程游标使用踩坑（NOT FOUND）</title>
-    <url>/2022/08/30/MySQL%E5%82%A8%E5%AD%98%E8%BF%87%E7%A8%8B%E6%B8%B8%E6%A0%87%E4%BD%BF%E7%94%A8%E8%B8%A9%E5%9D%91%EF%BC%88NOT-FOUND%EF%BC%89/</url>
-    <content><![CDATA[<h3 id="1-具体问题"><a href="#1-具体问题" class="headerlink" title="1. 具体问题"></a>1. 具体问题</h3><p>在使用游标的过程中，通常都会使用未找到（NOT FOUND或者SQLSTATE ‘02000’）的条件来标识游标的结束。</p>
-<p>即定义一个变量finished初始化为FALSE，并且定义一个事件处理程序处理NOT FOUND异常（FETCH时，游标已经达到末尾）将变量finished设置为TRUE，并通过检查变量finished来结束循环。</p>
-<h3 id="2-问题原因"><a href="#2-问题原因" class="headerlink" title="2. 问题原因"></a>2. 问题原因</h3><p>坑就在这个NOT FOUNT异常，作用范围是整个储存过程。当FETCH获取下一行数据为空时，会抛出NOT FOUND异常。但是！但是！当使用普通的SELECT语句时，查询为空也会抛出NOT FOUND异常，就会触发设定好的NOT FOUND异常处理程序，所以如果遍历游标的循环体内如果存在查询为空，会导致循环提前退出。</p>
-<h3 id="3-复现"><a href="#3-复现" class="headerlink" title="3. 复现"></a>3. 复现</h3><h4 id="3-1-相关的表"><a href="#3-1-相关的表" class="headerlink" title="3.1 相关的表"></a>3.1 相关的表</h4><ul>
-<li>inst（inst_id, tenant_id, user_id）</li>
-<li>data_resource(resource_id, inst_id)</li>
-</ul>
-<h4 id="3-2-错误示例"><a href="#3-2-错误示例" class="headerlink" title="3.2 错误示例"></a>3.2 错误示例</h4><p>这里在游标循环里面使用inst_id查询了关联表data_resource，但是当data_resource表中没有这条数据的时候就会出现NOT FOUND异常，将finished设置为TRUE，提前结束游标循环。如，本来是要显示inst_id为1、2、3这三行，但是当inst_id&#x3D;2时，data_resource表查询为空，就只显示inst_id为1这一行。</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">    DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">    DECLARE v_tenant_id BIGINT;</span><br><span class="line">    DECLARE v_user_id BIGINT;</span><br><span class="line">    DECLARE v_resource_id BIGINT;</span><br><span class="line">    -- 定义游标循环结束条件</span><br><span class="line">    DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">    -- 定义游标</span><br><span class="line">    DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">    -- 定义NOT FOUND结束处理程序</span><br><span class="line">    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">    </span><br><span class="line">    -- 开始使用游标</span><br><span class="line">    OPEN my_cursor;</span><br><span class="line">        foreach_inst: LOOP</span><br><span class="line">        FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 判断游标是否已经达到末尾</span><br><span class="line">            IF finished = TRUE THEN</span><br><span class="line">                LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">            END IF;</span><br><span class="line">            -- 显示当前行</span><br><span class="line">            SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 问题行！！！！</span><br><span class="line">            SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">            -- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">        -- 回到标签foreach_inst</span><br><span class="line">        END LOOP foreach_inst;</span><br><span class="line">    -- 关闭游标</span><br><span class="line">    CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="3-3-正确示例"><a href="#3-3-正确示例" class="headerlink" title="3.3 正确示例"></a>3.3 正确示例</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">    DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">    DECLARE v_tenant_id BIGINT;</span><br><span class="line">    DECLARE v_user_id BIGINT;</span><br><span class="line">    DECLARE v_resource_id BIGINT;</span><br><span class="line">    -- 定义游标循环结束条件</span><br><span class="line">    DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">    -- 定义游标</span><br><span class="line">    DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">    -- 定义NOT FOUND结束处理程序</span><br><span class="line">    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">    </span><br><span class="line">    -- 开始使用游标</span><br><span class="line">    OPEN my_cursor;</span><br><span class="line">        foreach_inst: LOOP</span><br><span class="line">        FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 判断游标是否已经达到末尾</span><br><span class="line">            IF finished = TRUE THEN</span><br><span class="line">                LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">            END IF;</span><br><span class="line">            -- 显示当前行</span><br><span class="line">            SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 问题行！！！！</span><br><span class="line">            -- SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">            SET v_resource_id = (SELECT resource_id FROM data_resource WHERE inst_id = v_inst_id);</span><br><span class="line">            -- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">        -- 回到标签foreach_inst</span><br><span class="line">        END LOOP foreach_inst;</span><br><span class="line">    -- 关闭游标</span><br><span class="line">    CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="4-解决办法"><a href="#4-解决办法" class="headerlink" title="4. 解决办法"></a>4. 解决办法</h3><ul>
-<li>保证循环中的查询不会出现 NOT FOUND 异常</li>
-<li>使用<code>SET variable = (SELECT cloumn FROM table);</code> 来设置变量，替代<code>SELECT cloumn INTO variable FROM table;</code> 的方式</li>
-</ul>
-]]></content>
-      <categories>
-        <category>日常踩坑</category>
-      </categories>
-      <tags>
-        <tag>MySQL</tag>
       </tags>
   </entry>
   <entry>
@@ -3013,7 +3061,7 @@
 <blockquote>
 <p>pip命令还有pip3，pip3指的是python3的pip。不确定pip安装的是python2还是python3模块的时候，可以使用pip3指定为python3的模块，或者使用<code>python -m pip list</code>根据使用的python指定pip版本</p>
 </blockquote>
-<h4 id="3-1-安装模块"><a href="#3-1-安装模块" class="headerlink" title="3.1 安装模块"></a>3.1 安装模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">pip install module</span><br><span class="line">pip install module==version     # 安装指定版本</span><br><span class="line">python2 -m pip install module</span><br><span class="line">python3 -m pip isntall module</span><br></pre></td></tr></table></figure>
+<h4 id="3-1-安装模块"><a href="#3-1-安装模块" class="headerlink" title="3.1 安装模块"></a>3.1 安装模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">pip install module</span><br><span class="line">pip install module==version     # 安装指定版本</span><br><span class="line">python2 -m pip install module</span><br><span class="line">python3 -m pip install module</span><br></pre></td></tr></table></figure>
 
 <h4 id="3-2-卸载模块"><a href="#3-2-卸载模块" class="headerlink" title="3.2 卸载模块"></a>3.2 卸载模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">pip uninstall module</span><br><span class="line">python2 -m pip uninstall module</span><br><span class="line">python3 -m pip uninstall module</span><br></pre></td></tr></table></figure>
 
@@ -3075,6 +3123,226 @@
       </categories>
       <tags>
         <tag>Python</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>【Logback+Spring-AOP】日志链路跟踪</title>
+    <url>/2023/03/09/%E3%80%90Logback-Spring-AOP%E3%80%91%E6%97%A5%E5%BF%97%E9%93%BE%E8%B7%AF%E8%B7%9F%E8%B8%AA/</url>
+    <content><![CDATA[<h3 id="1-日志跟踪"><a href="#1-日志跟踪" class="headerlink" title="1. 日志跟踪"></a>1. 日志跟踪</h3><blockquote>
+<p>日志跟踪对于问题的排查和数据流转的路径分析是非常重要的，有了日志链路追踪体系可以有效且快速地定位问题。</p>
+</blockquote>
+<p>常用方案：</p>
+<ul>
+<li><strong>MDC（Mapped Diagnostic Context，映射调试上下文）</strong>：SLF4J 提供的一种轻量级日志跟踪工具（Log4j、Logback、Log4j2等日志框架都支持）。在多线程的情况下，多个请求会在同一时间段产生大量的日志记录，难以跟踪特定请求的日志信息。因此引出了 <code>trace-id</code>，在开始处理请求时，生成全局唯一的请求 ID， 在执行链路上带上此唯一 ID。</li>
+<li><strong>ELK（Elasticsearch 、Logstash、 Kibana）</strong>：基于日志的追踪系统，Logstash 通过收集程序运行时产生的日志，按特定的规则进行分割处理后存到 Elasticsearch ，Kibana 负责日志可视化。某种程度上，也需要依赖 MDC 区分不同的请求。</li>
+</ul>
+<h3 id="2-MDC-介绍"><a href="#2-MDC-介绍" class="headerlink" title="2 . MDC 介绍"></a>2 . MDC 介绍</h3><h4 id="2-1-SLF4J-的-MDC"><a href="#2-1-SLF4J-的-MDC" class="headerlink" title="2.1 SLF4J 的 MDC"></a>2.1 SLF4J 的 MDC</h4><p><strong>Sl4fj 的 MDC 模式主要的门面类是 MDC.java，但是最核心的接口类是 MDCAdapter。</strong>其中最重要的是<code>static代码块</code>里面的逻辑，由各个日志框架实现<code>StaticMDCBinder</code>类，并且获取<code>MDCAdapter</code>的实现类。</p>
+<p>SLF4J 本身不提供传递 traceId 的能力，真正提供能力的是 MDCAdapter 接口的实现。比如：Logback 的实现是 LogbackMDCAdapter，Log4j 的实现是 Log4jMDCAdapter。SLF4J 内部的 NOPMDCAdapter 类和 BasicMDCAdapter 属于空实现。</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">package</span> org.slf4j;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.io.Closeable;</span><br><span class="line"><span class="keyword">import</span> java.util.Map;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> org.slf4j.helpers.NOPMDCAdapter;</span><br><span class="line"><span class="keyword">import</span> org.slf4j.helpers.BasicMDCAdapter;</span><br><span class="line"><span class="keyword">import</span> org.slf4j.helpers.Util;</span><br><span class="line"><span class="keyword">import</span> org.slf4j.impl.StaticMDCBinder;</span><br><span class="line"><span class="keyword">import</span> org.slf4j.spi.MDCAdapter;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">MDC</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">String</span> <span class="variable">NULL_MDCA_URL</span> <span class="operator">=</span> <span class="string">&quot;http://www.slf4j.org/codes.html#null_MDCA&quot;</span>;</span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">String</span> <span class="variable">NO_STATIC_MDC_BINDER_URL</span> <span class="operator">=</span> <span class="string">&quot;http://www.slf4j.org/codes.html#no_static_mdc_binder&quot;</span>;</span><br><span class="line">    <span class="keyword">static</span> MDCAdapter mdcAdapter;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">class</span> <span class="title class_">MDCCloseable</span> <span class="keyword">implements</span> <span class="title class_">Closeable</span> &#123;</span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">final</span> String key;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">private</span> <span class="title function_">MDCCloseable</span><span class="params">(String key)</span> &#123;</span><br><span class="line">            <span class="built_in">this</span>.key = key;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">close</span><span class="params">()</span> &#123;</span><br><span class="line">            MDC.remove(<span class="built_in">this</span>.key);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="title function_">MDC</span><span class="params">()</span> &#123;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> MDCAdapter <span class="title function_">bwCompatibleGetMDCAdapterFromBinder</span><span class="params">()</span> <span class="keyword">throws</span> NoClassDefFoundError &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> StaticMDCBinder.getSingleton().getMDCA();</span><br><span class="line">        &#125; <span class="keyword">catch</span> (NoSuchMethodError nsme) &#123;</span><br><span class="line">            <span class="comment">// binding is probably a version of SLF4J older than 1.7.14</span></span><br><span class="line">            <span class="keyword">return</span> StaticMDCBinder.SINGLETON.getMDCA();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">static</span> &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            mdcAdapter = bwCompatibleGetMDCAdapterFromBinder();</span><br><span class="line">        &#125; <span class="keyword">catch</span> (NoClassDefFoundError ncde) &#123;</span><br><span class="line">            mdcAdapter = <span class="keyword">new</span> <span class="title class_">NOPMDCAdapter</span>();</span><br><span class="line">            <span class="type">String</span> <span class="variable">msg</span> <span class="operator">=</span> ncde.getMessage();</span><br><span class="line">            <span class="keyword">if</span> (msg != <span class="literal">null</span> &amp;&amp; msg.contains(<span class="string">&quot;StaticMDCBinder&quot;</span>)) &#123;</span><br><span class="line">                Util.report(<span class="string">&quot;Failed to load class \&quot;org.slf4j.impl.StaticMDCBinder\&quot;.&quot;</span>);</span><br><span class="line">                Util.report(<span class="string">&quot;Defaulting to no-operation MDCAdapter implementation.&quot;</span>);</span><br><span class="line">                Util.report(<span class="string">&quot;See &quot;</span> + NO_STATIC_MDC_BINDER_URL + <span class="string">&quot; for further details.&quot;</span>);</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                <span class="keyword">throw</span> ncde;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">            <span class="comment">// we should never get here</span></span><br><span class="line">            Util.report(<span class="string">&quot;MDC binding unsuccessful.&quot;</span>, e);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">put</span><span class="params">(String key, String val)</span> <span class="keyword">throws</span> IllegalArgumentException &#123;</span><br><span class="line">        <span class="keyword">if</span> (key == <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalArgumentException</span>(<span class="string">&quot;key parameter cannot be null&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (mdcAdapter == <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalStateException</span>(<span class="string">&quot;MDCAdapter cannot be null. See also &quot;</span> + NULL_MDCA_URL);</span><br><span class="line">        &#125;</span><br><span class="line">        mdcAdapter.put(key, val);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> MDCCloseable <span class="title function_">putCloseable</span><span class="params">(String key, String val)</span> <span class="keyword">throws</span> IllegalArgumentException &#123;</span><br><span class="line">        put(key, val);</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">MDCCloseable</span>(key);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> String <span class="title function_">get</span><span class="params">(String key)</span> <span class="keyword">throws</span> IllegalArgumentException &#123;</span><br><span class="line">        <span class="keyword">if</span> (key == <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalArgumentException</span>(<span class="string">&quot;key parameter cannot be null&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (mdcAdapter == <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalStateException</span>(<span class="string">&quot;MDCAdapter cannot be null. See also &quot;</span> + NULL_MDCA_URL);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> mdcAdapter.get(key);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">remove</span><span class="params">(String key)</span> <span class="keyword">throws</span> IllegalArgumentException &#123;</span><br><span class="line">        <span class="keyword">if</span> (key == <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalArgumentException</span>(<span class="string">&quot;key parameter cannot be null&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (mdcAdapter == <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalStateException</span>(<span class="string">&quot;MDCAdapter cannot be null. See also &quot;</span> + NULL_MDCA_URL);</span><br><span class="line">        &#125;</span><br><span class="line">        mdcAdapter.remove(key);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">clear</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (mdcAdapter == <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalStateException</span>(<span class="string">&quot;MDCAdapter cannot be null. See also &quot;</span> + NULL_MDCA_URL);</span><br><span class="line">        &#125;</span><br><span class="line">        mdcAdapter.clear();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> Map&lt;String, String&gt; <span class="title function_">getCopyOfContextMap</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (mdcAdapter == <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalStateException</span>(<span class="string">&quot;MDCAdapter cannot be null. See also &quot;</span> + NULL_MDCA_URL);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> mdcAdapter.getCopyOfContextMap();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">setContextMap</span><span class="params">(Map&lt;String, String&gt; contextMap)</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (mdcAdapter == <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalStateException</span>(<span class="string">&quot;MDCAdapter cannot be null. See also &quot;</span> + NULL_MDCA_URL);</span><br><span class="line">        &#125;</span><br><span class="line">        mdcAdapter.setContextMap(contextMap);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> MDCAdapter <span class="title function_">getMDCAdapter</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> mdcAdapter;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h4 id="2-2-Logback-的-MDCAdapter"><a href="#2-2-Logback-的-MDCAdapter" class="headerlink" title="2.2 Logback 的 MDCAdapter"></a>2.2 Logback 的 MDCAdapter</h4><blockquote>
+<p><strong>当在 logback.xml 中 使用<code>SiftingAppender</code> 或者 在编码器中的模式配置了 <code>%X&#123;key&#125;</code>  ，在输出日志的时候，Logback 会从 MDC 中获取对应的 key 值，然后输出到日志</strong>。</p>
+</blockquote>
+<p>Logback 的 MDCAdapter 实现类是 LogbackMDCAdapter，实现 put、get、remove等方法。</p>
+<p><strong>LogbackMDCAdapter  中最核心的就是 <code>copyOnThreadLocal</code>变量，其实就是一个 ThreadLocal 对象，用来储存<code>&lt;key，value&gt;</code>的值。</strong></p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">package</span> ch.qos.logback.classic.util;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.util.Collections;</span><br><span class="line"><span class="keyword">import</span> java.util.HashMap;</span><br><span class="line"><span class="keyword">import</span> java.util.Map;</span><br><span class="line"><span class="keyword">import</span> java.util.Set;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> org.slf4j.spi.MDCAdapter;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">LogbackMDCAdapter</span> <span class="keyword">implements</span> <span class="title class_">MDCAdapter</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> ThreadLocal&lt;Map&lt;String, String&gt;&gt; copyOnThreadLocal = <span class="keyword">new</span> <span class="title class_">ThreadLocal</span>&lt;Map&lt;String, String&gt;&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">int</span> <span class="variable">WRITE_OPERATION</span> <span class="operator">=</span> <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">int</span> <span class="variable">MAP_COPY_OPERATION</span> <span class="operator">=</span> <span class="number">2</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// keeps track of the last operation performed</span></span><br><span class="line">    <span class="keyword">final</span> ThreadLocal&lt;Integer&gt; lastOperation = <span class="keyword">new</span> <span class="title class_">ThreadLocal</span>&lt;Integer&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> Integer <span class="title function_">getAndSetLastOperation</span><span class="params">(<span class="type">int</span> op)</span> &#123;</span><br><span class="line">        <span class="type">Integer</span> <span class="variable">lastOp</span> <span class="operator">=</span> lastOperation.get();</span><br><span class="line">        lastOperation.set(op);</span><br><span class="line">        <span class="keyword">return</span> lastOp;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="type">boolean</span> <span class="title function_">wasLastOpReadOrNull</span><span class="params">(Integer lastOp)</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> lastOp == <span class="literal">null</span> || lastOp.intValue() == MAP_COPY_OPERATION;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> Map&lt;String, String&gt; <span class="title function_">duplicateAndInsertNewMap</span><span class="params">(Map&lt;String, String&gt; oldMap)</span> &#123;</span><br><span class="line">        Map&lt;String, String&gt; newMap = Collections.synchronizedMap(<span class="keyword">new</span> <span class="title class_">HashMap</span>&lt;String, String&gt;());</span><br><span class="line">        <span class="keyword">if</span> (oldMap != <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="comment">// we don&#x27;t want the parent thread modifying oldMap while we are</span></span><br><span class="line">            <span class="comment">// iterating over it</span></span><br><span class="line">            <span class="keyword">synchronized</span> (oldMap) &#123;</span><br><span class="line">                newMap.putAll(oldMap);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        copyOnThreadLocal.set(newMap);</span><br><span class="line">        <span class="keyword">return</span> newMap;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">put</span><span class="params">(String key, String val)</span> <span class="keyword">throws</span> IllegalArgumentException &#123;</span><br><span class="line">        <span class="keyword">if</span> (key == <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalArgumentException</span>(<span class="string">&quot;key cannot be null&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        Map&lt;String, String&gt; oldMap = copyOnThreadLocal.get();</span><br><span class="line">        <span class="type">Integer</span> <span class="variable">lastOp</span> <span class="operator">=</span> getAndSetLastOperation(WRITE_OPERATION);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (wasLastOpReadOrNull(lastOp) || oldMap == <span class="literal">null</span>) &#123;</span><br><span class="line">            Map&lt;String, String&gt; newMap = duplicateAndInsertNewMap(oldMap);</span><br><span class="line">            newMap.put(key, val);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            oldMap.put(key, val);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">remove</span><span class="params">(String key)</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (key == <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        Map&lt;String, String&gt; oldMap = copyOnThreadLocal.get();</span><br><span class="line">        <span class="keyword">if</span> (oldMap == <span class="literal">null</span>)</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line"></span><br><span class="line">        <span class="type">Integer</span> <span class="variable">lastOp</span> <span class="operator">=</span> getAndSetLastOperation(WRITE_OPERATION);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (wasLastOpReadOrNull(lastOp)) &#123;</span><br><span class="line">            Map&lt;String, String&gt; newMap = duplicateAndInsertNewMap(oldMap);</span><br><span class="line">            newMap.remove(key);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            oldMap.remove(key);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">clear</span><span class="params">()</span> &#123;</span><br><span class="line">        lastOperation.set(WRITE_OPERATION);</span><br><span class="line">        copyOnThreadLocal.remove();</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">public</span> String <span class="title function_">get</span><span class="params">(String key)</span> &#123;</span><br><span class="line">        <span class="keyword">final</span> Map&lt;String, String&gt; map = copyOnThreadLocal.get();</span><br><span class="line">        <span class="keyword">if</span> ((map != <span class="literal">null</span>) &amp;&amp; (key != <span class="literal">null</span>)) &#123;</span><br><span class="line">            <span class="keyword">return</span> map.get(key);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> Map&lt;String, String&gt; <span class="title function_">getPropertyMap</span><span class="params">()</span> &#123;</span><br><span class="line">        lastOperation.set(MAP_COPY_OPERATION);</span><br><span class="line">        <span class="keyword">return</span> copyOnThreadLocal.get();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> Set&lt;String&gt; <span class="title function_">getKeys</span><span class="params">()</span> &#123;</span><br><span class="line">        Map&lt;String, String&gt; map = getPropertyMap();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (map != <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span> map.keySet();</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> Map&lt;String, String&gt; <span class="title function_">getCopyOfContextMap</span><span class="params">()</span> &#123;</span><br><span class="line">        Map&lt;String, String&gt; hashMap = copyOnThreadLocal.get();</span><br><span class="line">        <span class="keyword">if</span> (hashMap == <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">HashMap</span>&lt;String, String&gt;(hashMap);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setContextMap</span><span class="params">(Map&lt;String, String&gt; contextMap)</span> &#123;</span><br><span class="line">        lastOperation.set(WRITE_OPERATION);</span><br><span class="line"></span><br><span class="line">        Map&lt;String, String&gt; newMap = Collections.synchronizedMap(<span class="keyword">new</span> <span class="title class_">HashMap</span>&lt;String, String&gt;());</span><br><span class="line">        newMap.putAll(contextMap);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// the newMap replaces the old one for serialisation&#x27;s sake</span></span><br><span class="line">        copyOnThreadLocal.set(newMap);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="2-3-MDC-的使用方式"><a href="#2-3-MDC-的使用方式" class="headerlink" title="2.3 MDC 的使用方式"></a>2.3 MDC 的使用方式</h4><h5 id="2-3-1-添加-key"><a href="#2-3-1-添加-key" class="headerlink" title="2.3.1 添加 key"></a>2.3.1 添加 key</h5><figure class="highlight java"><table><tr><td class="code"><pre><span class="line">MDC.put(“trace-id”, traceId); </span><br></pre></td></tr></table></figure>
+
+<h5 id="2-3-2-移除-key"><a href="#2-3-2-移除-key" class="headerlink" title="2.3.2 移除 key"></a>2.3.2 移除 key</h5><figure class="highlight java"><table><tr><td class="code"><pre><span class="line">MDC.remove(“trace-id”);</span><br></pre></td></tr></table></figure>
+
+<h5 id="2-3-3-格式化输出-MDC-内容"><a href="#2-3-3-格式化输出-MDC-内容" class="headerlink" title="2.3.3 格式化输出 MDC 内容"></a>2.3.3 格式化输出 MDC 内容</h5><blockquote>
+<p>以 logback 配置文件为例子</p>
+</blockquote>
+<p>在 logback 配置文件的 <code>encoder</code> 中，使用 <code>%X&#123;key&#125;</code> 取出 MDC 中 key 的值。</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version=<span class="string">&quot;1.0&quot;</span> encoding=<span class="string">&quot;UTF-8&quot;</span>?&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">configuration</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">appender</span> <span class="attr">name</span>=<span class="string">&quot;console&quot;</span> <span class="attr">class</span>=<span class="string">&quot;ch.qos.logback.core.ConsoleAppender&quot;</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">encoder</span> <span class="attr">charset</span>=<span class="string">&quot;UTF-8&quot;</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">pattern</span>&gt;</span>%d&#123;yyyy-MM-dd HH:mm:ss.SSS&#125; %X&#123;trace-id&#125; %-5level %logger&#123;36&#125; - %msg%n<span class="tag">&lt;/<span class="name">pattern</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">encoder</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">appender</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">configuration</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="3-线程池场景下传递-MDC-上下文"><a href="#3-线程池场景下传递-MDC-上下文" class="headerlink" title="3. 线程池场景下传递 MDC 上下文"></a>3. 线程池场景下传递 MDC 上下文</h3><blockquote>
+<p>从上面的源码中可以看出，Logback 中 MDC 的实现方式其实是 ThreadLocal。而当创建一个新的线程的时候，新线程中会丢失 MDC 上下文。要实现一个完整的事件跟踪，就需要将 MDC 上下文传递到新线程。</p>
+</blockquote>
+<blockquote>
+<p>那么存在以下问题：</p>
+<ul>
+<li>如何将父线程的 ThreadLocal  传递到子线程。</li>
+<li>在线程池的情况下，如何解决线程复用时 ThreadLocal 也会被复用的问题。</li>
+</ul>
+</blockquote>
+<p>将 ThreadLocal 上下文传递到子线程中的方法：</p>
+<ul>
+<li>（针对创建新线程场景，在变量层面）采用 JDK 自带的 ThreadLocal 的扩展类 InheritableThreadLocal。（无法传递 MDC、不适用于线程池）</li>
+<li>（针对线程池，在变量层面）使用 Alibaba 的 <a href="https://github.com/alibaba/transmittable-thread-local">transmittable-thread-local</a>。</li>
+<li>（针对线程池，在线程池层面）自定义线程池，在提交线程前，对线程进行处理，取出父线程的 ThreadLocal 并且传入子线程中。</li>
+<li>（针对线程池，在线程池层面）使用 Spring 的 ThreadPoolTaskExecutor，定义线程装饰器，在执行线程前传递 ThreadLocal。</li>
+</ul>
+<p><strong>这里使用 Spring Boot 的 ThreadPoolTaskExecutor，自定义线程装饰器。</strong></p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Slf4j</span></span><br><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ThreadPoolConfig</span> &#123;</span><br><span class="line">    <span class="comment">// 注入 SpringBoot 自动装配的 TaskExecutorBuilder，线程池参数使 用 Springboot 默认配置</span></span><br><span class="line">    <span class="comment">// 主要是在线程执行之前获取父线程 MDC 的拷贝副本, 并且在子线程执行前进行设置</span></span><br><span class="line">    <span class="comment">// 后续使用线程池都需要指定使用 MDCThreadPoolTask 这个名字的线程池 @Qualifier(&quot;MDCThreadPoolTask&quot;)</span></span><br><span class="line">    <span class="meta">@Bean(&quot;MDCThreadPoolTask&quot;)</span></span><br><span class="line">    <span class="keyword">public</span> ThreadPoolTaskExecutor <span class="title function_">configThreadPool</span><span class="params">(TaskExecutorBuilder builder)</span>&#123;</span><br><span class="line">        builder = builder.taskDecorator(runnable -&gt; &#123;</span><br><span class="line">            <span class="comment">// 获取父线程 MDC 的拷贝副本</span></span><br><span class="line">            Map&lt;String, String&gt; contextMap = MDC.getCopyOfContextMap();</span><br><span class="line">            <span class="keyword">return</span> () -&gt; &#123;</span><br><span class="line">                <span class="keyword">try</span>&#123;</span><br><span class="line">                    <span class="keyword">if</span> (contextMap != <span class="literal">null</span>)&#123;</span><br><span class="line">                        <span class="comment">// 设置子线程的 MDC</span></span><br><span class="line">                        MDC.setContextMap(contextMap);</span><br><span class="line">                    &#125;</span><br><span class="line">                    runnable.run();</span><br><span class="line">                &#125;<span class="keyword">finally</span> &#123;</span><br><span class="line">                    <span class="comment">// 由于使用的是线程池，因此在子线程完成业务操作之后，需要清空 MDC</span></span><br><span class="line">                    <span class="comment">// 否则后续线程池中复用的线程会取到上一次线程运行时存入的 MDC 值</span></span><br><span class="line">                    MDC.clear();</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;;</span><br><span class="line">        &#125;);</span><br><span class="line">        <span class="keyword">return</span> builder.build();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="4-自定义-AOP-注解"><a href="#4-自定义-AOP-注解" class="headerlink" title="4. 自定义 AOP 注解"></a>4. 自定义 AOP 注解</h3><blockquote>
+<p>自定义AOP注解，在方法执行前后设置及清除 MDC。</p>
+</blockquote>
+<ul>
+<li>定义 <code>MDCTrace</code> 注解，标记该注解的类或者方法调用都会执行 Advice 的增强方法。（可以在该注解上增加参数，用于表示如何生成请求的 uuid）</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">package</span> com.ljh.logbacktest.aop.logtrace;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.lang.annotation.ElementType;</span><br><span class="line"><span class="keyword">import</span> java.lang.annotation.Retention;</span><br><span class="line"><span class="keyword">import</span> java.lang.annotation.RetentionPolicy;</span><br><span class="line"><span class="keyword">import</span> java.lang.annotation.Target;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Target(&#123;ElementType.METHOD, ElementType.TYPE&#125;)</span></span><br><span class="line"><span class="meta">@Retention(RetentionPolicy.RUNTIME)</span></span><br><span class="line"><span class="keyword">public</span> <span class="meta">@interface</span> MDCTrace &#123;</span><br><span class="line">    String <span class="title function_">mark</span><span class="params">()</span> <span class="keyword">default</span> <span class="string">&quot;&quot;</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>定义 Aspect、Pointcut、Advice，在方法执行前根据方法入参以及<code>MDCTrace</code>注解的参数生成请求 uuid，并存入 MDC 。当方法返回后，清除 MDC 的内容。</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">package</span> com.ljh.logbacktest.aop.logtrace;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> org.aspectj.lang.JoinPoint;</span><br><span class="line"><span class="keyword">import</span> org.aspectj.lang.annotation.After;</span><br><span class="line"><span class="keyword">import</span> org.aspectj.lang.annotation.Aspect;</span><br><span class="line"><span class="keyword">import</span> org.aspectj.lang.annotation.Before;</span><br><span class="line"><span class="keyword">import</span> org.aspectj.lang.annotation.Pointcut;</span><br><span class="line"><span class="keyword">import</span> org.slf4j.MDC;</span><br><span class="line"><span class="keyword">import</span> org.springframework.beans.factory.annotation.Value;</span><br><span class="line"><span class="keyword">import</span> org.springframework.stereotype.Component;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.util.Arrays;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Aspect</span></span><br><span class="line"><span class="meta">@Component</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">MDCTraceAspect</span> &#123;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@Value(&quot;$&#123;logging.traceKey&#125;&quot;)</span></span><br><span class="line">    <span class="keyword">private</span> String KEY;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@Pointcut(&quot;@annotation(mdcTrace)&quot;)</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">mdcTracePointcut</span><span class="params">(MDCTrace mdcTrace)</span>&#123;&#125;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@Before(value = &quot;mdcTracePointcut(mdcTrace)&quot;, argNames = &quot;joinPoint,mdcTrace&quot;)</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">traceMdc</span><span class="params">(JoinPoint joinPoint, MDCTrace mdcTrace)</span>&#123;</span><br><span class="line">        Object[] args = joinPoint.getArgs();</span><br><span class="line">        <span class="type">String</span> <span class="variable">mark</span> <span class="operator">=</span> mdcTrace.mark();</span><br><span class="line">        <span class="comment">// 根据入参生成 uuid</span></span><br><span class="line">        <span class="type">String</span> <span class="variable">uuid</span> <span class="operator">=</span> Arrays.deepToString(args) + mark;</span><br><span class="line">        MDC.put(KEY, uuid);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@After(value = &quot;mdcTracePointcut(mdcTrace)&quot;, argNames = &quot;mdcTrace&quot;)</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">clearMdc</span><span class="params">(MDCTrace mdcTrace)</span>&#123;</span><br><span class="line">        MDC.clear();</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="5-自定义-Logback-Appender"><a href="#5-自定义-Logback-Appender" class="headerlink" title="5. 自定义 Logback Appender"></a>5. 自定义 Logback Appender</h3><blockquote>
+<p>Logback 将写入日志事件的任务委托给 <a href="https://logback.qos.ch/manual/appenders.html">Appender 组件</a>。因此通过自定义 Appender，能够自己对日志进行处理、推送。</p>
+</blockquote>
+<p>所有的 Appender 都实现了 <code>Appender&lt;E&gt;</code> 接口。如果要实现 <code>Appender&lt;E&gt;</code> 接口，可以实现抽象类 <code>AppenderBase&lt;E&gt;</code> 或者 <code>UnsynchronizedAppenderBase&lt;E&gt;</code> 中，重写里面的 <code>append(E eventObject)</code> 方法。这两个抽象类都实现了所有 Appender 共享的基本功能，例如设置或者获取名称、激活状态、布局和过滤器的方法。</p>
+<p>其中，<code>AppenderBase&lt;E&gt;</code> 是线程安全的，<code>UnsynchronizedAppenderBase&lt;E&gt;</code> 是线程不安全的。</p>
+<h4 id="5-1-继承-UnsynchronizedAppenderBase"><a href="#5-1-继承-UnsynchronizedAppenderBase" class="headerlink" title="5.1 继承 UnsynchronizedAppenderBase"></a>5.1 继承 UnsynchronizedAppenderBase</h4><blockquote>
+<p>判断 MDC 中是否存在 <code>tarceId </code>，如果存在，则推送日志；如果不存在，则不进行处理。</p>
+</blockquote>
+<blockquote>
+<p>关于<code>UnsynchronizedAppenderBase</code>中的泛型<code>E</code>，在 logback-classic 模块中，<code>E</code>是类型<code>ILoggingEvent</code>，而在 logback-access 模块中是 <code>AccessEvent</code>。</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">package</span> com.ljh.logbacktest.appender;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> ch.qos.logback.classic.encoder.PatternLayoutEncoder;</span><br><span class="line"><span class="keyword">import</span> ch.qos.logback.classic.spi.ILoggingEvent;</span><br><span class="line"><span class="keyword">import</span> ch.qos.logback.core.UnsynchronizedAppenderBase;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">MyAppender</span> <span class="keyword">extends</span> <span class="title class_">UnsynchronizedAppenderBase</span>&lt;ILoggingEvent&gt; &#123;</span><br><span class="line">    <span class="comment">// keyName 通过配置文件注入</span></span><br><span class="line">    <span class="keyword">private</span> String keyName;</span><br><span class="line">    <span class="comment">// 编码器通过配置文件注入</span></span><br><span class="line">    <span class="keyword">private</span> PatternLayoutEncoder encoder;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">append</span><span class="params">(ILoggingEvent event)</span> &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">value</span> <span class="operator">=</span> event.getMDCPropertyMap().get(keyName);</span><br><span class="line">        <span class="keyword">if</span> (value == <span class="literal">null</span>)&#123;</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// 使用 encoder 编码事件为日志字符串</span></span><br><span class="line">        <span class="type">byte</span>[] byteArray = <span class="built_in">this</span>.encoder.encode(event);</span><br><span class="line">        <span class="type">String</span> <span class="variable">msg</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">String</span>(byteArray);</span><br><span class="line">        pushLogInfo(value, msg);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">pushLogInfo</span><span class="params">(String value, String msg)</span>&#123;</span><br><span class="line">        <span class="comment">// 实现推送日志的具体逻辑</span></span><br><span class="line">        System.out.printf(<span class="string">&quot;MyAppender[%s]: %s&quot;</span>, value, msg);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setEncoder</span><span class="params">(PatternLayoutEncoder encoder)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.encoder = encoder;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setKeyName</span><span class="params">(String keyName)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.keyName = keyName;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="5-2-配置文件"><a href="#5-2-配置文件" class="headerlink" title="5.2 配置文件"></a>5.2 配置文件</h4><blockquote>
+<p>因为现在都是使用的 SpringBoot 启动项目，所以直接使用命名为 <code>logback-spring.xml</code> 的配置文件就能够配置 logback 的属性，并且还能够引用 Spring 的一些特性。</p>
+</blockquote>
+<blockquote>
+<p>下面两个配置文件中，配置了 SpringBoot 启动时，logback 的一些默认设置。</p>
+<ul>
+<li><p><code>org/springframework/boot/logging/logback/defaults.xml</code></p>
+</li>
+<li><p><code>org/springframework/boot/logging/logback/base.xml</code></p>
+</li>
+</ul>
+</blockquote>
+<h5 id="5-2-1-logback-spring-xml"><a href="#5-2-1-logback-spring-xml" class="headerlink" title="5.2.1 logback-spring.xml"></a>5.2.1 logback-spring.xml</h5><figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version=<span class="string">&quot;1.0&quot;</span> encoding=<span class="string">&quot;UTF-8&quot;</span> ?&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">configuration</span>&gt;</span></span><br><span class="line">    <span class="comment">&lt;!--引入springboot默认配置--&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">include</span> <span class="attr">resource</span>=<span class="string">&quot;org/springframework/boot/logging/logback/defaults.xml&quot;</span>/&gt;</span></span><br><span class="line">    <span class="comment">&lt;!--不引入控制台及日志文件的输出--&gt;</span></span><br><span class="line">    <span class="comment">&lt;!--&lt;include resource=&quot;org/springframework/boot/logging/logback/base.xml&quot;/&gt;--&gt;</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment">&lt;!--引入配置文件中logging.traceKey的值，后续能够通过$&#123;key&#125;引用--&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">springProperty</span> <span class="attr">scope</span>=<span class="string">&quot;context&quot;</span> <span class="attr">name</span>=<span class="string">&quot;key&quot;</span> <span class="attr">source</span>=<span class="string">&quot;logging.traceKey&quot;</span>/&gt;</span></span><br><span class="line">    </span><br><span class="line">    <span class="tag">&lt;<span class="name">appender</span> <span class="attr">name</span>=<span class="string">&quot;myAppender&quot;</span> <span class="attr">class</span>=<span class="string">&quot;com.ljh.logbacktest.appender.MyAppender&quot;</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">keyName</span>&gt;</span>$&#123;key&#125;<span class="tag">&lt;/<span class="name">keyName</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">encoder</span> <span class="attr">class</span>=<span class="string">&quot;ch.qos.logback.classic.encoder.PatternLayoutEncoder&quot;</span>&gt;</span></span><br><span class="line">            <span class="comment">&lt;!--使用SpringBoot配置中的控制台的输出格式（有颜色）且增加 MDC 中 key 的输出--&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">pattern</span>&gt;</span>[%X&#123;$&#123;key&#125;&#125;]$&#123;CONSOLE_LOG_PATTERN&#125;&#125;<span class="tag">&lt;/<span class="name">pattern</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">charset</span>&gt;</span>$&#123;CONSOLE_LOG_CHARSET&#125;<span class="tag">&lt;/<span class="name">charset</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">encoder</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">appender</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="tag">&lt;<span class="name">root</span>&gt;</span></span><br><span class="line">        <span class="comment">&lt;!--当profile为default环境的时候生效--&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">springProfile</span> <span class="attr">name</span>=<span class="string">&quot;default&quot;</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">appender-ref</span> <span class="attr">ref</span>=<span class="string">&quot;myAppender&quot;</span>/&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">springProfile</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">root</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">configuration</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="5-2-2-application-yml"><a href="#5-2-2-application-yml" class="headerlink" title="5.2.2 application.yml"></a>5.2.2 application.yml</h5><figure class="highlight yml"><table><tr><td class="code"><pre><span class="line"><span class="attr">logging:</span></span><br><span class="line">  <span class="attr">traceKey:</span> <span class="string">key</span></span><br></pre></td></tr></table></figure>
+
+]]></content>
+      <categories>
+        <category>Spring</category>
+      </categories>
+      <tags>
+        <tag>Spring</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>一致性哈希的由来</title>
+    <url>/2023/02/17/%E4%B8%80%E8%87%B4%E6%80%A7%E5%93%88%E5%B8%8C%E7%9A%84%E7%94%B1%E6%9D%A5/</url>
+    <content><![CDATA[<h3 id="1-负载均衡"><a href="#1-负载均衡" class="headerlink" title="1. 负载均衡"></a>1. 负载均衡</h3><p>大多数网站背后不只有一台服务器提供服务，都由多台服务器构成集群来向外提供服务。分配客户端的请求到那一台服务器进行处理，就是负载均衡解决的问题。</p>
+<img src="d3279ad754257977f98e702cb156e9cf.png" alt="img" style="zoom:67%;" />
+
+<p>常见的负载均衡算法：</p>
+<ul>
+<li><strong>轮询法：</strong>将请求按顺序轮流地分配到后端服务器上，它均衡地对待后端的每一台服务器，而不关心服务器实际的连接数和当前的系统负载。</li>
+<li><strong>加权轮询法：</strong>给配置高、负载低的机器配置更高的权重，让其处理更多的请；而配置低、负载高的机器，给其分配较低的权重，降低其系统负载。</li>
+<li><strong>随机法：</strong>通过系统的随机算法，根据后端服务器的列表大小值来随机选取其中的一台服务器进行访问。</li>
+<li><strong>加权随机法：</strong>与加权轮询法一样，加权随机法也根据后端机器的配置，系统的负载分配不同的权重。</li>
+<li><strong>最小连接数法：</strong>根据后端服务器当前的连接情况，动态地选取其中当前积压连接数最少的一台服务器来处理当前的请求。</li>
+<li><strong>源地址哈希法：</strong>源地址哈希的思想是根据获取客户端的 IP 地址，通过哈希函数计算得到的一个数值，用该数值对服务器列表的大小进行取模运算，得到的结果便是客服端要访问服务器的序号。</li>
+</ul>
+<h4 id="1-1-存在问题"><a href="#1-1-存在问题" class="headerlink" title="1.1 存在问题"></a>1.1 存在问题</h4><p><strong>在分布式系统场景中</strong>，每个节点储存的数据是不同的。因为想要提高系统的容量，需要对<strong>数据水平切分</strong>，将数据分布在不同的节点上储存。<strong>一个分布式 KV（key-value）缓存系统，某个 key 应该到哪个或者哪些节点上获取value，应该是确定的，并不是访问任意节点都能得到缓存结果。</strong></p>
+<p>而通过上述的负载均衡算法，无法处理每个节点储存部分数据的情况。</p>
+<h3 id="2-哈希算法"><a href="#2-哈希算法" class="headerlink" title="2. 哈希算法"></a>2. 哈希算法</h3><h4 id="2-1-原理"><a href="#2-1-原理" class="headerlink" title="2.1 原理"></a>2.1 原理</h4><p>哈希算法能够对关键字 key 进行哈希计算，每次计算都是相同的值，这样就能够将某个 key 映射到特定一个节点上了，满足分布式系统的负载均衡需求。</p>
+<p>哈希算法最简单的做法就是进行取模运算，比如分布式系统中有 3 个节点，可以基于以下公式对数据进行映射：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">hash(key) % 3</span><br></pre></td></tr></table></figure>
+
+<p>如果经过计算后得到的值为0，代表需要去第一个节点获取。</p>
+<h4 id="2-2-存在问题"><a href="#2-2-存在问题" class="headerlink" title="2.2 存在问题"></a>2.2 存在问题</h4><p><strong>如果节点数量发生了变化，也就是在对系统做扩容或者缩容时，必须迁移改变了映射关系的数据</strong>，否则会出现查询不到数据的问题。</p>
+<ul>
+<li>举个例子，假设我们有一个由 A、B、C 三个节点组成分布式 K-V 缓存系统，基于计算公式 <code>hash(key) % 3</code> 将数据进行了映射，每个节点存储了不同的数据：</li>
+</ul>
+<img src="025ddcaabece1f4b5823dfb1fb7340ef.png" alt="img" style="zoom: 67%;" />
+
+<ul>
+<li>现在有 3 个查询 key 的请求，分别查询 key-01，key-02，key-03 的数据，这三个 key 分别经过 hash () 函数计算后的值为 hash ( key-01) &#x3D; 6、hash ( key-02) &#x3D; 7、hash (key-03) &#x3D; 8，然后再对这些值进行取模运算。</li>
+</ul>
+<img src="ed14c96417e08b4f916e0cd23d12b7bd.png" alt="img" style="zoom: 67%;" />
+
+<ul>
+<li>当 3 个节点不能满足业务需求了，这时我们增加了一个节点，节点的数量从 3 变化为 4，意味取模哈希函数中基数的变化，这样会导致<strong>大部分映射关系改变</strong>。</li>
+</ul>
+<img src="392c54cfb9ec47f5191008aa1d27d6b5.png" alt="img" style="zoom:67%;" />
+
+<ul>
+<li>要解决这个问题的办法，就需要我们进行<strong>迁移数据</strong>，比如节点的数量从 3 变化为 4 时，要基于新的计算公式 hash (key) % 4 ，重新对数据和节点做映射。假设总数据条数为 M，哈希算法在面对节点数量变化时，**最坏情况下所有数据都需要迁移，所以它的数据迁移规模是 O (M)**，这样数据的迁移成本太高了。</li>
+</ul>
+<h3 id="3-一致性哈希算法"><a href="#3-一致性哈希算法" class="headerlink" title="3. 一致性哈希算法"></a>3. 一致性哈希算法</h3><blockquote>
+<p>在没有分布式的情况下，我们通过负载均衡算法来将请求分配到不同的服务器上。</p>
+<p>但是在分布式场景下，需要对数据进行水平切分，因此需要根据 key 来定位数据在那台服务器上。</p>
+<p>且在节点数量发生变化时，对系统的影响降到最低。</p>
+<p>一致性哈希算法就是为了解决上述的问题。</p>
+</blockquote>
+<h4 id="3-1-原理"><a href="#3-1-原理" class="headerlink" title="3.1 原理"></a>3.1 原理</h4><p>一致哈希算法也用了取模运算，但与哈希算法不同的是，哈希算法是对节点的数量进行取模运算，而<strong>一致哈希算法是对 <code>2^32</code> 进行取模运算，是一个固定的值，将「存储节点」和「数据」都映射到一个首尾相连的哈希环上</strong>。</p>
+<p>我们可以把一致哈希算法是对 <code>2^32</code> 进行取模运算的结果值组织成一个圆环，就像钟表一样，钟表的圆可以理解成由 60 个点组成的圆，而此处我们把这个圆想象成由 <code>2^32</code> 个点组成的圆，这个圆环被称为<strong>哈希环</strong>，如下图：</p>
+<img src="0ea3960fef48d4cbaeb4bec4345301e7.png" alt="img" style="zoom:50%;" />
+
+<p>具体步骤：</p>
+<ol>
+<li>对<strong>储存节点</strong>进行哈希计算，映射到哈希环具体的位置上（可以根据节点的 IP 地址进行哈希）。</li>
+<li>对<strong>数据</strong>进行储存或访问时，对数据的 key 进行哈希计算，映射到哈希环具体的位置上。<ul>
+<li>现在储存节点和数据都映射到哈希环上，那么数据映射到哈希环后，顺时针方向最近的第一个节点就是储存该数据的节点。</li>
+<li>比如下图中，三个节点根据 IP 地址对 <code>2^32</code> 取模后落到哈希环对应的位置上；<code>key-1</code> 对 <code>2^32</code> 取模后落到节点 A 前的位置，那么顺时针离 <code>key-1</code> 最近的节点就是 A，因此，节点 A 就负责储存 <code>key-1</code> 的数据。</li>
+</ul>
+</li>
+</ol>
+<img src="30c2c70721c12f9c140358fbdc5f2282.png" alt="img" style="zoom:50%;" />
+
+<h4 id="3-2-存在问题"><a href="#3-2-存在问题" class="headerlink" title="3.2 存在问题"></a>3.2 存在问题</h4><h5 id="3-2-1-节点增加或减少的情况"><a href="#3-2-1-节点增加或减少的情况" class="headerlink" title="3.2.1 节点增加或减少的情况"></a>3.2.1 节点增加或减少的情况</h5><blockquote>
+<p>在一致哈希算法中，如果增加或者移除一个节点，仅影响该节点在哈希环上顺时针相邻的后继节点，其它数据也不会受到影响。</p>
+</blockquote>
+<ul>
+<li>当新增了节点 D，新的节点经过哈希计算后映射到下图中的位置，可以看到，<code>key-1</code>、<code>key-3</code>储存的节点都不受影响，只有<code>key-2</code>需要被迁移到节点 D。</li>
+</ul>
+<img src="f8909edef2f3949f8945bb99380baab3.png" alt="img" style="zoom:50%;" />
+
+<ul>
+<li>当删除节点 A 的情况下，只有<code>key-1</code> 被重新迁移到节点 B 上。</li>
+</ul>
+<img src="31485046f1303b57d8aaeaab103ea7ab.png" alt="img" style="zoom:50%;" />
+
+<h5 id="3-2-2-节点分布不均匀"><a href="#3-2-2-节点分布不均匀" class="headerlink" title="3.2.2 节点分布不均匀"></a>3.2.2 节点分布不均匀</h5><blockquote>
+<p>上述例子中的节点都是均匀分布在哈希环上。但是实际情况可能没有那么理想。</p>
+</blockquote>
+<ul>
+<li>节点在哈希环上的分布不均匀时，如下图，这时超过半数的数据都寻址到节点 A，会给节点 A 带来大量的压力。此外，<strong>在容灾与扩容的时候，哈希环上的相邻节点容易受到过大影响，容易发生雪崩式的连锁反应</strong>。如果节点 A 被移除或者宕机后，其上的数据都被迁移到相邻的节点 B 上，这样节点 B 的数据量和访问量都会暴增，一单超过节点 B 的处理能力，就会导致节点 B 崩溃，进而形成雪崩式的连锁反应。</li>
+</ul>
+<img src="d528bae6fcec2357ba2eb8f324ad9fd5.png" alt="img" style="zoom:50%;" />
+
+
+
+<h4 id="3-3-解决方法"><a href="#3-3-解决方法" class="headerlink" title="3.3 解决方法"></a>3.3 解决方法</h4><p>为了解决哈希环上节点分布不均匀的情况，我们能够引入<strong>虚拟节点</strong>。</p>
+<p>之前我们是将节点直接映射到哈希环上，那么分布的情况就要受节点实际情况影响。那么我们能不直接将实际节点映射到哈希环上，而是<strong>将虚拟节点均匀映射到哈希环上，再将实际节点映射到虚拟节点</strong>。</p>
+<p>具体例子：</p>
+<ul>
+<li>设置 9 个虚拟节点，节点 ABC 分别按需轮流映射到这 9 个虚拟节点上。</li>
+</ul>
+<img src="dbb57b8d6071d011d05eeadd93269e13.png" alt="img" style="zoom:50%;" />
+
+<p>总结：</p>
+<ul>
+<li>可以看到<strong>节点数量多了后，节点在哈希环上的分布就相对均匀了</strong>。这时候，如果有访问请求寻址到「A-01」这个虚拟节点，接着再通过「A-01」虚拟节点找到真实节点 A，这样请求就能访问到真实节点 A 了。</li>
+<li>另外，虚拟节点除了会提高节点的均衡度，还会提高系统的稳定性。<strong>当节点变化时，会有不同的节点共同分担系统的变化，因此稳定性更高</strong>。比如，当某个节点被移除时，对应该节点的多个虚拟节点均会移除，而这些虚拟节点按顺时针方向的下一个虚拟节点，可能会对应不同的真实节点，即这些不同的真实节点共同分担了节点变化导致的压力。</li>
+<li>而且，有了虚拟节点后，还可以为硬件配置更好的节点增加权重，比如对权重更高的节点增加更多的虚拟机节点即可。</li>
+<li>因此，<strong>带虚拟节点的一致性哈希方法不仅适合硬件配置不同的节点的场景，而且适合节点规模会发生变化的场景</strong>。</li>
+</ul>
+<hr>
+<p>参考资料：</p>
+<p><a href="https://xiaolincoding.com/os/8_network_system/hash.html">什么是一致性哈希</a></p>
+]]></content>
+      <categories>
+        <category>分布式</category>
+      </categories>
+      <tags>
+        <tag>分布式</tag>
       </tags>
   </entry>
   <entry>
@@ -3345,6 +3613,57 @@
       <categories>
         <category>计算机网络</category>
       </categories>
+  </entry>
+  <entry>
+    <title>记一次WSDL使用</title>
+    <url>/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/</url>
+    <content><![CDATA[<h3 id="1-起因"><a href="#1-起因" class="headerlink" title="1. 起因"></a>1. 起因</h3><p>突然要求对接公司集团的一个接口，给了一个 <code>http://192.168.1.1:7001/services/NotifyService?wsdl</code> 这种地址过来，然后还给了个说明文档，介绍用 XML 的格式发送报文。</p>
+<p>一开始觉得跟 restful 接口差不多，就没多大留意。然后按照说明文档构建了 XML 格式的报文，跟下面的例子差不多。觉得没啥问题了，用 Postman 一测试，哎，怎么返回失败呢？首先是网络，检查了一下是通的。哪说明是调用接口的方式出了问题。</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">ReqRoot</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">ReqTime</span>&gt;</span>2022-10-27 10:03:02<span class="tag">&lt;/<span class="name">ReqTime</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">BillNo</span>&gt;</span></span><br><span class="line">            000000</span><br><span class="line">        <span class="tag">&lt;/<span class="name">BillNo</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Content</span>&gt;</span>消息成功发送<span class="tag">&lt;/<span class="name">Content</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">SendUser</span>&gt;</span>user<span class="tag">&lt;/<span class="name">SendUser</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Address</span>&gt;</span>mobile<span class="tag">&lt;/<span class="name">Address</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">ReqRoot</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="2-经过"><a href="#2-经过" class="headerlink" title="2. 经过"></a>2. 经过</h3><p>既然调用失败，那就百度一下为什么调用失败。看到给的链接后面有个 <code>wsdl</code> 的东西，感觉不太对劲，于是乎搜索了一下 <code>wsdl</code>。问了一下同事，说这是历史久远的接口。</p>
+<h4 id="2-1-什么是WSDL？"><a href="#2-1-什么是WSDL？" class="headerlink" title="2.1 什么是WSDL？"></a>2.1 什么是WSDL？</h4><blockquote>
+<p>WSDL 是一种使用 XML 编写的文档。这种文档可描述某个 Web service。它可规定服务的位置，以及此服务提供的操作（或方法）。</p>
+</blockquote>
+<blockquote>
+<p>在 2001 年 3 月，WSDL 1.1 被 IBM、微软作为一个 W3C 记录（W3C note）提交到有关 XML 协议的 W3C XML 活动，用于描述网络服务。（W3C 记录仅供讨论。一项 W3C 记录的发布并不代表它已被 W3C 或 W3C 团队亦或任何 W3C 成员认可。）</p>
+</blockquote>
+<ul>
+<li>WSDL（Web Services Description Language）指网络服务描述语言</li>
+<li>WSDL 使用 XML 编写</li>
+<li>WSDL 是一种 XML 文档</li>
+<li>WSDL 用于描述网络服务</li>
+<li>WSDL 也可用于定位网络服务</li>
+<li>WSDL 还不是 W3C 标准</li>
+</ul>
+<h4 id="2-2-怎么使用"><a href="#2-2-怎么使用" class="headerlink" title="2.2 怎么使用"></a>2.2 怎么使用</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">可以用下面的这个链接进行测试，这是一个中国电视节目预告 Web 服务</span><br><span class="line">http://www.webxml.com.cn/webservices/ChinaTVprogramWebService.asmx?wsdl</span><br></pre></td></tr></table></figure>
+
+<p>我主要关注的是怎么用这个接口，起码能保证业务上的功能正常再去关注这是什么东西。于是乎开始搜索怎么才能让接口调用成功。</p>
+<p>突然发现这个接口是能够直接在浏览器上面打开的，不过其实打开了，也看不出什么东西，因为是一堆的 XML 文本。大概知道的就是这个文本里面定义了有哪些接口，还有接口的调用方式。</p>
+<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/wsdl%E7%BD%91%E9%A1%B5.png" alt="image-20221124152448072"></p>
+<p>然后在网上找啊找，都没怎么找到比较好的方式去调用，但是起码别人是能调通的。观察发现怎么有一个应用叫 SoapUI 能够生成请求的报文体呢（截图截全一点对大家都好）。于是乎自己下载了一个下来看一下。</p>
+<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/soapui.png" alt="image-20221124153100317"></p>
+<p>界面上就是上面的样子，填入 wsdl 的链接就能够比较直观的看到有哪些能够调用的方法，在对应的方法里面创建请求还会帮你填充好一些 SOAP 协议相关的东西（之前就是缺少了这一部分）。如果把请求部分填充完整，是能够使用 SoapUI 请求成功。</p>
+<h4 id="2-3-使用-Postman-调用"><a href="#2-3-使用-Postman-调用" class="headerlink" title="2.3 使用 Postman 调用"></a>2.3 使用 Postman 调用</h4><p>既然能够使用 SoapUI 请求成功，那么就要尝试一下怎样才能使用 Postman 请求成功了。简单分为以下三步：</p>
+<ul>
+<li>将请求的 Content-Type 设置为 text&#x2F;xml</li>
+<li>请求头部加上SOAPAction，值可以置为空</li>
+<li>将 SoapUI 中接口自动生成的部分填入到请求体的 Body 中，然后填充必要的内容。（接口中给定的文档是 XML 文本，因此需要使用<code>&lt;![CDATA[your_data]]&gt;</code>的格式，your_data替换为接口文档中的格式）（CDATA 代表字符数据，其中的数据可以包含 XML 标记，但是还是会被当做字符串）</li>
+</ul>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version=<span class="string">&quot;1.0&quot;</span> encoding=<span class="string">&quot;UTF-8&quot;</span>?&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">soapenv:Envelope</span> <span class="attr">xmlns:soapenv</span>=<span class="string">&quot;http://schemas.xmlsoap.org/soap/envelope/&quot;</span> <span class="attr">xmlns:dom</span>=<span class="string">&quot;http://domain.webservice.itsm.ffcs.com&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">soapenv:Header</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">soapenv:Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">dom:sendMsgNew</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">dom:request</span>&gt;</span></span><br><span class="line">                &lt;![CDATA[</span><br><span class="line">                &lt;ReqRoot&gt;</span><br><span class="line">                    &lt;Body&gt;</span><br><span class="line">                        &lt;ReqTime&gt;2022-10-27 10:03:02&lt;/ReqTime&gt;</span><br><span class="line">                        &lt;BillNo&gt;</span><br><span class="line">                            000000</span><br><span class="line">                        &lt;/BillNo&gt;</span><br><span class="line">                        &lt;Content&gt;消息成功发送&lt;/Content&gt;</span><br><span class="line">                        &lt;SendUser&gt;user&lt;/SendUser&gt;</span><br><span class="line">                        &lt;Address&gt;mobile&lt;/Address&gt;</span><br><span class="line">                    &lt;/Body&gt;</span><br><span class="line">                &lt;/ReqRoot&gt;</span><br><span class="line">               ]]&gt;</span><br><span class="line">            <span class="tag">&lt;/<span class="name">dom:request</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">dom:sendMsgNew</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">soapenv:Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">soapenv:Envelope</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="3-总结"><a href="#3-总结" class="headerlink" title="3. 总结"></a>3. 总结</h3><p>其实就是 WSDL 与 Soap 的相关知识，但是其实现在很少用，等什么时候有空了再详细看看吧。</p>
+]]></content>
+      <categories>
+        <category>日常踩坑</category>
+      </categories>
+      <tags>
+        <tag>日常</tag>
+      </tags>
   </entry>
   <entry>
     <title>基础知识回顾</title>
@@ -4827,56 +5146,5 @@
 <p>3.2.0版本后添加的特性，Chroot特性允许每个客户端为自己设置一个命名空间。如果一个客户端设置了Chroot，那么对Zookeeper集群的任何操作，都会被限制在自己的命名空间下。Chroot能够将客户端对应上Zookeeper的一颗子树，因此在多个应用公用一个Zookeeper集群的时候，有利于应用间的相互隔离。</p>
 </blockquote>
 <h3 id="ACL-访问控制"><a href="#ACL-访问控制" class="headerlink" title="ACL 访问控制"></a>ACL 访问控制</h3>]]></content>
-  </entry>
-  <entry>
-    <title>记一次WSDL使用</title>
-    <url>/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/</url>
-    <content><![CDATA[<h3 id="1-起因"><a href="#1-起因" class="headerlink" title="1. 起因"></a>1. 起因</h3><p>突然要求对接公司集团的一个接口，给了一个 <code>http://192.168.1.1:7001/services/NotifyService?wsdl</code> 这种地址过来，然后还给了个说明文档，介绍用 XML 的格式发送报文。</p>
-<p>一开始觉得跟 restful 接口差不多，就没多大留意。然后按照说明文档构建了 XML 格式的报文，跟下面的例子差不多。觉得没啥问题了，用 Postman 一测试，哎，怎么返回失败呢？首先是网络，检查了一下是通的。哪说明是调用接口的方式出了问题。</p>
-<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">ReqRoot</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">ReqTime</span>&gt;</span>2022-10-27 10:03:02<span class="tag">&lt;/<span class="name">ReqTime</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">BillNo</span>&gt;</span></span><br><span class="line">            000000</span><br><span class="line">        <span class="tag">&lt;/<span class="name">BillNo</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Content</span>&gt;</span>消息成功发送<span class="tag">&lt;/<span class="name">Content</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">SendUser</span>&gt;</span>user<span class="tag">&lt;/<span class="name">SendUser</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Address</span>&gt;</span>mobile<span class="tag">&lt;/<span class="name">Address</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">ReqRoot</span>&gt;</span></span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="2-经过"><a href="#2-经过" class="headerlink" title="2. 经过"></a>2. 经过</h3><p>既然调用失败，那就百度一下为什么调用失败。看到给的链接后面有个 <code>wsdl</code> 的东西，感觉不太对劲，于是乎搜索了一下 <code>wsdl</code>。问了一下同事，说这是历史久远的接口。</p>
-<h4 id="2-1-什么是WSDL？"><a href="#2-1-什么是WSDL？" class="headerlink" title="2.1 什么是WSDL？"></a>2.1 什么是WSDL？</h4><blockquote>
-<p>WSDL 是一种使用 XML 编写的文档。这种文档可描述某个 Web service。它可规定服务的位置，以及此服务提供的操作（或方法）。</p>
-</blockquote>
-<blockquote>
-<p>在 2001 年 3 月，WSDL 1.1 被 IBM、微软作为一个 W3C 记录（W3C note）提交到有关 XML 协议的 W3C XML 活动，用于描述网络服务。（W3C 记录仅供讨论。一项 W3C 记录的发布并不代表它已被 W3C 或 W3C 团队亦或任何 W3C 成员认可。）</p>
-</blockquote>
-<ul>
-<li>WSDL（Web Services Description Language）指网络服务描述语言</li>
-<li>WSDL 使用 XML 编写</li>
-<li>WSDL 是一种 XML 文档</li>
-<li>WSDL 用于描述网络服务</li>
-<li>WSDL 也可用于定位网络服务</li>
-<li>WSDL 还不是 W3C 标准</li>
-</ul>
-<h4 id="2-2-怎么使用"><a href="#2-2-怎么使用" class="headerlink" title="2.2 怎么使用"></a>2.2 怎么使用</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">可以用下面的这个链接进行测试，这是一个中国电视节目预告 Web 服务</span><br><span class="line">http://www.webxml.com.cn/webservices/ChinaTVprogramWebService.asmx?wsdl</span><br></pre></td></tr></table></figure>
-
-<p>我主要关注的是怎么用这个接口，起码能保证业务上的功能正常再去关注这是什么东西。于是乎开始搜索怎么才能让接口调用成功。</p>
-<p>突然发现这个接口是能够直接在浏览器上面打开的，不过其实打开了，也看不出什么东西，因为是一堆的 XML 文本。大概知道的就是这个文本里面定义了有哪些接口，还有接口的调用方式。</p>
-<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/wsdl%E7%BD%91%E9%A1%B5.png" alt="image-20221124152448072"></p>
-<p>然后在网上找啊找，都没怎么找到比较好的方式去调用，但是起码别人是能调通的。观察发现怎么有一个应用叫 SoapUI 能够生成请求的报文体呢（截图截全一点对大家都好）。于是乎自己下载了一个下来看一下。</p>
-<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/soapui.png" alt="image-20221124153100317"></p>
-<p>界面上就是上面的样子，填入 wsdl 的链接就能够比较直观的看到有哪些能够调用的方法，在对应的方法里面创建请求还会帮你填充好一些 SOAP 协议相关的东西（之前就是缺少了这一部分）。如果把请求部分填充完整，是能够使用 SoapUI 请求成功。</p>
-<h4 id="2-3-使用-Postman-调用"><a href="#2-3-使用-Postman-调用" class="headerlink" title="2.3 使用 Postman 调用"></a>2.3 使用 Postman 调用</h4><p>既然能够使用 SoapUI 请求成功，那么就要尝试一下怎样才能使用 Postman 请求成功了。简单分为以下三步：</p>
-<ul>
-<li>将请求的 Content-Type 设置为 text&#x2F;xml</li>
-<li>请求头部加上SOAPAction，值可以置为空</li>
-<li>将 SoapUI 中接口自动生成的部分填入到请求体的 Body 中，然后填充必要的内容。（接口中给定的文档是 XML 文本，因此需要使用<code>&lt;![CDATA[your_data]]&gt;</code>的格式，your_data替换为接口文档中的格式）（CDATA 代表字符数据，其中的数据可以包含 XML 标记，但是还是会被当做字符串）</li>
-</ul>
-<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version=<span class="string">&quot;1.0&quot;</span> encoding=<span class="string">&quot;UTF-8&quot;</span>?&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">soapenv:Envelope</span> <span class="attr">xmlns:soapenv</span>=<span class="string">&quot;http://schemas.xmlsoap.org/soap/envelope/&quot;</span> <span class="attr">xmlns:dom</span>=<span class="string">&quot;http://domain.webservice.itsm.ffcs.com&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">soapenv:Header</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">soapenv:Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">dom:sendMsgNew</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">dom:request</span>&gt;</span></span><br><span class="line">                &lt;![CDATA[</span><br><span class="line">                &lt;ReqRoot&gt;</span><br><span class="line">                    &lt;Body&gt;</span><br><span class="line">                        &lt;ReqTime&gt;2022-10-27 10:03:02&lt;/ReqTime&gt;</span><br><span class="line">                        &lt;BillNo&gt;</span><br><span class="line">                            000000</span><br><span class="line">                        &lt;/BillNo&gt;</span><br><span class="line">                        &lt;Content&gt;消息成功发送&lt;/Content&gt;</span><br><span class="line">                        &lt;SendUser&gt;user&lt;/SendUser&gt;</span><br><span class="line">                        &lt;Address&gt;mobile&lt;/Address&gt;</span><br><span class="line">                    &lt;/Body&gt;</span><br><span class="line">                &lt;/ReqRoot&gt;</span><br><span class="line">               ]]&gt;</span><br><span class="line">            <span class="tag">&lt;/<span class="name">dom:request</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">dom:sendMsgNew</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">soapenv:Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">soapenv:Envelope</span>&gt;</span></span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="3-总结"><a href="#3-总结" class="headerlink" title="3. 总结"></a>3. 总结</h3><p>其实就是 WSDL 与 Soap 的相关知识，但是其实现在很少用，等什么时候有空了再详细看看吧。</p>
-]]></content>
-      <categories>
-        <category>日常踩坑</category>
-      </categories>
-      <tags>
-        <tag>日常</tag>
-      </tags>
   </entry>
 </search>

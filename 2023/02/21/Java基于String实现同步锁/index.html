@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#222" media="(prefers-color-scheme: dark)"><meta name="generator" content="Hexo 6.3.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.2/css/all.min.css" integrity="sha256-xejo6yLi6vGtAjcMIsY8BHdKsLg7QynVlFMzdQgUuy8=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pace/1.2.4/themes/blue/pace-theme-minimal.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pace/1.2.4/pace.min.js" integrity="sha256-gqd7YTjg/BtfqWSwsJOvndl0Bxc8gFImLEkXQT8+qj0=" crossorigin="anonymous"></script>
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"example.com","root":"/","images":"/images","scheme":"Muse","darkmode":true,"version":"8.12.3","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"bookmark":{"enable":true,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":null,"activeClass":"gitalk"},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"},"path":"/search.xml","localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="单进程不依赖Redis的情况下，如何通过String来锁定一个资源。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java基于String实现同步锁">
+<meta property="og:url" content="http://example.com/2023/02/21/Java%E5%9F%BA%E4%BA%8EString%E5%AE%9E%E7%8E%B0%E5%90%8C%E6%AD%A5%E9%94%81/index.html">
+<meta property="og:site_name" content="IceVitalemon&#39;s Blog">
+<meta property="og:description" content="单进程不依赖Redis的情况下，如何通过String来锁定一个资源。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-02-21T09:46:58.000Z">
+<meta property="article:modified_time" content="2023-02-23T09:50:50.600Z">
+<meta property="article:author" content="Junhao Lin">
+<meta property="article:tag" content="Java">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://example.com/2023/02/21/Java%E5%9F%BA%E4%BA%8EString%E5%AE%9E%E7%8E%B0%E5%90%8C%E6%AD%A5%E9%94%81/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"http://example.com/2023/02/21/Java%E5%9F%BA%E4%BA%8EString%E5%AE%9E%E7%8E%B0%E5%90%8C%E6%AD%A5%E9%94%81/","path":"2023/02/21/Java基于String实现同步锁/","title":"Java基于String实现同步锁"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Java基于String实现同步锁 | IceVitalemon's Blog</title>
+  
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">IceVitalemon's Blog</p>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E5%89%8D%E8%A8%80"><span class="nav-text">1. 前言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E9%9C%80%E8%A6%81%E8%80%83%E8%99%91%E7%9A%84%E9%97%AE%E9%A2%98"><span class="nav-text">2. 需要考虑的问题</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E5%AE%9E%E7%8E%B0%E6%96%B9%E6%B3%95"><span class="nav-text">3. 实现方法</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-%E5%9F%BA%E4%BA%8E-JVM-%E7%9A%84%E5%AD%97%E7%AC%A6%E4%B8%B2%E5%B8%B8%E9%87%8F%E6%B1%A0"><span class="nav-text">3.1 基于 JVM 的字符串常量池</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#3-1-1-%E5%AE%9E%E7%8E%B0"><span class="nav-text">3.1.1 实现</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-1-2-%E5%AD%98%E5%9C%A8%E7%9A%84%E9%97%AE%E9%A2%98"><span class="nav-text">3.1.2 存在的问题</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-%E5%9F%BA%E4%BA%8E-ConcurrentHashMap-%E5%92%8C-CountDownLatch"><span class="nav-text">3.2 基于 ConcurrentHashMap 和 CountDownLatch</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#3-2-1-%E5%AE%9E%E7%8E%B0"><span class="nav-text">3.2.1 实现</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-2-2-%E5%AD%98%E5%9C%A8%E7%9A%84%E9%97%AE%E9%A2%98"><span class="nav-text">3.2.2 存在的问题</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-Guava%E5%8C%85%E7%9A%84%E5%B8%B8%E9%87%8F%E6%B1%A0"><span class="nav-text">3.3 Guava包的常量池</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#3-3-1-%E5%AE%9E%E7%8E%B0"><span class="nav-text">3.3.1 实现</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-3-2-%E5%AD%98%E5%9C%A8%E7%9A%84%E9%97%AE%E9%A2%98"><span class="nav-text">3.3.2 存在的问题</span></a></li></ol></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <a href="/">
+      <img class="site-author-image" itemprop="image" alt="Junhao Lin"
+        src="/images/avatar.gif">
+    </a>
+  <p class="site-author-name" itemprop="name">Junhao Lin</p>
+  <div class="site-description" itemprop="description">朝花夕拾</div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">21</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">14</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">14</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author site-overview-item animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/IceVitaLemon" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;IceVitaLemon" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:junhaol0902@outlook.com" title="E-Mail → mailto:junhaol0902@outlook.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2023/02/21/Java%E5%9F%BA%E4%BA%8EString%E5%AE%9E%E7%8E%B0%E5%90%8C%E6%AD%A5%E9%94%81/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Junhao Lin">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="IceVitalemon's Blog">
+      <meta itemprop="description" content="朝花夕拾">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Java基于String实现同步锁 | IceVitalemon's Blog">
+      <meta itemprop="description" content="单进程不依赖Redis的情况下，如何通过String来锁定一个资源。">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Java基于String实现同步锁
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2023-02-21 17:46:58" itemprop="dateCreated datePublished" datetime="2023-02-21T17:46:58+08:00">2023-02-21</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2023-02-23 17:50:50" itemprop="dateModified" datetime="2023-02-23T17:50:50+08:00">2023-02-23</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Java/" itemprop="url" rel="index"><span itemprop="name">Java</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-break"></span>
+    <span class="post-meta-item" title="本文字数">
+      <span class="post-meta-item-icon">
+        <i class="far fa-file-word"></i>
+      </span>
+      <span class="post-meta-item-text">本文字数：</span>
+      <span>1k</span>
+    </span>
+    <span class="post-meta-item" title="阅读时长">
+      <span class="post-meta-item-icon">
+        <i class="far fa-clock"></i>
+      </span>
+      <span class="post-meta-item-text">阅读时长 &asymp;</span>
+      <span>4 分钟</span>
+    </span>
+</div>
+
+            <div class="post-description">单进程不依赖Redis的情况下，如何通过String来锁定一个资源。</div>
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <h2 id="1-前言"><a href="#1-前言" class="headerlink" title="1. 前言"></a>1. 前言</h2><p>在分布式应用中，能够通过 Redis、Zookeeper 等组件实现分布式锁。针对一个订单号、任务 ID 进行加锁，避免其它进程或者线程操作相同的资源。</p>
+<p>但是，如果项目不依赖这些组件，单进程的情况下，针对不同订单号、任务 ID 进行加锁就变得比较困难。像是 ReentrantLock 或者 CountDownLatch 这种 JUC 实现的锁，都是针对单个资源的锁，不能用于变换莫测的 String。</p>
+<h2 id="2-需要考虑的问题"><a href="#2-需要考虑的问题" class="headerlink" title="2. 需要考虑的问题"></a>2. 需要考虑的问题</h2><blockquote>
+<ul>
+<li>基于 String 的锁字典</li>
+<li>内存泄漏问题</li>
+</ul>
+</blockquote>
+<p>我们需要做的，是根据 String 获取一把锁，来锁定该 String 代表的资源。既然不同的 String 代表着不同的锁，我们需要的是使用一个池子，来缓存 String 及其对应的锁，即 String 锁的字典。</p>
+<p>这个锁字典的生命周期基本上是伴随着整个进程，因为我们使用的场景就是单个进程下根据 String  来获取锁。那么，如果大量地根据不同的 String 获取锁，就会在池子中缓存了大量的 key，value，不及时释放可能会导致内存泄漏问题。</p>
+<h2 id="3-实现方法"><a href="#3-实现方法" class="headerlink" title="3. 实现方法"></a>3. 实现方法</h2><h3 id="3-1-基于-JVM-的字符串常量池"><a href="#3-1-基于-JVM-的字符串常量池" class="headerlink" title="3.1 基于 JVM 的字符串常量池"></a>3.1 基于 JVM 的字符串常量池</h3><blockquote>
+<p>JVM里面有一块内存是用于储存字符串常量的，从这里面拿出来的字符串都是同一个对象。</p>
+<p>但是我们自己创建的字符串是不同的对象，不在这个字符串常量池里面，而 synchronized是向对象加锁的，所以直接对字符串对象加锁，可能加到两个两个不同的对象上，就会出问题了。</p>
+<p>因此可以使用 String 类的 intern() 方法，将字符串加到字符串常量池中，调用方法后，返回的是字符串常量池中的字符串对象。</p>
+</blockquote>
+<h4 id="3-1-1-实现"><a href="#3-1-1-实现" class="headerlink" title="3.1.1 实现"></a>3.1.1 实现</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">StringMutexLock</span> &#123;  </span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">operation</span><span class="params">(String bizId)</span>&#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">lock</span> <span class="operator">=</span> bizId; <span class="comment">// 业务ID</span></span><br><span class="line">        lock = lock.intern();</span><br><span class="line">        <span class="keyword">synchronized</span> (lock)&#123;</span><br><span class="line">            <span class="comment">// 实际业务</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-1-2-存在的问题"><a href="#3-1-2-存在的问题" class="headerlink" title="3.1.2 存在的问题"></a>3.1.2 存在的问题</h4><p>这种方法问题很大，因为字符串常量池中的对象不一定会被垃圾回收器回收，因此可能会造成内存泄露的问题。</p>
+<h3 id="3-2-基于-ConcurrentHashMap-和-CountDownLatch"><a href="#3-2-基于-ConcurrentHashMap-和-CountDownLatch" class="headerlink" title="3.2 基于 ConcurrentHashMap 和 CountDownLatch"></a>3.2 基于 ConcurrentHashMap 和 CountDownLatch</h3><blockquote>
+<p>使用 ConcurrentHashMap 来储存 key 和对应的锁，加锁时判断 ConcurrentHashMap 是否已经存在对应的锁对象，解锁时将锁对象从 ConcurrentHashMap 中移除。</p>
+</blockquote>
+<h4 id="3-2-1-实现"><a href="#3-2-1-实现" class="headerlink" title="3.2.1 实现"></a>3.2.1 实现</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> lombok.extern.slf4j.Slf4j;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.ConcurrentHashMap;</span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.CountDownLatch;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Slf4j</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">StringMutexLock</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> ConcurrentHashMap&lt;String, CountDownLatch&gt; lockHolder = <span class="keyword">new</span> <span class="title class_">ConcurrentHashMap</span>&lt;&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 基于lockKey上锁，同步执行</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> lockKey</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">lock</span><span class="params">(String lockKey)</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">        <span class="keyword">while</span> (!tryLock(lockKey))&#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                log.info(<span class="string">&quot;Get lock[&#123;&#125;] failed, waiting...&quot;</span>, lockKey);</span><br><span class="line">                blockOnLock(lockKey);</span><br><span class="line">            &#125;<span class="keyword">catch</span> (InterruptedException e)&#123;</span><br><span class="line">                <span class="type">String</span> <span class="variable">errMsg</span> <span class="operator">=</span> String.format(<span class="string">&quot;Error occur while get lock[%s]: %s&quot;</span>, lockKey, e.getMessage());</span><br><span class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">InterruptedException</span>(errMsg);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 基于lockKey, 释放锁, 只要调用者传入正确的lockKey, 锁就会被释放</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> lockKey</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">unlock</span><span class="params">(String lockKey)</span>&#123;</span><br><span class="line">        <span class="type">CountDownLatch</span> <span class="variable">lock</span> <span class="operator">=</span> lockHolder.remove(lockKey);</span><br><span class="line">        lock.countDown();</span><br><span class="line">        log.info(<span class="string">&quot;Release lock[&#123;&#125;] success.&quot;</span>, lockKey);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    </span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 尝试给指定字符串上锁</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> lockKey 字符串</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> true: 上锁成功  false：上锁失败</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="type">boolean</span> <span class="title function_">tryLock</span><span class="params">(String lockKey)</span>&#123;</span><br><span class="line">        <span class="comment">// 这里每次调用都会创建一个 CountDownLatch 对象，对GC不太友好</span></span><br><span class="line">        <span class="keyword">return</span> lockHolder.putIfAbsent(lockKey, <span class="keyword">new</span> <span class="title class_">CountDownLatch</span>(<span class="number">1</span>)) == <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 获取实际锁对象，并阻塞等待</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> lockKey</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@throws</span> InterruptedException</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">blockOnLock</span><span class="params">(String lockKey)</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">        <span class="type">CountDownLatch</span> <span class="variable">lock</span> <span class="operator">=</span> lockHolder.get(lockKey);</span><br><span class="line">        <span class="keyword">if</span> (lock != <span class="literal">null</span>)&#123;</span><br><span class="line">            lock.await();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-2-2-存在的问题"><a href="#3-2-2-存在的问题" class="headerlink" title="3.2.2 存在的问题"></a>3.2.2 存在的问题</h4><ul>
+<li>每次调用 tryLock 都会创建一个 CountDownLatch 对象，对 GC 不太友好。</li>
+<li>不会记录获取锁的线程，其他线程通过 String 获取锁对象之后，可能会误释放锁。</li>
+<li>不支持的超时设置，需要主动释放锁。</li>
+</ul>
+<h3 id="3-3-Guava包的常量池"><a href="#3-3-Guava包的常量池" class="headerlink" title="3.3 Guava包的常量池"></a>3.3 Guava包的常量池</h3><blockquote>
+<p>Google 的第三方工具包 Guava 里面提供了常量池的实现，能够创建<strong>基于弱引用的常量池</strong>，避免 GC 问题。</p>
+</blockquote>
+<h4 id="3-3-1-实现"><a href="#3-3-1-实现" class="headerlink" title="3.3.1 实现"></a>3.3.1 实现</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> com.google.common.collect.Interner;</span><br><span class="line"><span class="keyword">import</span> com.google.common.collect.Interners;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">StringMutexLock</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Interner&lt;String&gt; internPool = Interners.newWeakInterner();</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">operation</span><span class="params">(String bizId)</span>&#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">lock</span> <span class="operator">=</span> internPool.intern(bizId);</span><br><span class="line">        <span class="keyword">synchronized</span> (lock)&#123;</span><br><span class="line">            <span class="comment">// 具体业务</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-3-2-存在的问题"><a href="#3-3-2-存在的问题" class="headerlink" title="3.3.2 存在的问题"></a>3.3.2 存在的问题</h4><ul>
+<li>不会记录获取锁的线程，其他线程通过 String 获取锁对象之后，可能会误释放锁。</li>
+<li>不支持的超时设置，需要主动释放锁。</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Java/" rel="tag"><i class="fa fa-tag"></i> Java</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2023/02/17/%E4%B8%80%E8%87%B4%E6%80%A7%E5%93%88%E5%B8%8C%E7%9A%84%E7%94%B1%E6%9D%A5/" rel="prev" title="一致性哈希的由来">
+                  <i class="fa fa-chevron-left"></i> 一致性哈希的由来
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2023/03/09/%E3%80%90Logback-Spring-AOP%E3%80%91%E6%97%A5%E5%BF%97%E9%93%BE%E8%B7%AF%E8%B7%9F%E8%B8%AA/" rel="next" title="【Logback+Spring-AOP】日志链路跟踪">
+                  【Logback+Spring-AOP】日志链路跟踪 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments gitalk-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+
+<div class="copyright">
+  &copy; 2021 – 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Junhao Lin</span>
+</div>
+<div class="wordcount">
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-line"></i>
+    </span>
+    <span title="站点总字数">102k</span>
+  </span>
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">6:11</span>
+  </span>
+</div><script color="0,0,255" opacity="0.5" zIndex="-1" count="99" src="/js/canvas-nest.js"></script>
+
+    </div>
+  </footer>
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js" integrity="sha256-j+yj56cdEY2CwkVtGyz18fNybFGpMGJ8JxG3GSyO2+I=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script><script src="/js/bookmark.js"></script>
+
+  
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hexo-generator-searchdb/1.4.0/search.js" integrity="sha256-vXZMYLEqsROAXkEw93GGIvaB2ab+QW6w3+1ahD9nXXA=" crossorigin="anonymous"></script>
+<script src="/js/third-party/search/local-search.js"></script>
+
+
+
+
+  <script src="/js/third-party/pace.js"></script>
+
+  
+
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.7.2/gitalk.css" integrity="sha256-AJnUHL7dBv6PGaeyPQJcgQPDjt/Hn/PvYZde1iqfp8U=" crossorigin="anonymous">
+
+<script class="next-config" data-name="gitalk" type="application/json">{"enable":true,"github_id":"IceVitaLemon","repo":"IceVitaLemon.github.io","client_id":"2bac2f2e44e15b59b869","client_secret":"cde7426c367b8a22029dd71acac79712c5f67459","admin_user":"IceVitaLemon","distraction_free_mode":true,"proxy":"https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token","language":null,"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.7.2/gitalk.min.js","integrity":"sha256-Pmj85ojLaPOWwRtlMJwmezB/Qg8BzvJp5eTzvXaYAfA="},"path_md5":"ede77a421e6fab08137642cc3fbaaef4"}</script>
+<script src="/js/third-party/comments/gitalk.js"></script>
+
+</body>
+</html>

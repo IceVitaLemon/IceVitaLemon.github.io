@@ -2,6 +2,61 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>http://example.com/2023/02/17/%E4%B8%80%E8%87%B4%E6%80%A7%E5%93%88%E5%B8%8C%E7%9A%84%E7%94%B1%E6%9D%A5/</loc>
+    
+    <lastmod>2023-03-16T02:59:49.158Z</lastmod>
+    
+    <date>1676610480000</date>
+    <title>一致性哈希的由来 | IceVitalemon's Blog</title>
+    
+    <desc>介绍一致性哈希的使用场景，存在的问题以及解决方案。</desc>
+  </url>
+  
+  <url>
+    <loc>http://example.com/2023/03/09/%E3%80%90Logback-Spring-AOP%E3%80%91%E6%97%A5%E5%BF%97%E9%93%BE%E8%B7%AF%E8%B7%9F%E8%B8%AA/</loc>
+    
+    <lastmod>2023-03-15T12:53:00.892Z</lastmod>
+    
+    <date>1678365654000</date>
+    <title>【Logback+Spring-AOP】日志链路跟踪 | IceVitalemon's Blog</title>
+    
+    <desc>多线程场景下使用 MDC 跟踪日志记录，并且自定义 Logback Appender 实现日志推送功能。</desc>
+  </url>
+  
+  <url>
+    <loc>http://example.com/2022/08/17/python%E5%8C%85%E5%AE%89%E8%A3%85%E4%B8%8E%E5%8D%B8%E8%BD%BD/</loc>
+    
+    <lastmod>2023-03-01T07:57:22.925Z</lastmod>
+    
+    <date>1660735232000</date>
+    <title>python包安装与卸载 | IceVitalemon's Blog</title>
+    
+    <desc>1. python包安装方式 setup.py方式 pip方式（推荐） easy_install方式</desc>
+  </url>
+  
+  <url>
+    <loc>http://example.com/2023/02/21/Java%E5%9F%BA%E4%BA%8EString%E5%AE%9E%E7%8E%B0%E5%90%8C%E6%AD%A5%E9%94%81/</loc>
+    
+    <lastmod>2023-02-23T09:50:50.600Z</lastmod>
+    
+    <date>1676972818000</date>
+    <title>Java基于String实现同步锁 | IceVitalemon's Blog</title>
+    
+    <desc>单进程不依赖Redis的情况下，如何通过String来锁定一个资源。</desc>
+  </url>
+  
+  <url>
+    <loc>http://example.com/2022/12/05/Kafka%E7%9F%A5%E8%AF%86%E6%80%BB%E7%BB%93/</loc>
+    
+    <lastmod>2023-02-09T00:03:20.395Z</lastmod>
+    
+    <date>1670224989000</date>
+    <title>Kafka知识总结 | IceVitalemon's Blog</title>
+    
+    <desc>1. 基本概念 主要是分清Broker、主题Topic、分区Partition、副本Replica之间的概念</desc>
+  </url>
+  
+  <url>
     <loc>http://example.com/2023/01/28/%E6%96%87%E4%BB%B6%E5%90%8D%E5%A4%A7%E5%B0%8F%E5%86%99%E5%BC%95%E8%B5%B7%E7%9A%84%E8%A1%80%E6%A1%88/</loc>
     
     <lastmod>2023-01-29T09:51:38.758Z</lastmod>
@@ -46,17 +101,6 @@
   </url>
   
   <url>
-    <loc>http://example.com/2022/12/05/Kafka%E7%9F%A5%E8%AF%86%E6%80%BB%E7%BB%93/</loc>
-    
-    <lastmod>2023-01-05T10:53:14.314Z</lastmod>
-    
-    <date>1670224989000</date>
-    <title>Kafka知识总结 | IceVitalemon's Blog</title>
-    
-    <desc>1. 基本概念 主要是分清Broker、主题Topic、分区Partition、副本Replica之间的概念</desc>
-  </url>
-  
-  <url>
     <loc>http://example.com/2022/12/05/SpringBoot%E4%B8%AD%E4%BD%BF%E7%94%A8Zookeeper%E8%BF%9B%E8%A1%8C%E6%9C%8D%E5%8A%A1%E5%8F%91%E7%8E%B0/</loc>
     
     <lastmod>2023-01-05T10:44:46.722Z</lastmod>
@@ -87,17 +131,6 @@
     <title>python模块加载顺序 | IceVitalemon's Blog</title>
     
     <desc>结论：工程自定义包 -&gt; 工程py文件 -&gt; 系统路径 所以如果在工程中自己创建了跟系统&#x2F;第三方模块重名的模块时，则无法加载系统&#x2F;第三方模块 python出于性能考虑，每个模块在每个解释器会话中只导入一遍，所以如果程序运行过程中，你修改了自定义模块，那么需要重启解释器（即重启程序）或者使用reload(moduleName)重新加载模块（不用重启）</desc>
-  </url>
-  
-  <url>
-    <loc>http://example.com/2022/08/17/python%E5%8C%85%E5%AE%89%E8%A3%85%E4%B8%8E%E5%8D%B8%E8%BD%BD/</loc>
-    
-    <lastmod>2023-01-05T09:10:47.936Z</lastmod>
-    
-    <date>1660735232000</date>
-    <title>python包安装与卸载 | IceVitalemon's Blog</title>
-    
-    <desc>1. python包安装方式 setup.py方式 pip方式（推荐） easy_install方式</desc>
   </url>
   
   <url>
