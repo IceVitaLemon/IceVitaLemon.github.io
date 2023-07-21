@@ -2,6 +2,50 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>http://example.com/2023/07/18/%E5%86%8D%E6%88%98LVS-DR%E6%A8%A1%E5%BC%8F/</loc>
+    
+    <lastmod>2023-07-19T15:48:33.344Z</lastmod>
+    
+    <date>1689694117000</date>
+    <title>再战LVS DR模式 | IceVitalemon's Blog</title>
+    
+    <desc>上一年的时候，写了一篇文章《LVS负载均衡实战》，里面只实现了LVS的NAT模式，这次实现LVS的DR模式部署。</desc>
+  </url>
+  
+  <url>
+    <loc>http://example.com/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/</loc>
+    
+    <lastmod>2023-07-19T14:59:53.877Z</lastmod>
+    
+    <date>1660807965000</date>
+    <title>LVS负载均衡实战 | IceVitalemon's Blog</title>
+    
+    <desc>1. 前言LVS的作用就是用作四层的负载均衡，四层是指TCP/IP七层协议中的传输层。目的是请求按一定的调度策略把用户的请求分发到多台后端设备上。区别于nginx，nginx是七层的负载均衡，能够看到http协议，而LVS只能看到四层的协议，即TCP协议等，所以无法通过Http cookie处理session。</desc>
+  </url>
+  
+  <url>
+    <loc>http://example.com/2023/01/19/Kubeadm%E5%AE%89%E8%A3%85Kubernetes%20v1.26.1%E9%9B%86%E7%BE%A4/</loc>
+    
+    <lastmod>2023-07-18T13:31:32.033Z</lastmod>
+    
+    <date>1674112544000</date>
+    <title>Kubeadm安装Kubernetes v1.26.1集群 | IceVitalemon's Blog</title>
+    
+    <desc>使用VirtualBox创建一个网关路由、三台CentOS7虚拟机，搭建集群网络，利用Kubeadm安装一个master节点两个node节点的Kubernates集群，containerd提供底层容器运行时接口服务，calico提供容器网络，Kubernetes Dashboard用户页面，Kube-Prometheus集群监控，Helm包管理工具。其实k8s集群搭建最麻烦的是因为有墙，整体流程还</desc>
+  </url>
+  
+  <url>
+    <loc>http://example.com/2023/04/07/Go%E4%B8%AD%E7%9A%84new%E4%B8%8Emake/</loc>
+    
+    <lastmod>2023-06-13T12:23:20.208Z</lastmod>
+    
+    <date>1680853106000</date>
+    <title>Go中的new与make | IceVitalemon's Blog</title>
+    
+    <desc>简要介绍Go语言中new与make的区别</desc>
+  </url>
+  
+  <url>
     <loc>http://example.com/2023/02/17/%E4%B8%80%E8%87%B4%E6%80%A7%E5%93%88%E5%B8%8C%E7%9A%84%E7%94%B1%E6%9D%A5/</loc>
     
     <lastmod>2023-03-16T02:59:49.158Z</lastmod>
@@ -65,17 +109,6 @@
     <title>文件名大小写引起的血案 | IceVitalemon's Blog</title>
     
     <desc>关于Windows下文件夹/文件名不区分大小写，以及Git默认对文件名大小写不敏感。</desc>
-  </url>
-  
-  <url>
-    <loc>http://example.com/2023/01/19/Kubeadm%E5%AE%89%E8%A3%85Kubernetes%20v1.26.1%E9%9B%86%E7%BE%A4/</loc>
-    
-    <lastmod>2023-01-28T07:52:30.804Z</lastmod>
-    
-    <date>1674112544000</date>
-    <title>Kubeadm安装Kubernetes v1.26.1集群 | IceVitalemon's Blog</title>
-    
-    <desc>使用VirtualBox创建一个网关路由、三台CentOS7虚拟机，搭建集群网络，利用Kubeadm安装一个master节点两个node节点的Kubernates集群，containerd提供底层容器运行时接口服务，calico提供容器网络，Kubernetes Dashboard用户页面，Kube-Prometheus集群监控，Helm包管理工具。其实k8s集群搭建最麻烦的是因为有墙，整体流程还</desc>
   </url>
   
   <url>
@@ -208,17 +241,6 @@
     <title>Linux中的login shell和non-login shell | IceVitalemon's Blog</title>
     
     <desc>1. 简要介绍Shell是用于为用户提供与Linux内核交互的工具，比如sh、bash、zch等都是shell。当我们使用Linux的时候，一进入系统就有一堆的变量可以使用，那么这些变量从哪里来呢？在Linux启动的时候，会按一定的顺序读取配置文件，并且将这些配置文件中的环境变量设置到当前的shell中，所以我们才能使用这些环境变量中目录里面的命令。</desc>
-  </url>
-  
-  <url>
-    <loc>http://example.com/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/</loc>
-    
-    <lastmod>2022-12-05T07:18:44.014Z</lastmod>
-    
-    <date>1660807965000</date>
-    <title>LVS负载均衡实战 | IceVitalemon's Blog</title>
-    
-    <desc>1. 前言LVS的作用就是用作四层的负载均衡，四层是指TCP/IP七层协议中的传输层。目的是请求按一定的调度策略把用户的请求分发到多台后端设备上。区别于nginx，nginx是七层的负载均衡，能够看到http协议，而LVS只能看到四层的协议，即TCP协议等，所以无法通过Http cookie处理session。</desc>
   </url>
   
   <url>

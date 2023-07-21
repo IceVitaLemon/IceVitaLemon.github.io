@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#222" media="(prefers-color-scheme: dark)"><meta name="generator" content="Hexo 6.3.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.2/css/all.min.css" integrity="sha256-xejo6yLi6vGtAjcMIsY8BHdKsLg7QynVlFMzdQgUuy8=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pace/1.2.4/themes/blue/pace-theme-minimal.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pace/1.2.4/pace.min.js" integrity="sha256-gqd7YTjg/BtfqWSwsJOvndl0Bxc8gFImLEkXQT8+qj0=" crossorigin="anonymous"></script>
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"example.com","root":"/","images":"/images","scheme":"Muse","darkmode":true,"version":"8.12.3","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"bookmark":{"enable":true,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":null,"activeClass":"gitalk"},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"},"path":"/search.xml","localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="上一年的时候，写了一篇文章《LVS负载均衡实战》，里面只实现了LVS的NAT模式，这次实现LVS的DR模式部署。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="再战LVS DR模式">
+<meta property="og:url" content="http://example.com/2023/07/18/%E5%86%8D%E6%88%98LVS-DR%E6%A8%A1%E5%BC%8F/index.html">
+<meta property="og:site_name" content="IceVitalemon&#39;s Blog">
+<meta property="og:description" content="上一年的时候，写了一篇文章《LVS负载均衡实战》，里面只实现了LVS的NAT模式，这次实现LVS的DR模式部署。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-07-18T15:28:37.000Z">
+<meta property="article:modified_time" content="2023-07-19T15:48:33.344Z">
+<meta property="article:author" content="Junhao Lin">
+<meta property="article:tag" content="LVS">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://example.com/2023/07/18/%E5%86%8D%E6%88%98LVS-DR%E6%A8%A1%E5%BC%8F/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"http://example.com/2023/07/18/%E5%86%8D%E6%88%98LVS-DR%E6%A8%A1%E5%BC%8F/","path":"2023/07/18/再战LVS-DR模式/","title":"再战LVS DR模式"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>再战LVS DR模式 | IceVitalemon's Blog</title>
+  
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">IceVitalemon's Blog</p>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"><span class="nav-text">1.工作原理</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-1-%E5%85%B3%E4%BA%8EDirector-Server-DS"><span class="nav-text">1.1 关于Director Server(DS)</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#1-2-%E5%85%B3%E4%BA%8EReal-Server-RS"><span class="nav-text">1.2 关于Real Server(RS)</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-%E7%8E%AF%E5%A2%83%E4%BF%A1%E6%81%AF"><span class="nav-text">2. 环境信息</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-%E9%9B%86%E7%BE%A4%E9%83%A8%E7%BD%B2"><span class="nav-text">3. 集群部署</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#3-1-Real-Server%E8%AE%BE%E7%BD%AE"><span class="nav-text">3.1 Real Server设置</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-2-Director-Server%E8%AE%BE%E7%BD%AE"><span class="nav-text">3.2 Director Server设置</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-%E5%90%8E%E8%AE%B0"><span class="nav-text">4. 后记</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <a href="/">
+      <img class="site-author-image" itemprop="image" alt="Junhao Lin"
+        src="/images/avatar.gif">
+    </a>
+  <p class="site-author-name" itemprop="name">Junhao Lin</p>
+  <div class="site-description" itemprop="description">朝花夕拾</div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">23</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">15</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">15</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author site-overview-item animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/IceVitaLemon" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;IceVitaLemon" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:junhaol0902@outlook.com" title="E-Mail → mailto:junhaol0902@outlook.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2023/07/18/%E5%86%8D%E6%88%98LVS-DR%E6%A8%A1%E5%BC%8F/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Junhao Lin">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="IceVitalemon's Blog">
+      <meta itemprop="description" content="朝花夕拾">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="再战LVS DR模式 | IceVitalemon's Blog">
+      <meta itemprop="description" content="上一年的时候，写了一篇文章《LVS负载均衡实战》，里面只实现了LVS的NAT模式，这次实现LVS的DR模式部署。">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          再战LVS DR模式
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2023-07-18 23:28:37" itemprop="dateCreated datePublished" datetime="2023-07-18T23:28:37+08:00">2023-07-18</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2023-07-19 23:48:33" itemprop="dateModified" datetime="2023-07-19T23:48:33+08:00">2023-07-19</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/" itemprop="url" rel="index"><span itemprop="name">计算机网络</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-break"></span>
+    <span class="post-meta-item" title="本文字数">
+      <span class="post-meta-item-icon">
+        <i class="far fa-file-word"></i>
+      </span>
+      <span class="post-meta-item-text">本文字数：</span>
+      <span>882</span>
+    </span>
+    <span class="post-meta-item" title="阅读时长">
+      <span class="post-meta-item-icon">
+        <i class="far fa-clock"></i>
+      </span>
+      <span class="post-meta-item-text">阅读时长 &asymp;</span>
+      <span>3 分钟</span>
+    </span>
+</div>
+
+            <div class="post-description">上一年的时候，写了一篇文章《LVS负载均衡实战》，里面只实现了LVS的NAT模式，这次实现LVS的DR模式部署。</div>
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <h3 id="1-工作原理"><a href="#1-工作原理" class="headerlink" title="1.工作原理"></a>1.工作原理</h3><blockquote>
+<a href="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/" title="LVS负载均衡实战">上一篇文章</a>中已经详细写了NAT/TUN/DR模式的工作原理了，这里不重复造轮子，只做简单叙述。
+</blockquote>
+<blockquote>
+<p>在DR模式下，无论是DS服务器还是RS服务器都需要绑定上VIP，需要知道VIP的地址。只不过VIP在DS、RS服务器上绑的网络接口不一样，但是只能由DS服务器响应ARP广播，RS服务器不响应。</p>
+</blockquote>
+<h4 id="1-1-关于Director-Server-DS"><a href="#1-1-关于Director-Server-DS" class="headerlink" title="1.1 关于Director Server(DS)"></a>1.1 关于Director Server(DS)</h4><ul>
+<li><p>LVS在DR模式对数据包仅仅修改目的MAC地址，让其路由到RS服务器上，因此DS服务器需要跟RS服务器在同一个物理网络中。</p>
+</li>
+<li><p>DS服务器在DR模式下不能再充当RS服务器的网关。</p>
+</li>
+<li><p>VIP绑定在DS服务器的内网网卡上（如：eth0）。</p>
+</li>
+</ul>
+<h4 id="1-2-关于Real-Server-RS"><a href="#1-2-关于Real-Server-RS" class="headerlink" title="1.2 关于Real Server(RS)"></a>1.2 关于Real Server(RS)</h4><p>RS服务器也需要绑定VIP，为了解决ARP广播响应的问题，需要按以下设置：</p>
+<ul>
+<li><p>使用回环虚接口lo:0承载VIP地址（回环接口没有MAC地址，不会接收ARP请求，也不会响应ARP请求）。</p>
+</li>
+<li><p>设置内核参数arp_ignore&#x3D;1：系统只响应目的IP为该网络接口IP的ARP请求（默认情况下，所有网络接口会响应对任何本机 IP 地址的 ARP 查询请求）。</p>
+</li>
+<li><p>设置内核参数arp_announce&#x3D;2：保证RS以源IP为VIP的情况下，发送出去数据包（避免通过ARP请求查询能到达客户端的网关MAC地址）。</p>
+</li>
+</ul>
+<h3 id="2-环境信息"><a href="#2-环境信息" class="headerlink" title="2. 环境信息"></a>2. 环境信息</h3><ul>
+<li>操作系统：Centos7.9</li>
+<li>LVS工作模式：DR</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><strong>Director Server 01</strong></th>
+<th><strong>Real Server 01</strong></th>
+<th>Real Server 02</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>IP</td>
+<td>172.24.0.204（内网IP，eth0）<br />172.24.0.159（VIP，eth0）</td>
+<td>172.24.0.246（内网IP，eth0）<br />172.24.0.159（VIP，lo）</td>
+<td>172.24.0.251（内网IP，eth0）<br />172.24.0.159（VIP，lo）</td>
+</tr>
+<tr>
+<td>端口</td>
+<td>80</td>
+<td>80</td>
+<td>80</td>
+</tr>
+<tr>
+<td>内核设置</td>
+<td>无</td>
+<td>net.ipv4.conf.lo.arp_ignore&#x3D;1<br />net.ipv4.conf.lo.arp_announce&#x3D;2<br />net.ipv4.conf.all.arp_ignore&#x3D;1<br />net.ipv4.conf.all.arp_announce&#x3D;2</td>
+<td>net.ipv4.conf.lo.arp_ignore&#x3D;1<br />net.ipv4.conf.lo.arp_announce&#x3D;2<br />net.ipv4.conf.all.arp_ignore&#x3D;1<br />net.ipv4.conf.all.arp_announce&#x3D;2</td>
+</tr>
+</tbody></table>
+<h3 id="3-集群部署"><a href="#3-集群部署" class="headerlink" title="3. 集群部署"></a>3. 集群部署</h3><h4 id="3-1-Real-Server设置"><a href="#3-1-Real-Server设置" class="headerlink" title="3.1 Real Server设置"></a>3.1 Real Server设置</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">设置内核参数</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">echo</span> <span class="string">&quot;</span></span></span><br><span class="line">net.ipv4.conf.lo.arp_ignore=1</span><br><span class="line">net.ipv4.conf.lo.arp_announce=2</span><br><span class="line">net.ipv4.conf.all.arp_ignore=1</span><br><span class="line">net.ipv4.conf.all.arp_announce=2</span><br><span class="line">&quot; | sudo tee -a /etc/sysctl.conf</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="string">sudo sysctl -p</span></span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">绑定VIP至lo接口</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">配置文件中配置或者使用ip addr命令临时添加</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">echo</span> <span class="string">&quot;</span></span></span><br><span class="line">DEVICE=lo:0</span><br><span class="line">IPADDR=172.24.0.159</span><br><span class="line">NETMASK=255.255.255.255</span><br><span class="line">ONBOOT=yes&quot; | sudo tee /etc/sysconfig/network-scripts/ifcfg-lo:0</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="string">sudo systemctl restart network</span></span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="string">或者临时添加</span></span></span><br><span class="line">sudo ip addr add 172.24.0.159/32 dev lo:0</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装Nginx</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装epel源</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo yum install -y epel-release</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装nginx</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo yum install nginx -y</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">启动nginx服务，默认80端口</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo servcie start nginx</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS1中执行</span></span><br><span class="line">echo &#x27;RS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS2中执行</span></span><br><span class="line">echo &#x27;RS02&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="3-2-Director-Server设置"><a href="#3-2-Director-Server设置" class="headerlink" title="3.2 Director Server设置"></a>3.2 Director Server设置</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装ipvsadm命令</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo yum install -y ipvsadm</span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-g 表示使用DR模式</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo ipvsadm -A -t 172.24.0.159:80 -s -rr</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo ipvsadm -a -t 172.24.0.159:80 -r 172.24.0.246:80 -g</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo ipvsadm -a -t 172.24.0.159:80 -r 172.24.0.251:80 -g</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">ipvsadm -Ln</span></span><br><span class="line">IP Virtual Server version 1.2.1 (size=4096)</span><br><span class="line">Prot LocalAddress:Port Scheduler Flags</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">RemoteAddress:Port           Forward Weight ActiveConn InActConn</span></span><br><span class="line">TCP  172.24.0.159:80 rr</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.24.0.246:80              Route   1      0          0</span>         </span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.24.0.251:80              Route   1      0          0</span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">不能在DS上访问VIP，需要在内网其他机器访问</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">curl 172.24.0.159:80</span></span><br><span class="line">RS02</span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">curl 172.24.0.159:80</span></span><br><span class="line">RS01</span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">curl 172.24.0.159:80</span></span><br><span class="line">RS02</span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">curl 172.24.0.159:80</span></span><br><span class="line">RS01</span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">curl 172.24.0.159:80</span></span><br><span class="line">RS02</span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">curl 172.24.0.159:80</span></span><br><span class="line">RS01</span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">curl 172.24.0.159:80</span></span><br><span class="line">RS02</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="4-后记"><a href="#4-后记" class="headerlink" title="4. 后记"></a>4. 后记</h3><p>ipvs只能通过ipvsadm进行管理，如果想要通过读取配置文件进行管理，可以结合keepalived使用。</p>
+<p>因为LVS的结构体系中，只有一个DS节点，所以如果想要做高可用，需要把VIP在多个DS节点中漂移，这也是keepalived的功能。</p>
+<p>以后会再写一篇文章介绍keepalived。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/LVS/" rel="tag"><i class="fa fa-tag"></i> LVS</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2023/04/07/Go%E4%B8%AD%E7%9A%84new%E4%B8%8Emake/" rel="prev" title="Go中的new与make">
+                  <i class="fa fa-chevron-left"></i> Go中的new与make
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments gitalk-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+
+<div class="copyright">
+  &copy; 2021 – 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Junhao Lin</span>
+</div>
+<div class="wordcount">
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-line"></i>
+    </span>
+    <span title="站点总字数">103k</span>
+  </span>
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">6:15</span>
+  </span>
+</div><script color="0,0,255" opacity="0.5" zIndex="-1" count="99" src="/js/canvas-nest.js"></script>
+
+    </div>
+  </footer>
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js" integrity="sha256-j+yj56cdEY2CwkVtGyz18fNybFGpMGJ8JxG3GSyO2+I=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script><script src="/js/bookmark.js"></script>
+
+  
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hexo-generator-searchdb/1.4.0/search.js" integrity="sha256-vXZMYLEqsROAXkEw93GGIvaB2ab+QW6w3+1ahD9nXXA=" crossorigin="anonymous"></script>
+<script src="/js/third-party/search/local-search.js"></script>
+
+
+
+
+  <script src="/js/third-party/pace.js"></script>
+
+  
+
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.7.2/gitalk.css" integrity="sha256-AJnUHL7dBv6PGaeyPQJcgQPDjt/Hn/PvYZde1iqfp8U=" crossorigin="anonymous">
+
+<script class="next-config" data-name="gitalk" type="application/json">{"enable":true,"github_id":"IceVitaLemon","repo":"IceVitaLemon.github.io","client_id":"2bac2f2e44e15b59b869","client_secret":"cde7426c367b8a22029dd71acac79712c5f67459","admin_user":"IceVitaLemon","distraction_free_mode":true,"proxy":"https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token","language":null,"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.7.2/gitalk.min.js","integrity":"sha256-Pmj85ojLaPOWwRtlMJwmezB/Qg8BzvJp5eTzvXaYAfA="},"path_md5":"0e1504efb8e8fc976681c972354a6a0d"}</script>
+<script src="/js/third-party/comments/gitalk.js"></script>
+
+</body>
+</html>
