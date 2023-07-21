@@ -568,6 +568,14 @@
       </tags>
   </entry>
   <entry>
+    <title>Keepalived部署高可用集群</title>
+    <url>/2023/07/20/Keepalived%E9%83%A8%E7%BD%B2%E9%AB%98%E5%8F%AF%E7%94%A8%E9%9B%86%E7%BE%A4/</url>
+    <content><![CDATA[]]></content>
+      <categories>
+        <category>计算机网络</category>
+      </categories>
+  </entry>
+  <entry>
     <title>Kafka知识总结</title>
     <url>/2022/12/05/Kafka%E7%9F%A5%E8%AF%86%E6%80%BB%E7%BB%93/</url>
     <content><![CDATA[<h3 id="1-基本概念"><a href="#1-基本概念" class="headerlink" title="1. 基本概念"></a>1. 基本概念</h3><blockquote>
@@ -1026,7 +1034,7 @@
 <li>Broker 0 上 Leader 副本 HW 值</li>
 <li>Broker 1 上 Follower 副本 HW 值</li>
 </ul>
-<p>![img](.&#x2F;Kafka HW 和 LEO 储存位置.png)</p>
+<p>![Kafka HW 和 LEO 储存位置](.&#x2F;Kafka HW 和 LEO 储存位置.png)</p>
 <table>
 <thead>
 <tr>
@@ -1174,14 +1182,6 @@
       <tags>
         <tag>Kafka</tag>
       </tags>
-  </entry>
-  <entry>
-    <title>Keepalived部署高可用集群</title>
-    <url>/2023/07/20/Keepalived%E9%83%A8%E7%BD%B2%E9%AB%98%E5%8F%AF%E7%94%A8%E9%9B%86%E7%BE%A4/</url>
-    <content><![CDATA[]]></content>
-      <categories>
-        <category>计算机网络</category>
-      </categories>
   </entry>
   <entry>
     <title>Kubeadm安装Kubernetes v1.26.1集群</title>
@@ -3550,191 +3550,6 @@
       </tags>
   </entry>
   <entry>
-    <title>网络抓包工具使用</title>
-    <url>/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/</url>
-    <content><![CDATA[<h2 id="1-网络抓包原理"><a href="#1-网络抓包原理" class="headerlink" title="1. 网络抓包原理"></a>1. 网络抓包原理</h2><blockquote>
-<p>抓包实际上是分析网络协议的一种过程，只要网络数据流经过我们的节点，就能够对数据流进行抓包。</p>
-</blockquote>
-<h3 id="1-1-网卡或代理抓包"><a href="#1-1-网卡或代理抓包" class="headerlink" title="1.1 网卡或代理抓包"></a>1.1 网卡或代理抓包</h3><p>目前的抓包软件总体上可以分成两类：</p>
-<ul>
-<li>一种是设置代理抓取 http 包，比如Charles、mitmproxy这些软件。</li>
-<li>另一种是直接抓取经过本机网络的所有协议包，其中最出名的就是 wireshark 以及 Linux 自带的抓包软件命令 tcpdump。</li>
-</ul>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/15202375411791.jpg" alt="img"></p>
-<h3 id="1-2-http-与-https"><a href="#1-2-http-与-https" class="headerlink" title="1.2 http 与 https"></a>1.2 http 与 https</h3><p>http 与 https 最大的区别是 http 的数据包是不加密的， https 的数据包是加密的。因此对于 wireshark 这种在数据链路层进行抓包的工具，所获取到的 https 数据包是加密的，因此无法分析包的内容。而 Charles 等只要安装 Charles 的证书，就能够解密 https 数据包的内容。</p>
-<h2 id="2-tcpdump-使用"><a href="#2-tcpdump-使用" class="headerlink" title="2. tcpdump 使用"></a>2. tcpdump 使用</h2><blockquote>
-<p>tcpdump可以把抓取到的数据包导出为 wireshark 格式的文件。</p>
-</blockquote>
-<blockquote>
-<p>不重复造轮子，详情请看<a href="https://www.cnblogs.com/wongbingming/p/13212306.html">tcpdump使用指南</a>，或者参考 man 文档。</p>
-</blockquote>
-<h3 id="2-1-命令格式"><a href="#2-1-命令格式" class="headerlink" title="2.1 命令格式"></a>2.1 命令格式</h3><p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/20200628111325.png" alt="img"></p>
-<ul>
-<li><p><strong>option 可选参数</strong>：常用的有<code>-i 指定网卡名字</code>、<code>-w 保存抓包数据到文件</code>、<code>-r 从文件中读取抓包数据</code>、<code>-v\-vv\-vvv 输出更详细的内容</code>、<code>-n\-nn\-N 不解析域名\端口</code>。</p>
-</li>
-<li><p><strong>proto 类过滤器</strong>：根据协议进行过滤，可识别的关键词有： <code>tcp、udp、icmp、ip、ip6、arp、rarp、ether、wlan、fddi、tr、decnet</code>。</p>
-</li>
-<li><p><strong>direction 类过滤器</strong>：根据数据流向进行过滤，可识别的关键字有：<code>src、dst</code>，同时你可以使用逻辑运算符进行组合，比如 <code>src or dst</code>。</p>
-</li>
-<li><p><strong>type 类过滤器</strong>：可识别的关键词有：<code>host、net、port、portrange</code>，这些词后边需要再接参数。</p>
-</li>
-</ul>
-<h3 id="2-2-输出内容格式"><a href="#2-2-输出内容格式" class="headerlink" title="2.2 输出内容格式"></a>2.2 输出内容格式</h3><blockquote>
-<p>加入不同的可选参数，可能会使得输出的内容格式会有区别，但是能够触类旁通。</p>
-</blockquote>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo tcpdump -nn src host 172.25.122.140</span></span><br><span class="line">tcpdump: verbose output suppressed, use -v or -vv for full protocol decode</span><br><span class="line">listening on eth0, link-type EN10MB (Ethernet), capture size 262144 bytes</span><br><span class="line">11:21:04.200134 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [S], seq 3457030617, win 64240, options [mss 1460,sackOK,TS val 148049843 ecr 0,nop,wscale 7], length 0</span><br><span class="line">11:21:04.206621 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [.], ack 3549651488, win 502, length 0</span><br><span class="line">11:21:04.212251 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [P.], seq 0:517, ack 1, win 502, length 517</span><br></pre></td></tr></table></figure>
-
-<p>以最后一条数据为例：</p>
-<ol>
-<li><strong>第一列，时分秒毫秒</strong> ：11:21:04.212251</li>
-<li><strong>第二列，网络协议</strong> ：IP</li>
-<li><strong>第三列，发送方 IP + 端口</strong>：IP - 172.25.122.140 | 端口 - 40236</li>
-<li><strong>第四列，数据流向 &gt;</strong> ：从 172.25.122.140.40236 流向 14.215.177.39.443</li>
-<li><strong>第五列，接收方 IP + 端口</strong>：IP - 14.215.177.39 | 端口 - 443</li>
-<li><strong>第六列，冒号</strong><code>：</code></li>
-<li><strong>第七列， 数据包内容</strong>：包括 Flags 标识符，seq 号，ack 号，win 窗口，数据长度 length</li>
-</ol>
-<p><strong>Flags 标识符</strong>：</p>
-<ul>
-<li><code>[S]</code> : SYN（开始连接）</li>
-<li><code>[P]</code> : PSH（推送数据）</li>
-<li><code>[F]</code> : FIN （结束连接）</li>
-<li><code>[R]</code> : RST（重置连接）</li>
-<li><code>[.]</code> : 没有 Flag （意思是除上面四种类型外的其他情况，有可能是 ACK 也有可能是 URG）</li>
-</ul>
-<h2 id="3-Wireshark-使用"><a href="#3-Wireshark-使用" class="headerlink" title="3. Wireshark 使用"></a>3. Wireshark 使用</h2><blockquote>
-<p>Wireshark 使用中最难的，其实就是过滤器的使用，如何从海量请求数据包过滤出自己需要分析的内容。</p>
-</blockquote>
-<blockquote>
-<p>Wireshark 包括两种过滤器：</p>
-<ul>
-<li><p>捕获过滤器：抓包的过滤规则，只抓取特定条件的数据包</p>
-</li>
-<li><p>显示过滤器：对抓取到的数据再次过滤，只显示符合特定规则数据包</p>
-</li>
-</ul>
-</blockquote>
-<h3 id="3-1-抓包示例"><a href="#3-1-抓包示例" class="headerlink" title="3.1 抓包示例"></a>3.1 抓包示例</h3><blockquote>
-<p>使用 Wireshark 抓取 ping <a href="http://www.baidu.com/">www.baidu.com</a> 的数据包</p>
-</blockquote>
-<ol>
-<li>打开 Wireshark 主界面。</li>
-</ol>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104161119826.png" alt="image-20230104161119826"></p>
-<ol start="2">
-<li>选择菜单栏上<code>捕获-&gt;选项-&gt;选择网卡-&gt;开始</code>，或者直接在主界面中选择需要抓包的网卡就能够开始抓包（网卡通常只会处理发送给它自身地址的流量，如果想要捕获所有经过网卡的流量就需要开启混杂模式）。</li>
-</ol>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104162023100.png" alt="image-20230104162023100"></p>
-<ol start="3">
-<li>启动之后，Wireshark 就处于抓包状态了。</li>
-</ol>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104162352660.png" alt="image-20230104162352660"></p>
-<ol start="4">
-<li>在 cmd 窗口执行<code>ping www.baidu.com</code>命令。</li>
-</ol>
-<img src="image-20230104162742232.png" alt="image-20230104162742232" style="zoom:60%;" />
-
-<ol start="5">
-<li>操作完成之后，就能在 Wireshark 中看到抓取的数据包了。为了避免其他不相关的数据包影响分析，可以在过滤栏设置显示过滤条件。<code>ip.addr == 14.215.177.39 and icmp</code>表示只显示源主机 IP 或者目标主机 IP 为 <code>14.215.177.39</code> 且 ICMP 协议的数据包。</li>
-</ol>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104163323961.png" alt="image-20230104163323961"></p>
-<h3 id="3-2-界面介绍"><a href="#3-2-界面介绍" class="headerlink" title="3.2 界面介绍"></a>3.2 界面介绍</h3><p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104164142717.png" alt="image-20230104164142717"></p>
-<h4 id="3-2-1-捕获过滤器"><a href="#3-2-1-捕获过滤器" class="headerlink" title="3.2.1 捕获过滤器"></a>3.2.1 捕获过滤器</h4><h5 id="3-2-1-1-界面设置"><a href="#3-2-1-1-界面设置" class="headerlink" title="3.2.1.1 界面设置"></a>3.2.1.1 界面设置</h5><p>能够在<code>捕获-&gt;捕获过滤器</code>中进行设置，只抓取符合规则的数据包，能够在开始抓包前进行设置。</p>
-<img src="image-20230104170403368.png" alt="image-20230104170403368"  />
-
-<img src="image-20230104170503369.png" alt="image-20230104170503369"  />
-
-<h5 id="3-2-1-2-捕获过滤器规则"><a href="#3-2-1-2-捕获过滤器规则" class="headerlink" title="3.2.1.2 捕获过滤器规则"></a>3.2.1.2 捕获过滤器规则</h5><blockquote>
-<p>捕获过滤器规则设置规则跟 tcpdump 是一样的，只介绍简单的过滤规则，详情请翻阅<a href="https://www.wireshark.org/docs/wsug_html_chunked/ChCapCaptureFilterSection.html">官方文档</a></p>
-</blockquote>
-<p>捕获过滤器的设置主要包括：网络类型 Type(host、net、port)、方向 Dir(src、dst)、协议类型 Proto(ether、ip、tcp、udp、http、icmp、ftp等)、逻辑运算符(&amp;&amp;、||、! 或者 and、or、not)。</p>
-<p>以下显示一些使用示例：</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">host 172.18.5.4     # 只捕捉源地址或者目的地址为172.18.5.4的流量</span><br><span class="line">net 192.168.0.0/24  # 捕捉192.168.0.0/24网段中的流量</span><br><span class="line">src net 192.168.0.0/24 # 捕捉源地址IP在网段192.168.0.0/24中的流量</span><br><span class="line">not broadcast and not multicast # 仅捕捉单播流量，不捕捉广播和多播的流量</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="3-2-2-显示过滤器"><a href="#3-2-2-显示过滤器" class="headerlink" title="3.2.2 显示过滤器"></a>3.2.2 显示过滤器</h4><h5 id="3-2-2-1-界面设置"><a href="#3-2-2-1-界面设置" class="headerlink" title="3.2.2.1 界面设置"></a>3.2.2.1 界面设置</h5><p>对抓取到的数据再次过滤，只显示符合特定规则数据包。显示过滤器能够在<code>分析-&gt;显示过滤器</code>中进行设置。</p>
-<p>在主界面中右键选择<code>作为过滤器应用</code>有惊喜，可以将界面中的一些数据作为过滤规则。</p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104170955371.png" alt="image-20230104170955371"></p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104173929469.png" alt="image-20230104173929469"></p>
-<h5 id="3-2-2-2-显示过滤器规则"><a href="#3-2-2-2-显示过滤器规则" class="headerlink" title="3.2.2.2 显示过滤器规则"></a>3.2.2.2 显示过滤器规则</h5><blockquote>
-<p>详细设置规则请参阅<a href="https://www.wireshark.org/docs/wsug_html_chunked/ChWorkBuildDisplayFilterSection.html">官方文档</a></p>
-</blockquote>
-<p>设置规则基本上是<code>key 运算符 value</code>的格式，运算符可以取<code>==、!=、===、!==、&gt;、&lt;、&gt;=、&lt;=、~</code>。</p>
-<p>使用示例：</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">tcp # 只显示tcp协议的数据包列表</span><br><span class="line">http # 只显示http协议的数据包列表</span><br><span class="line">ip.src == 192.168.1.104 # 显示源地址为192.168.1.104的数据包列表</span><br><span class="line">ip.dst == 192.168.1.104 # 显示目标地址为192.168.1.104的数据包列表</span><br><span class="line">ip.addr == 192.168.1.104 # 显示源IP地址或目标IP地址为192.168.1.104的数据包列表</span><br><span class="line">tcp.port == 80 # 显示源主机或者目的主机端口为80的数据包列表</span><br><span class="line">tcp.srcport == 80 # 只显示TCP协议的源主机端口为80的数据包列表</span><br><span class="line">tcp.dstport == 80 # 只显示TCP协议的目的主机端口为80的数据包列表</span><br><span class="line">http.request.method == &quot;GET&quot; # 只显示HTTP GET方法的</span><br></pre></td></tr></table></figure>
-
-<h4 id="3-2-3-数据包列表区"><a href="#3-2-3-数据包列表区" class="headerlink" title="3.2.3 数据包列表区"></a>3.2.3 数据包列表区</h4><p>显示捕获到的数据包，每一行代表一个数据包，每个数据包包含编号、时间戳、源地址、目的地址、协议、长度以及数据包信息。不同的协议数据包使用了不同的颜色显示进行区分，可以在<code>视图-&gt;着色规则</code>中查看详细的设定。</p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104175334347.png" alt="image-20230104175334347"></p>
-<img src="image-20230104165647707.png" alt="image-20230104165647707" style="zoom:50%;" />
-
-<h4 id="3-2-4-详细数据区"><a href="#3-2-4-详细数据区" class="headerlink" title="3.2.4 详细数据区"></a>3.2.4 详细数据区</h4><p>数据包详细信息面板是最重要的，包含了数据包的所有详细信息内容，从物理层到应用层的数据，用来查看协议中的每一个字段信息。</p>
-<p><strong>参照 OSI 七层模型， 每一行代表着每一层中的数据，根据不同层次的不同协议，显示可能会有所不同。</strong></p>
-<ul>
-<li>Frame：物理层的数据帧状况，即全部数据。</li>
-<li>Ethernet II：数据链路层以太网帧头部信息。</li>
-<li>Internet Protocol Version 4：IPv4 包的头部信息。</li>
-<li>Transmission Control Protocol：TCP 协议的头部信息。</li>
-<li>Hypertext Transfer Protocol：HTTP数据包的所有信息。</li>
-</ul>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104180450263.png" alt="image-20230104180450263"></p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105105346183.png" alt="image-20230105105346183"></p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105155339201.png" alt="image-20230105155339201"></p>
-<h4 id="3-2-5-数据包字节区"><a href="#3-2-5-数据包字节区" class="headerlink" title="3.2.5 数据包字节区"></a>3.2.5 数据包字节区</h4><p>显示原始接收到的数据包字节，通过点击数据包详情区对应的字段，会在数据包字节区显示所对应的数据。</p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104181425789.png" alt="image-20230104181425789"></p>
-<h3 id="3-3-抓包-TCP-三次握手"><a href="#3-3-抓包-TCP-三次握手" class="headerlink" title="3.3 抓包 TCP 三次握手"></a>3.3 抓包 TCP 三次握手</h3><h4 id="3-3-1-TCP-三次握手过程"><a href="#3-3-1-TCP-三次握手过程" class="headerlink" title="3.3.1 TCP 三次握手过程"></a>3.3.1 TCP 三次握手过程</h4><blockquote>
-<p>要分析抓到数据包，首先需要了解其原理</p>
-</blockquote>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105165221418.png" alt="image-20230105165221418"></p>
-<ol>
-<li>TCP服务器进程先创建传输控制块TCB，时刻准备接受客户进程的连接请求，此时服务器就进入了LISTEN（监听）状态；</li>
-<li>TCP客户进程也是先创建传输控制块TCB，然后向服务器发出连接请求报文，这是报文首部中的同部位 SYN&#x3D;1，同时选择一个初始序列号 seq&#x3D;x ，此时，TCP客户端进程进入了 SYN-SENT（同步已发送状态）状态。<strong>TCP规定，SYN报文段（SYN&#x3D;1的报文段）不能携带数据，但需要消耗掉一个序号</strong>；</li>
-<li>TCP服务器收到请求报文后，如果同意连接，则发出确认报文。确认报文中应该 ACK&#x3D;1，SYN&#x3D;1，确认号是ack&#x3D;x+1，同时也要为自己初始化一个序列号 seq&#x3D;y，此时，TCP服务器进程进入了SYN-RCVD（同步收到）状态。<strong>这个报文也不能携带数据，但是同样要消耗一个序号</strong>；</li>
-<li>TCP客户进程收到确认后，还要向服务器给出确认。确认报文的ACK&#x3D;1，ack&#x3D;y+1，自己的序列号seq&#x3D;x+1，此时，TCP连接建立，客户端进入ESTABLISHED（已建立连接）状态。<strong>TCP规定，ACK报文段可以携带数据，但是如果不携带数据则不消耗序号</strong>；</li>
-<li>当服务器收到客户端的确认后也进入ESTABLISHED状态，此后双方就可以开始通信了；</li>
-</ol>
-<h4 id="3-3-2-抓取-TCP-数据包"><a href="#3-3-2-抓取-TCP-数据包" class="headerlink" title="3.3.2 抓取 TCP 数据包"></a>3.3.2 抓取 TCP 数据包</h4><ol>
-<li>在 cmd 使用 <code>ping jandan.net</code>获取域名 IP；</li>
-</ol>
-<img src="image-20230105114055220.png" alt="image-20230105114055220" style="zoom:50%;" />
-
-<ol start="2">
-<li>启动 Wireshark 开始抓包；</li>
-<li>设置显示过滤器<code>ip.addr == 59.37.142.220 </code>；</li>
-</ol>
-<img src="image-20230105114302324.png" alt="image-20230105114302324" style="zoom:50%;" />
-
-<ol start="4">
-<li>浏览器中访问 <code>http://jandan.net/</code>；</li>
-</ol>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105142256229.png" alt="image-20230105142256229"></p>
-<p>从图中可以看到，这次访问 TCP 握手的三个过程。注意的是因为我这不是第一次访问网站，所以会有关闭之前连接的请求。然后访问的时候发起了两个 TCP 请求，可以通过端口号的不同进行区分，我们关注的是本地 54418 端口到服务器 80 端口的 TCP 请求。</p>
-<h4 id="3-3-3-第一次握手数据包"><a href="#3-3-3-第一次握手数据包" class="headerlink" title="3.3.3 第一次握手数据包"></a>3.3.3 第一次握手数据包</h4><p>WireShark 中显示了两个<code>Sequence Number</code>一个为<code>0</code>，一个为<code>605892471</code>，是因为 WireShark 为了更加容易观察进行的处理，一个是相对 Seq，一个是实际请求的 Seq，如果分别点击会发现数据包字节区是对应的同一块区域。</p>
-<ul>
-<li>SYN 标志位置为 1，表示向服务器请求建立连接；</li>
-<li>Seq 序列号为 605892471，相对位置为 0，表示当前客户端当前还没有发送数据；</li>
-</ul>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105144046541.png" alt="image-20230105144046541"></p>
-<h4 id="3-3-4-第二次握手数据包"><a href="#3-3-4-第二次握手数据包" class="headerlink" title="3.3.4 第二次握手数据包"></a>3.3.4 第二次握手数据包</h4><p>第二次握手数据包是服务器返回给客户端的，可以看到是从 59.37.142.220 的 80 端口到本机IP 的 54418 端口。跟 Seq 序列号一样，Acknowledgement number 也有相对与实际的区别。</p>
-<ul>
-<li>服务器响应新生成了 Seq 序列号：483437807，相对位置为 0， 表示当前服务器还没有发送数据；</li>
-<li>ack 设置为请求的 Seq 序列号 + 1，即为 605892472，表示响应的是第一次握手的数据包；</li>
-<li>ACK 和 SYN 标志位都置为 1，表示服务器同意建立连接并返回响应；</li>
-</ul>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105145332078.png" alt="image-20230105145332078"></p>
-<h4 id="3-3-5-第三次握手数据包"><a href="#3-3-5-第三次握手数据包" class="headerlink" title="3.3.5 第三次握手数据包"></a>3.3.5 第三次握手数据包</h4><p>第三次握手就比较简单了，建立完成之后就能开始数据交互：</p>
-<ul>
-<li>Seq 序列号为服务器响应 ack 的值，相对位置为 1，表示已经发送一个数据；</li>
-<li>ack 为服务器响应 Seq 序列号的值 + 1，表示当前客户端成功接收到的数据位数，虽然服务端没有发送任何有效数据，确认号还是被加 1，因为包含 SYN 或 FIN 标志位（并不会对有效数据的计数产生影响，因为含有SYN或FIN标志位的包并不携带有效数据)；</li>
-<li>ACK 标志位置 1，表示已经接收到第二次握手数据包；</li>
-</ul>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105150139918.png" alt="image-20230105150139918"></p>
-]]></content>
-      <categories>
-        <category>计算机网络</category>
-      </categories>
-  </entry>
-  <entry>
     <title>基础知识回顾</title>
     <url>/2022/09/05/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86%E5%9B%9E%E9%A1%BE/</url>
     <content><![CDATA[<h2 id="JAVA基础知识"><a href="#JAVA基础知识" class="headerlink" title="JAVA基础知识"></a>JAVA基础知识</h2><h3 id="集合（未施工）"><a href="#集合（未施工）" class="headerlink" title="集合（未施工）"></a>集合（未施工）</h3><p>HashMap</p>
@@ -5215,6 +5030,191 @@
 <p>3.2.0版本后添加的特性，Chroot特性允许每个客户端为自己设置一个命名空间。如果一个客户端设置了Chroot，那么对Zookeeper集群的任何操作，都会被限制在自己的命名空间下。Chroot能够将客户端对应上Zookeeper的一颗子树，因此在多个应用公用一个Zookeeper集群的时候，有利于应用间的相互隔离。</p>
 </blockquote>
 <h3 id="ACL-访问控制"><a href="#ACL-访问控制" class="headerlink" title="ACL 访问控制"></a>ACL 访问控制</h3>]]></content>
+  </entry>
+  <entry>
+    <title>网络抓包工具使用</title>
+    <url>/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/</url>
+    <content><![CDATA[<h2 id="1-网络抓包原理"><a href="#1-网络抓包原理" class="headerlink" title="1. 网络抓包原理"></a>1. 网络抓包原理</h2><blockquote>
+<p>抓包实际上是分析网络协议的一种过程，只要网络数据流经过我们的节点，就能够对数据流进行抓包。</p>
+</blockquote>
+<h3 id="1-1-网卡或代理抓包"><a href="#1-1-网卡或代理抓包" class="headerlink" title="1.1 网卡或代理抓包"></a>1.1 网卡或代理抓包</h3><p>目前的抓包软件总体上可以分成两类：</p>
+<ul>
+<li>一种是设置代理抓取 http 包，比如Charles、mitmproxy这些软件。</li>
+<li>另一种是直接抓取经过本机网络的所有协议包，其中最出名的就是 wireshark 以及 Linux 自带的抓包软件命令 tcpdump。</li>
+</ul>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/15202375411791.jpg" alt="img"></p>
+<h3 id="1-2-http-与-https"><a href="#1-2-http-与-https" class="headerlink" title="1.2 http 与 https"></a>1.2 http 与 https</h3><p>http 与 https 最大的区别是 http 的数据包是不加密的， https 的数据包是加密的。因此对于 wireshark 这种在数据链路层进行抓包的工具，所获取到的 https 数据包是加密的，因此无法分析包的内容。而 Charles 等只要安装 Charles 的证书，就能够解密 https 数据包的内容。</p>
+<h2 id="2-tcpdump-使用"><a href="#2-tcpdump-使用" class="headerlink" title="2. tcpdump 使用"></a>2. tcpdump 使用</h2><blockquote>
+<p>tcpdump可以把抓取到的数据包导出为 wireshark 格式的文件。</p>
+</blockquote>
+<blockquote>
+<p>不重复造轮子，详情请看<a href="https://www.cnblogs.com/wongbingming/p/13212306.html">tcpdump使用指南</a>，或者参考 man 文档。</p>
+</blockquote>
+<h3 id="2-1-命令格式"><a href="#2-1-命令格式" class="headerlink" title="2.1 命令格式"></a>2.1 命令格式</h3><p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/20200628111325.png" alt="img"></p>
+<ul>
+<li><p><strong>option 可选参数</strong>：常用的有<code>-i 指定网卡名字</code>、<code>-w 保存抓包数据到文件</code>、<code>-r 从文件中读取抓包数据</code>、<code>-v\-vv\-vvv 输出更详细的内容</code>、<code>-n\-nn\-N 不解析域名\端口</code>。</p>
+</li>
+<li><p><strong>proto 类过滤器</strong>：根据协议进行过滤，可识别的关键词有： <code>tcp、udp、icmp、ip、ip6、arp、rarp、ether、wlan、fddi、tr、decnet</code>。</p>
+</li>
+<li><p><strong>direction 类过滤器</strong>：根据数据流向进行过滤，可识别的关键字有：<code>src、dst</code>，同时你可以使用逻辑运算符进行组合，比如 <code>src or dst</code>。</p>
+</li>
+<li><p><strong>type 类过滤器</strong>：可识别的关键词有：<code>host、net、port、portrange</code>，这些词后边需要再接参数。</p>
+</li>
+</ul>
+<h3 id="2-2-输出内容格式"><a href="#2-2-输出内容格式" class="headerlink" title="2.2 输出内容格式"></a>2.2 输出内容格式</h3><blockquote>
+<p>加入不同的可选参数，可能会使得输出的内容格式会有区别，但是能够触类旁通。</p>
+</blockquote>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo tcpdump -nn src host 172.25.122.140</span></span><br><span class="line">tcpdump: verbose output suppressed, use -v or -vv for full protocol decode</span><br><span class="line">listening on eth0, link-type EN10MB (Ethernet), capture size 262144 bytes</span><br><span class="line">11:21:04.200134 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [S], seq 3457030617, win 64240, options [mss 1460,sackOK,TS val 148049843 ecr 0,nop,wscale 7], length 0</span><br><span class="line">11:21:04.206621 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [.], ack 3549651488, win 502, length 0</span><br><span class="line">11:21:04.212251 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [P.], seq 0:517, ack 1, win 502, length 517</span><br></pre></td></tr></table></figure>
+
+<p>以最后一条数据为例：</p>
+<ol>
+<li><strong>第一列，时分秒毫秒</strong> ：11:21:04.212251</li>
+<li><strong>第二列，网络协议</strong> ：IP</li>
+<li><strong>第三列，发送方 IP + 端口</strong>：IP - 172.25.122.140 | 端口 - 40236</li>
+<li><strong>第四列，数据流向 &gt;</strong> ：从 172.25.122.140.40236 流向 14.215.177.39.443</li>
+<li><strong>第五列，接收方 IP + 端口</strong>：IP - 14.215.177.39 | 端口 - 443</li>
+<li><strong>第六列，冒号</strong><code>：</code></li>
+<li><strong>第七列， 数据包内容</strong>：包括 Flags 标识符，seq 号，ack 号，win 窗口，数据长度 length</li>
+</ol>
+<p><strong>Flags 标识符</strong>：</p>
+<ul>
+<li><code>[S]</code> : SYN（开始连接）</li>
+<li><code>[P]</code> : PSH（推送数据）</li>
+<li><code>[F]</code> : FIN （结束连接）</li>
+<li><code>[R]</code> : RST（重置连接）</li>
+<li><code>[.]</code> : 没有 Flag （意思是除上面四种类型外的其他情况，有可能是 ACK 也有可能是 URG）</li>
+</ul>
+<h2 id="3-Wireshark-使用"><a href="#3-Wireshark-使用" class="headerlink" title="3. Wireshark 使用"></a>3. Wireshark 使用</h2><blockquote>
+<p>Wireshark 使用中最难的，其实就是过滤器的使用，如何从海量请求数据包过滤出自己需要分析的内容。</p>
+</blockquote>
+<blockquote>
+<p>Wireshark 包括两种过滤器：</p>
+<ul>
+<li><p>捕获过滤器：抓包的过滤规则，只抓取特定条件的数据包</p>
+</li>
+<li><p>显示过滤器：对抓取到的数据再次过滤，只显示符合特定规则数据包</p>
+</li>
+</ul>
+</blockquote>
+<h3 id="3-1-抓包示例"><a href="#3-1-抓包示例" class="headerlink" title="3.1 抓包示例"></a>3.1 抓包示例</h3><blockquote>
+<p>使用 Wireshark 抓取 ping <a href="http://www.baidu.com/">www.baidu.com</a> 的数据包</p>
+</blockquote>
+<ol>
+<li>打开 Wireshark 主界面。</li>
+</ol>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104161119826.png" alt="image-20230104161119826"></p>
+<ol start="2">
+<li>选择菜单栏上<code>捕获-&gt;选项-&gt;选择网卡-&gt;开始</code>，或者直接在主界面中选择需要抓包的网卡就能够开始抓包（网卡通常只会处理发送给它自身地址的流量，如果想要捕获所有经过网卡的流量就需要开启混杂模式）。</li>
+</ol>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104162023100.png" alt="image-20230104162023100"></p>
+<ol start="3">
+<li>启动之后，Wireshark 就处于抓包状态了。</li>
+</ol>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104162352660.png" alt="image-20230104162352660"></p>
+<ol start="4">
+<li>在 cmd 窗口执行<code>ping www.baidu.com</code>命令。</li>
+</ol>
+<img src="image-20230104162742232.png" alt="image-20230104162742232" style="zoom:60%;" />
+
+<ol start="5">
+<li>操作完成之后，就能在 Wireshark 中看到抓取的数据包了。为了避免其他不相关的数据包影响分析，可以在过滤栏设置显示过滤条件。<code>ip.addr == 14.215.177.39 and icmp</code>表示只显示源主机 IP 或者目标主机 IP 为 <code>14.215.177.39</code> 且 ICMP 协议的数据包。</li>
+</ol>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104163323961.png" alt="image-20230104163323961"></p>
+<h3 id="3-2-界面介绍"><a href="#3-2-界面介绍" class="headerlink" title="3.2 界面介绍"></a>3.2 界面介绍</h3><p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104164142717.png" alt="image-20230104164142717"></p>
+<h4 id="3-2-1-捕获过滤器"><a href="#3-2-1-捕获过滤器" class="headerlink" title="3.2.1 捕获过滤器"></a>3.2.1 捕获过滤器</h4><h5 id="3-2-1-1-界面设置"><a href="#3-2-1-1-界面设置" class="headerlink" title="3.2.1.1 界面设置"></a>3.2.1.1 界面设置</h5><p>能够在<code>捕获-&gt;捕获过滤器</code>中进行设置，只抓取符合规则的数据包，能够在开始抓包前进行设置。</p>
+<img src="image-20230104170403368.png" alt="image-20230104170403368"  />
+
+<img src="image-20230104170503369.png" alt="image-20230104170503369"  />
+
+<h5 id="3-2-1-2-捕获过滤器规则"><a href="#3-2-1-2-捕获过滤器规则" class="headerlink" title="3.2.1.2 捕获过滤器规则"></a>3.2.1.2 捕获过滤器规则</h5><blockquote>
+<p>捕获过滤器规则设置规则跟 tcpdump 是一样的，只介绍简单的过滤规则，详情请翻阅<a href="https://www.wireshark.org/docs/wsug_html_chunked/ChCapCaptureFilterSection.html">官方文档</a></p>
+</blockquote>
+<p>捕获过滤器的设置主要包括：网络类型 Type(host、net、port)、方向 Dir(src、dst)、协议类型 Proto(ether、ip、tcp、udp、http、icmp、ftp等)、逻辑运算符(&amp;&amp;、||、! 或者 and、or、not)。</p>
+<p>以下显示一些使用示例：</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">host 172.18.5.4     # 只捕捉源地址或者目的地址为172.18.5.4的流量</span><br><span class="line">net 192.168.0.0/24  # 捕捉192.168.0.0/24网段中的流量</span><br><span class="line">src net 192.168.0.0/24 # 捕捉源地址IP在网段192.168.0.0/24中的流量</span><br><span class="line">not broadcast and not multicast # 仅捕捉单播流量，不捕捉广播和多播的流量</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="3-2-2-显示过滤器"><a href="#3-2-2-显示过滤器" class="headerlink" title="3.2.2 显示过滤器"></a>3.2.2 显示过滤器</h4><h5 id="3-2-2-1-界面设置"><a href="#3-2-2-1-界面设置" class="headerlink" title="3.2.2.1 界面设置"></a>3.2.2.1 界面设置</h5><p>对抓取到的数据再次过滤，只显示符合特定规则数据包。显示过滤器能够在<code>分析-&gt;显示过滤器</code>中进行设置。</p>
+<p>在主界面中右键选择<code>作为过滤器应用</code>有惊喜，可以将界面中的一些数据作为过滤规则。</p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104170955371.png" alt="image-20230104170955371"></p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104173929469.png" alt="image-20230104173929469"></p>
+<h5 id="3-2-2-2-显示过滤器规则"><a href="#3-2-2-2-显示过滤器规则" class="headerlink" title="3.2.2.2 显示过滤器规则"></a>3.2.2.2 显示过滤器规则</h5><blockquote>
+<p>详细设置规则请参阅<a href="https://www.wireshark.org/docs/wsug_html_chunked/ChWorkBuildDisplayFilterSection.html">官方文档</a></p>
+</blockquote>
+<p>设置规则基本上是<code>key 运算符 value</code>的格式，运算符可以取<code>==、!=、===、!==、&gt;、&lt;、&gt;=、&lt;=、~</code>。</p>
+<p>使用示例：</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">tcp # 只显示tcp协议的数据包列表</span><br><span class="line">http # 只显示http协议的数据包列表</span><br><span class="line">ip.src == 192.168.1.104 # 显示源地址为192.168.1.104的数据包列表</span><br><span class="line">ip.dst == 192.168.1.104 # 显示目标地址为192.168.1.104的数据包列表</span><br><span class="line">ip.addr == 192.168.1.104 # 显示源IP地址或目标IP地址为192.168.1.104的数据包列表</span><br><span class="line">tcp.port == 80 # 显示源主机或者目的主机端口为80的数据包列表</span><br><span class="line">tcp.srcport == 80 # 只显示TCP协议的源主机端口为80的数据包列表</span><br><span class="line">tcp.dstport == 80 # 只显示TCP协议的目的主机端口为80的数据包列表</span><br><span class="line">http.request.method == &quot;GET&quot; # 只显示HTTP GET方法的</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-2-3-数据包列表区"><a href="#3-2-3-数据包列表区" class="headerlink" title="3.2.3 数据包列表区"></a>3.2.3 数据包列表区</h4><p>显示捕获到的数据包，每一行代表一个数据包，每个数据包包含编号、时间戳、源地址、目的地址、协议、长度以及数据包信息。不同的协议数据包使用了不同的颜色显示进行区分，可以在<code>视图-&gt;着色规则</code>中查看详细的设定。</p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104175334347.png" alt="image-20230104175334347"></p>
+<img src="image-20230104165647707.png" alt="image-20230104165647707" style="zoom:50%;" />
+
+<h4 id="3-2-4-详细数据区"><a href="#3-2-4-详细数据区" class="headerlink" title="3.2.4 详细数据区"></a>3.2.4 详细数据区</h4><p>数据包详细信息面板是最重要的，包含了数据包的所有详细信息内容，从物理层到应用层的数据，用来查看协议中的每一个字段信息。</p>
+<p><strong>参照 OSI 七层模型， 每一行代表着每一层中的数据，根据不同层次的不同协议，显示可能会有所不同。</strong></p>
+<ul>
+<li>Frame：物理层的数据帧状况，即全部数据。</li>
+<li>Ethernet II：数据链路层以太网帧头部信息。</li>
+<li>Internet Protocol Version 4：IPv4 包的头部信息。</li>
+<li>Transmission Control Protocol：TCP 协议的头部信息。</li>
+<li>Hypertext Transfer Protocol：HTTP数据包的所有信息。</li>
+</ul>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104180450263.png" alt="image-20230104180450263"></p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105105346183.png" alt="image-20230105105346183"></p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105155339201.png" alt="image-20230105155339201"></p>
+<h4 id="3-2-5-数据包字节区"><a href="#3-2-5-数据包字节区" class="headerlink" title="3.2.5 数据包字节区"></a>3.2.5 数据包字节区</h4><p>显示原始接收到的数据包字节，通过点击数据包详情区对应的字段，会在数据包字节区显示所对应的数据。</p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104181425789.png" alt="image-20230104181425789"></p>
+<h3 id="3-3-抓包-TCP-三次握手"><a href="#3-3-抓包-TCP-三次握手" class="headerlink" title="3.3 抓包 TCP 三次握手"></a>3.3 抓包 TCP 三次握手</h3><h4 id="3-3-1-TCP-三次握手过程"><a href="#3-3-1-TCP-三次握手过程" class="headerlink" title="3.3.1 TCP 三次握手过程"></a>3.3.1 TCP 三次握手过程</h4><blockquote>
+<p>要分析抓到数据包，首先需要了解其原理</p>
+</blockquote>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105165221418.png" alt="image-20230105165221418"></p>
+<ol>
+<li>TCP服务器进程先创建传输控制块TCB，时刻准备接受客户进程的连接请求，此时服务器就进入了LISTEN（监听）状态；</li>
+<li>TCP客户进程也是先创建传输控制块TCB，然后向服务器发出连接请求报文，这是报文首部中的同部位 SYN&#x3D;1，同时选择一个初始序列号 seq&#x3D;x ，此时，TCP客户端进程进入了 SYN-SENT（同步已发送状态）状态。<strong>TCP规定，SYN报文段（SYN&#x3D;1的报文段）不能携带数据，但需要消耗掉一个序号</strong>；</li>
+<li>TCP服务器收到请求报文后，如果同意连接，则发出确认报文。确认报文中应该 ACK&#x3D;1，SYN&#x3D;1，确认号是ack&#x3D;x+1，同时也要为自己初始化一个序列号 seq&#x3D;y，此时，TCP服务器进程进入了SYN-RCVD（同步收到）状态。<strong>这个报文也不能携带数据，但是同样要消耗一个序号</strong>；</li>
+<li>TCP客户进程收到确认后，还要向服务器给出确认。确认报文的ACK&#x3D;1，ack&#x3D;y+1，自己的序列号seq&#x3D;x+1，此时，TCP连接建立，客户端进入ESTABLISHED（已建立连接）状态。<strong>TCP规定，ACK报文段可以携带数据，但是如果不携带数据则不消耗序号</strong>；</li>
+<li>当服务器收到客户端的确认后也进入ESTABLISHED状态，此后双方就可以开始通信了；</li>
+</ol>
+<h4 id="3-3-2-抓取-TCP-数据包"><a href="#3-3-2-抓取-TCP-数据包" class="headerlink" title="3.3.2 抓取 TCP 数据包"></a>3.3.2 抓取 TCP 数据包</h4><ol>
+<li>在 cmd 使用 <code>ping jandan.net</code>获取域名 IP；</li>
+</ol>
+<img src="image-20230105114055220.png" alt="image-20230105114055220" style="zoom:50%;" />
+
+<ol start="2">
+<li>启动 Wireshark 开始抓包；</li>
+<li>设置显示过滤器<code>ip.addr == 59.37.142.220 </code>；</li>
+</ol>
+<img src="image-20230105114302324.png" alt="image-20230105114302324" style="zoom:50%;" />
+
+<ol start="4">
+<li>浏览器中访问 <code>http://jandan.net/</code>；</li>
+</ol>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105142256229.png" alt="image-20230105142256229"></p>
+<p>从图中可以看到，这次访问 TCP 握手的三个过程。注意的是因为我这不是第一次访问网站，所以会有关闭之前连接的请求。然后访问的时候发起了两个 TCP 请求，可以通过端口号的不同进行区分，我们关注的是本地 54418 端口到服务器 80 端口的 TCP 请求。</p>
+<h4 id="3-3-3-第一次握手数据包"><a href="#3-3-3-第一次握手数据包" class="headerlink" title="3.3.3 第一次握手数据包"></a>3.3.3 第一次握手数据包</h4><p>WireShark 中显示了两个<code>Sequence Number</code>一个为<code>0</code>，一个为<code>605892471</code>，是因为 WireShark 为了更加容易观察进行的处理，一个是相对 Seq，一个是实际请求的 Seq，如果分别点击会发现数据包字节区是对应的同一块区域。</p>
+<ul>
+<li>SYN 标志位置为 1，表示向服务器请求建立连接；</li>
+<li>Seq 序列号为 605892471，相对位置为 0，表示当前客户端当前还没有发送数据；</li>
+</ul>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105144046541.png" alt="image-20230105144046541"></p>
+<h4 id="3-3-4-第二次握手数据包"><a href="#3-3-4-第二次握手数据包" class="headerlink" title="3.3.4 第二次握手数据包"></a>3.3.4 第二次握手数据包</h4><p>第二次握手数据包是服务器返回给客户端的，可以看到是从 59.37.142.220 的 80 端口到本机IP 的 54418 端口。跟 Seq 序列号一样，Acknowledgement number 也有相对与实际的区别。</p>
+<ul>
+<li>服务器响应新生成了 Seq 序列号：483437807，相对位置为 0， 表示当前服务器还没有发送数据；</li>
+<li>ack 设置为请求的 Seq 序列号 + 1，即为 605892472，表示响应的是第一次握手的数据包；</li>
+<li>ACK 和 SYN 标志位都置为 1，表示服务器同意建立连接并返回响应；</li>
+</ul>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105145332078.png" alt="image-20230105145332078"></p>
+<h4 id="3-3-5-第三次握手数据包"><a href="#3-3-5-第三次握手数据包" class="headerlink" title="3.3.5 第三次握手数据包"></a>3.3.5 第三次握手数据包</h4><p>第三次握手就比较简单了，建立完成之后就能开始数据交互：</p>
+<ul>
+<li>Seq 序列号为服务器响应 ack 的值，相对位置为 1，表示已经发送一个数据；</li>
+<li>ack 为服务器响应 Seq 序列号的值 + 1，表示当前客户端成功接收到的数据位数，虽然服务端没有发送任何有效数据，确认号还是被加 1，因为包含 SYN 或 FIN 标志位（并不会对有效数据的计数产生影响，因为含有SYN或FIN标志位的包并不携带有效数据)；</li>
+<li>ACK 标志位置 1，表示已经接收到第二次握手数据包；</li>
+</ul>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105150139918.png" alt="image-20230105150139918"></p>
+]]></content>
+      <categories>
+        <category>计算机网络</category>
+      </categories>
   </entry>
   <entry>
     <title>记一次WSDL使用</title>
