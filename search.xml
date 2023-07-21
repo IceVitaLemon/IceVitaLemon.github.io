@@ -319,54 +319,6 @@
       </tags>
   </entry>
   <entry>
-    <title>Java基于String实现同步锁</title>
-    <url>/2023/02/21/Java%E5%9F%BA%E4%BA%8EString%E5%AE%9E%E7%8E%B0%E5%90%8C%E6%AD%A5%E9%94%81/</url>
-    <content><![CDATA[<h2 id="1-前言"><a href="#1-前言" class="headerlink" title="1. 前言"></a>1. 前言</h2><p>在分布式应用中，能够通过 Redis、Zookeeper 等组件实现分布式锁。针对一个订单号、任务 ID 进行加锁，避免其它进程或者线程操作相同的资源。</p>
-<p>但是，如果项目不依赖这些组件，单进程的情况下，针对不同订单号、任务 ID 进行加锁就变得比较困难。像是 ReentrantLock 或者 CountDownLatch 这种 JUC 实现的锁，都是针对单个资源的锁，不能用于变换莫测的 String。</p>
-<h2 id="2-需要考虑的问题"><a href="#2-需要考虑的问题" class="headerlink" title="2. 需要考虑的问题"></a>2. 需要考虑的问题</h2><blockquote>
-<ul>
-<li>基于 String 的锁字典</li>
-<li>内存泄漏问题</li>
-</ul>
-</blockquote>
-<p>我们需要做的，是根据 String 获取一把锁，来锁定该 String 代表的资源。既然不同的 String 代表着不同的锁，我们需要的是使用一个池子，来缓存 String 及其对应的锁，即 String 锁的字典。</p>
-<p>这个锁字典的生命周期基本上是伴随着整个进程，因为我们使用的场景就是单个进程下根据 String  来获取锁。那么，如果大量地根据不同的 String 获取锁，就会在池子中缓存了大量的 key，value，不及时释放可能会导致内存泄漏问题。</p>
-<h2 id="3-实现方法"><a href="#3-实现方法" class="headerlink" title="3. 实现方法"></a>3. 实现方法</h2><h3 id="3-1-基于-JVM-的字符串常量池"><a href="#3-1-基于-JVM-的字符串常量池" class="headerlink" title="3.1 基于 JVM 的字符串常量池"></a>3.1 基于 JVM 的字符串常量池</h3><blockquote>
-<p>JVM里面有一块内存是用于储存字符串常量的，从这里面拿出来的字符串都是同一个对象。</p>
-<p>但是我们自己创建的字符串是不同的对象，不在这个字符串常量池里面，而 synchronized是向对象加锁的，所以直接对字符串对象加锁，可能加到两个两个不同的对象上，就会出问题了。</p>
-<p>因此可以使用 String 类的 intern() 方法，将字符串加到字符串常量池中，调用方法后，返回的是字符串常量池中的字符串对象。</p>
-</blockquote>
-<h4 id="3-1-1-实现"><a href="#3-1-1-实现" class="headerlink" title="3.1.1 实现"></a>3.1.1 实现</h4><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">StringMutexLock</span> &#123;  </span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">operation</span><span class="params">(String bizId)</span>&#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">lock</span> <span class="operator">=</span> bizId; <span class="comment">// 业务ID</span></span><br><span class="line">        lock = lock.intern();</span><br><span class="line">        <span class="keyword">synchronized</span> (lock)&#123;</span><br><span class="line">            <span class="comment">// 实际业务</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h4 id="3-1-2-存在的问题"><a href="#3-1-2-存在的问题" class="headerlink" title="3.1.2 存在的问题"></a>3.1.2 存在的问题</h4><p>这种方法问题很大，因为字符串常量池中的对象不一定会被垃圾回收器回收，因此可能会造成内存泄露的问题。</p>
-<h3 id="3-2-基于-ConcurrentHashMap-和-CountDownLatch"><a href="#3-2-基于-ConcurrentHashMap-和-CountDownLatch" class="headerlink" title="3.2 基于 ConcurrentHashMap 和 CountDownLatch"></a>3.2 基于 ConcurrentHashMap 和 CountDownLatch</h3><blockquote>
-<p>使用 ConcurrentHashMap 来储存 key 和对应的锁，加锁时判断 ConcurrentHashMap 是否已经存在对应的锁对象，解锁时将锁对象从 ConcurrentHashMap 中移除。</p>
-</blockquote>
-<h4 id="3-2-1-实现"><a href="#3-2-1-实现" class="headerlink" title="3.2.1 实现"></a>3.2.1 实现</h4><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> lombok.extern.slf4j.Slf4j;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.ConcurrentHashMap;</span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.CountDownLatch;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Slf4j</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">StringMutexLock</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> ConcurrentHashMap&lt;String, CountDownLatch&gt; lockHolder = <span class="keyword">new</span> <span class="title class_">ConcurrentHashMap</span>&lt;&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 基于lockKey上锁，同步执行</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> lockKey</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">lock</span><span class="params">(String lockKey)</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">        <span class="keyword">while</span> (!tryLock(lockKey))&#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                log.info(<span class="string">&quot;Get lock[&#123;&#125;] failed, waiting...&quot;</span>, lockKey);</span><br><span class="line">                blockOnLock(lockKey);</span><br><span class="line">            &#125;<span class="keyword">catch</span> (InterruptedException e)&#123;</span><br><span class="line">                <span class="type">String</span> <span class="variable">errMsg</span> <span class="operator">=</span> String.format(<span class="string">&quot;Error occur while get lock[%s]: %s&quot;</span>, lockKey, e.getMessage());</span><br><span class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">InterruptedException</span>(errMsg);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 基于lockKey, 释放锁, 只要调用者传入正确的lockKey, 锁就会被释放</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> lockKey</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">unlock</span><span class="params">(String lockKey)</span>&#123;</span><br><span class="line">        <span class="type">CountDownLatch</span> <span class="variable">lock</span> <span class="operator">=</span> lockHolder.remove(lockKey);</span><br><span class="line">        lock.countDown();</span><br><span class="line">        log.info(<span class="string">&quot;Release lock[&#123;&#125;] success.&quot;</span>, lockKey);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    </span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 尝试给指定字符串上锁</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> lockKey 字符串</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> true: 上锁成功  false：上锁失败</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="type">boolean</span> <span class="title function_">tryLock</span><span class="params">(String lockKey)</span>&#123;</span><br><span class="line">        <span class="comment">// 这里每次调用都会创建一个 CountDownLatch 对象，对GC不太友好</span></span><br><span class="line">        <span class="keyword">return</span> lockHolder.putIfAbsent(lockKey, <span class="keyword">new</span> <span class="title class_">CountDownLatch</span>(<span class="number">1</span>)) == <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 获取实际锁对象，并阻塞等待</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> lockKey</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@throws</span> InterruptedException</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">blockOnLock</span><span class="params">(String lockKey)</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">        <span class="type">CountDownLatch</span> <span class="variable">lock</span> <span class="operator">=</span> lockHolder.get(lockKey);</span><br><span class="line">        <span class="keyword">if</span> (lock != <span class="literal">null</span>)&#123;</span><br><span class="line">            lock.await();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h4 id="3-2-2-存在的问题"><a href="#3-2-2-存在的问题" class="headerlink" title="3.2.2 存在的问题"></a>3.2.2 存在的问题</h4><ul>
-<li>每次调用 tryLock 都会创建一个 CountDownLatch 对象，对 GC 不太友好。</li>
-<li>不会记录获取锁的线程，其他线程通过 String 获取锁对象之后，可能会误释放锁。</li>
-<li>不支持的超时设置，需要主动释放锁。</li>
-</ul>
-<h3 id="3-3-Guava包的常量池"><a href="#3-3-Guava包的常量池" class="headerlink" title="3.3 Guava包的常量池"></a>3.3 Guava包的常量池</h3><blockquote>
-<p>Google 的第三方工具包 Guava 里面提供了常量池的实现，能够创建<strong>基于弱引用的常量池</strong>，避免 GC 问题。</p>
-</blockquote>
-<h4 id="3-3-1-实现"><a href="#3-3-1-实现" class="headerlink" title="3.3.1 实现"></a>3.3.1 实现</h4><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> com.google.common.collect.Interner;</span><br><span class="line"><span class="keyword">import</span> com.google.common.collect.Interners;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">StringMutexLock</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Interner&lt;String&gt; internPool = Interners.newWeakInterner();</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">operation</span><span class="params">(String bizId)</span>&#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">lock</span> <span class="operator">=</span> internPool.intern(bizId);</span><br><span class="line">        <span class="keyword">synchronized</span> (lock)&#123;</span><br><span class="line">            <span class="comment">// 具体业务</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h4 id="3-3-2-存在的问题"><a href="#3-3-2-存在的问题" class="headerlink" title="3.3.2 存在的问题"></a>3.3.2 存在的问题</h4><ul>
-<li>不会记录获取锁的线程，其他线程通过 String 获取锁对象之后，可能会误释放锁。</li>
-<li>不支持的超时设置，需要主动释放锁。</li>
-</ul>
-]]></content>
-      <categories>
-        <category>Java</category>
-      </categories>
-      <tags>
-        <tag>Java</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>Java中的BIO、NIO、AIO</title>
     <url>/2022/12/05/Java%E4%B8%AD%E7%9A%84BIO%E3%80%81NIO%E3%80%81AIO/</url>
     <content><![CDATA[<h3 id="1-I-x2F-O"><a href="#1-I-x2F-O" class="headerlink" title="1. I&#x2F;O"></a>1. I&#x2F;O</h3><blockquote>
@@ -562,6 +514,54 @@
 ]]></content>
       <categories>
         <category>Java基础知识</category>
+      </categories>
+      <tags>
+        <tag>Java</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Java基于String实现同步锁</title>
+    <url>/2023/02/21/Java%E5%9F%BA%E4%BA%8EString%E5%AE%9E%E7%8E%B0%E5%90%8C%E6%AD%A5%E9%94%81/</url>
+    <content><![CDATA[<h2 id="1-前言"><a href="#1-前言" class="headerlink" title="1. 前言"></a>1. 前言</h2><p>在分布式应用中，能够通过 Redis、Zookeeper 等组件实现分布式锁。针对一个订单号、任务 ID 进行加锁，避免其它进程或者线程操作相同的资源。</p>
+<p>但是，如果项目不依赖这些组件，单进程的情况下，针对不同订单号、任务 ID 进行加锁就变得比较困难。像是 ReentrantLock 或者 CountDownLatch 这种 JUC 实现的锁，都是针对单个资源的锁，不能用于变换莫测的 String。</p>
+<h2 id="2-需要考虑的问题"><a href="#2-需要考虑的问题" class="headerlink" title="2. 需要考虑的问题"></a>2. 需要考虑的问题</h2><blockquote>
+<ul>
+<li>基于 String 的锁字典</li>
+<li>内存泄漏问题</li>
+</ul>
+</blockquote>
+<p>我们需要做的，是根据 String 获取一把锁，来锁定该 String 代表的资源。既然不同的 String 代表着不同的锁，我们需要的是使用一个池子，来缓存 String 及其对应的锁，即 String 锁的字典。</p>
+<p>这个锁字典的生命周期基本上是伴随着整个进程，因为我们使用的场景就是单个进程下根据 String  来获取锁。那么，如果大量地根据不同的 String 获取锁，就会在池子中缓存了大量的 key，value，不及时释放可能会导致内存泄漏问题。</p>
+<h2 id="3-实现方法"><a href="#3-实现方法" class="headerlink" title="3. 实现方法"></a>3. 实现方法</h2><h3 id="3-1-基于-JVM-的字符串常量池"><a href="#3-1-基于-JVM-的字符串常量池" class="headerlink" title="3.1 基于 JVM 的字符串常量池"></a>3.1 基于 JVM 的字符串常量池</h3><blockquote>
+<p>JVM里面有一块内存是用于储存字符串常量的，从这里面拿出来的字符串都是同一个对象。</p>
+<p>但是我们自己创建的字符串是不同的对象，不在这个字符串常量池里面，而 synchronized是向对象加锁的，所以直接对字符串对象加锁，可能加到两个两个不同的对象上，就会出问题了。</p>
+<p>因此可以使用 String 类的 intern() 方法，将字符串加到字符串常量池中，调用方法后，返回的是字符串常量池中的字符串对象。</p>
+</blockquote>
+<h4 id="3-1-1-实现"><a href="#3-1-1-实现" class="headerlink" title="3.1.1 实现"></a>3.1.1 实现</h4><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">StringMutexLock</span> &#123;  </span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">operation</span><span class="params">(String bizId)</span>&#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">lock</span> <span class="operator">=</span> bizId; <span class="comment">// 业务ID</span></span><br><span class="line">        lock = lock.intern();</span><br><span class="line">        <span class="keyword">synchronized</span> (lock)&#123;</span><br><span class="line">            <span class="comment">// 实际业务</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-1-2-存在的问题"><a href="#3-1-2-存在的问题" class="headerlink" title="3.1.2 存在的问题"></a>3.1.2 存在的问题</h4><p>这种方法问题很大，因为字符串常量池中的对象不一定会被垃圾回收器回收，因此可能会造成内存泄露的问题。</p>
+<h3 id="3-2-基于-ConcurrentHashMap-和-CountDownLatch"><a href="#3-2-基于-ConcurrentHashMap-和-CountDownLatch" class="headerlink" title="3.2 基于 ConcurrentHashMap 和 CountDownLatch"></a>3.2 基于 ConcurrentHashMap 和 CountDownLatch</h3><blockquote>
+<p>使用 ConcurrentHashMap 来储存 key 和对应的锁，加锁时判断 ConcurrentHashMap 是否已经存在对应的锁对象，解锁时将锁对象从 ConcurrentHashMap 中移除。</p>
+</blockquote>
+<h4 id="3-2-1-实现"><a href="#3-2-1-实现" class="headerlink" title="3.2.1 实现"></a>3.2.1 实现</h4><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> lombok.extern.slf4j.Slf4j;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.ConcurrentHashMap;</span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.CountDownLatch;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Slf4j</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">StringMutexLock</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> ConcurrentHashMap&lt;String, CountDownLatch&gt; lockHolder = <span class="keyword">new</span> <span class="title class_">ConcurrentHashMap</span>&lt;&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 基于lockKey上锁，同步执行</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> lockKey</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">lock</span><span class="params">(String lockKey)</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">        <span class="keyword">while</span> (!tryLock(lockKey))&#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                log.info(<span class="string">&quot;Get lock[&#123;&#125;] failed, waiting...&quot;</span>, lockKey);</span><br><span class="line">                blockOnLock(lockKey);</span><br><span class="line">            &#125;<span class="keyword">catch</span> (InterruptedException e)&#123;</span><br><span class="line">                <span class="type">String</span> <span class="variable">errMsg</span> <span class="operator">=</span> String.format(<span class="string">&quot;Error occur while get lock[%s]: %s&quot;</span>, lockKey, e.getMessage());</span><br><span class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">InterruptedException</span>(errMsg);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 基于lockKey, 释放锁, 只要调用者传入正确的lockKey, 锁就会被释放</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> lockKey</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">unlock</span><span class="params">(String lockKey)</span>&#123;</span><br><span class="line">        <span class="type">CountDownLatch</span> <span class="variable">lock</span> <span class="operator">=</span> lockHolder.remove(lockKey);</span><br><span class="line">        lock.countDown();</span><br><span class="line">        log.info(<span class="string">&quot;Release lock[&#123;&#125;] success.&quot;</span>, lockKey);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    </span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 尝试给指定字符串上锁</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> lockKey 字符串</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> true: 上锁成功  false：上锁失败</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="type">boolean</span> <span class="title function_">tryLock</span><span class="params">(String lockKey)</span>&#123;</span><br><span class="line">        <span class="comment">// 这里每次调用都会创建一个 CountDownLatch 对象，对GC不太友好</span></span><br><span class="line">        <span class="keyword">return</span> lockHolder.putIfAbsent(lockKey, <span class="keyword">new</span> <span class="title class_">CountDownLatch</span>(<span class="number">1</span>)) == <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 获取实际锁对象，并阻塞等待</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> lockKey</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@throws</span> InterruptedException</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">blockOnLock</span><span class="params">(String lockKey)</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">        <span class="type">CountDownLatch</span> <span class="variable">lock</span> <span class="operator">=</span> lockHolder.get(lockKey);</span><br><span class="line">        <span class="keyword">if</span> (lock != <span class="literal">null</span>)&#123;</span><br><span class="line">            lock.await();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-2-2-存在的问题"><a href="#3-2-2-存在的问题" class="headerlink" title="3.2.2 存在的问题"></a>3.2.2 存在的问题</h4><ul>
+<li>每次调用 tryLock 都会创建一个 CountDownLatch 对象，对 GC 不太友好。</li>
+<li>不会记录获取锁的线程，其他线程通过 String 获取锁对象之后，可能会误释放锁。</li>
+<li>不支持的超时设置，需要主动释放锁。</li>
+</ul>
+<h3 id="3-3-Guava包的常量池"><a href="#3-3-Guava包的常量池" class="headerlink" title="3.3 Guava包的常量池"></a>3.3 Guava包的常量池</h3><blockquote>
+<p>Google 的第三方工具包 Guava 里面提供了常量池的实现，能够创建<strong>基于弱引用的常量池</strong>，避免 GC 问题。</p>
+</blockquote>
+<h4 id="3-3-1-实现"><a href="#3-3-1-实现" class="headerlink" title="3.3.1 实现"></a>3.3.1 实现</h4><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> com.google.common.collect.Interner;</span><br><span class="line"><span class="keyword">import</span> com.google.common.collect.Interners;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">StringMutexLock</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Interner&lt;String&gt; internPool = Interners.newWeakInterner();</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">operation</span><span class="params">(String bizId)</span>&#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">lock</span> <span class="operator">=</span> internPool.intern(bizId);</span><br><span class="line">        <span class="keyword">synchronized</span> (lock)&#123;</span><br><span class="line">            <span class="comment">// 具体业务</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-3-2-存在的问题"><a href="#3-3-2-存在的问题" class="headerlink" title="3.3.2 存在的问题"></a>3.3.2 存在的问题</h4><ul>
+<li>不会记录获取锁的线程，其他线程通过 String 获取锁对象之后，可能会误释放锁。</li>
+<li>不支持的超时设置，需要主动释放锁。</li>
+</ul>
+]]></content>
+      <categories>
+        <category>Java</category>
       </categories>
       <tags>
         <tag>Java</tag>
@@ -1013,7 +1013,8 @@
 <li><strong>高水位 HW（High Watermark）：</strong>生产者已提交消息位移 offset + 1，高水位用于定义消息的可见性，用来标识分区下的哪些消息是可以被消费者消费的，同时帮助 Kafka 完成副本的同步。</li>
 <li><strong>日志末端位移 LEO（Log End Offset）：</strong>副本下一条消息写入的位移值。</li>
 </ul>
-<p>![img](.&#x2F;Kafka HW 和 LEO.png)</p>
+<img src="Kafka HW 和 LEO.png" alt="img"  />
+
 <h5 id="5-5-1-高水位更新机制"><a href="#5-5-1-高水位更新机制" class="headerlink" title="5.5.1 高水位更新机制"></a>5.5.1 高水位更新机制</h5><blockquote>
 <p>每个副本对象都保存一组 HW 值和 LEO 值。而 Leader 副本所在 Broker 除了保存自己 LEO 值，还会保存所有 Follower 副本的 LEO 值（为了帮助 Leader 副本确定自己的高水位，即分区高水位）。</p>
 </blockquote>
@@ -1181,279 +1182,6 @@
       <categories>
         <category>计算机网络</category>
       </categories>
-  </entry>
-  <entry>
-    <title>LVS负载均衡实战</title>
-    <url>/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/</url>
-    <content><![CDATA[<h3 id="1-前言"><a href="#1-前言" class="headerlink" title="1. 前言"></a>1. 前言</h3><p>LVS的作用就是用作<strong>四层</strong>的<strong>负载均衡</strong>，四层是指<code>TCP/IP</code>七层协议中的传输层。目的是请求按一定的<strong>调度策略</strong>把用户的请求分发到多台后端设备上。区别于nginx，nginx是七层的负载均衡，能够看到http协议，而LVS只能看到四层的协议，即TCP协议等，所以无法通过Http cookie处理session。</p>
-<h3 id="2-简介"><a href="#2-简介" class="headerlink" title="2. 简介"></a>2. 简介</h3><p><a href="http://www.linuxvirtualserver.org/">LVS（Linux Virtual Server）</a>即Linux虚拟服务器，由章文嵩博士开发并已贡献给开源社区，用于构建高性能、高可用的Linux服务器集群，具有良好的可靠性、可扩展性和可操作性。</p>
-<blockquote>
-<p>LVS的高可用需要结合Keepalived，不然的话其实只有一个前端负载均衡节点负责着绑定到LVS上的IP流量，所以当这个前端负载均衡节点挂了之后，IP流量就无法分发到后端真实工作服务器上。Keepalived的作用就是保证前端负载均衡节点的高可用。</p>
-</blockquote>
-<h4 id="2-1-LVS的组成"><a href="#2-1-LVS的组成" class="headerlink" title="2.1 LVS的组成"></a>2.1 LVS的组成</h4><p>LVS主要由<code>ipvs</code>和<code>ipvsadm</code>两部分组成。</p>
-<ol>
-<li><code>ipvs(ip virtual server)</code>是工作在Linux内核态的四层负载均衡，是真正实现调度的程序，基于内核底层<code>netfilter</code>实现，通过<code>netfilter</code>的处理链上的钩子实现包的处理和转发。</li>
-<li><code>ipvsadm</code>工作在用户空间，负责与ipvs之间的交互，为ipvs框架编写规则，定义谁是前端负载均衡节点，谁是后端的真实服务器</li>
-</ol>
-<h4 id="2-2-LVS的三种工作模式"><a href="#2-2-LVS的三种工作模式" class="headerlink" title="2.2 LVS的三种工作模式"></a>2.2 LVS的三种工作模式</h4><ul>
-<li><p>VS&#x2F;NAT（Virtual Server via Network Address Translation）</p>
-<ul>
-<li>通过网络地址转换NAT实现</li>
-<li>调度器重写请求报文的目标地址，将请求分派到后端的真实服务器</li>
-<li>真实服务器将响应报文交给调度器，响应报文的源地址被重写，再转发给客户</li>
-<li>请求和响应都经过调度器</li>
-</ul>
-</li>
-<li><p>VS&#x2F;TUN（Virtual Server via IP Tunneling）</p>
-<ul>
-<li>通过IP隧道实现</li>
-<li>请求报文到达调度器之后，通过IP隧道转发到后端真实服务器</li>
-<li>真实服务器将响应报文直接返回给客户</li>
-<li>调度器只处理请求报文</li>
-</ul>
-</li>
-<li><p>VS&#x2F;DR（Virtual Server via Direct Routing）</p>
-<ul>
-<li>通过改写请求报文的MCA地址实现</li>
-<li>请求报文到达调度器之后，改写报文的MAC地址，发送到后端真实服务器</li>
-<li>真实服务器将响应报文直接返回给客户</li>
-<li>调度器只处理请求报文</li>
-</ul>
-</li>
-</ul>
-<h5 id="2-2-1-三种模式的主要区别"><a href="#2-2-1-三种模式的主要区别" class="headerlink" title="2.2.1 三种模式的主要区别"></a>2.2.1 三种模式的主要区别</h5><table>
-<thead>
-<tr>
-<th>模式与特点</th>
-<th>NAT模式</th>
-<th>TUN模式</th>
-<th>DR模式</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>服务器要求</td>
-<td>服务器节点可以使用任何操作系统</td>
-<td>必须支持IP隧道</td>
-<td>服务器节点支持虚拟网卡设备，能够禁用设备的ARP响应</td>
-</tr>
-<tr>
-<td>网络要求</td>
-<td>拥有私有IP地址的局域网络</td>
-<td>拥有合法IP地址的局域网或广域网</td>
-<td>拥有合法IP地址的局域网，服务器节点与调度器必须在同一个网段</td>
-</tr>
-<tr>
-<td>支持节点数</td>
-<td>10到20个，根据调度器的处理能力而定</td>
-<td>较高，可以支持100个服务节点</td>
-<td>较高，可以支持100个服务节点</td>
-</tr>
-<tr>
-<td>网关</td>
-<td>调度器为服务器节点网关</td>
-<td>服务器节点同自己的网关或者路由器连接，不经过负载均衡器</td>
-<td>服务器节点同自己的网关或者路由器连接，不经过负载均衡器</td>
-</tr>
-<tr>
-<td>IP要求</td>
-<td>仅需要一个合法的IP地址作为调度器的VIP地址</td>
-<td>除了VIP地址外，每个服务器需要有能够路由到客户端的IP地址</td>
-<td>除了VIP地址外，每个服务器需要有能够路由到客户端的IP地址</td>
-</tr>
-<tr>
-<td>特点</td>
-<td>地址转换</td>
-<td>封装IP</td>
-<td>修改MAC地址</td>
-</tr>
-</tbody></table>
-<h4 id="2-3-调度算法"><a href="#2-3-调度算法" class="headerlink" title="2.3 调度算法"></a>2.3 调度算法</h4><blockquote>
-<p>只做简单介绍，其中缩写英文用于在ipvsadm命令中指定集群调度算法</p>
-</blockquote>
-<ul>
-<li>轮询算法 <code>rr</code>（Round Robin）</li>
-<li>加权轮询算法 <code>wrr</code> （Weighted Round Robin）</li>
-<li>源地址哈希算法 <code>sh</code> （Source Hashing）</li>
-<li>目标地址哈希算法 <code>dh</code> （Destination Hashing）</li>
-<li>最少连接算法 <code>lc</code> （Least Connections）</li>
-<li>加权最少连接算法 <code>wlc</code> （Weighted Least Connection）</li>
-<li>最短期望延迟算法 <code>sed</code> （Shortest Expected Delay Scheduling）</li>
-<li>最少队列算法 <code>nq</code> （Never Queue Scheduling）</li>
-<li>基于局部的最少连接算法 <code>lblc</code> （Locality-Based Least Connections）</li>
-<li>带复制的基于局部的最少连接算法 <code>lblcr</code> （Locality-Based Least Connections with Replication）</li>
-<li>FO算法 <code>fo</code> （Weighted Fail Over）</li>
-<li>OVF算法 <code>ovf</code> （Overflow-connection）</li>
-</ul>
-<h3 id="3-工作原理"><a href="#3-工作原理" class="headerlink" title="3. 工作原理"></a>3. 工作原理</h3><blockquote>
-<p>重点理解报文包源和目的IP地址、源和目的MAC地址的变化</p>
-</blockquote>
-<h4 id="3-1-别称约定"><a href="#3-1-别称约定" class="headerlink" title="3.1 别称约定"></a>3.1 别称约定</h4><ul>
-<li>服务器<ul>
-<li>DS (Director Server)，指的是前端负载均衡器节点，即调度器</li>
-<li>RS (Real Server)，后端真实的工作服务器</li>
-</ul>
-</li>
-<li>IP地址<ul>
-<li>CIP (Client IP)，访问客户端的 IP 地址</li>
-<li>VIP (Virtual IP)，虚拟的 IP 地址，向外部直接面向用户请求，作为用户请求的目标的 IP 地址</li>
-<li>DIP (Director IP)，主要用于和内部主机通讯的 IP 地址</li>
-<li>RIP (Real Server IP)，后端服务器的 IP 地址</li>
-</ul>
-</li>
-<li>netfilter的五个阶段<ul>
-<li>PREROUTING</li>
-<li>INPUT</li>
-<li>OUTPUT</li>
-<li>FORWARD</li>
-<li>POSTROUTING</li>
-</ul>
-</li>
-</ul>
-<h4 id="3-2-LVS-x2F-NAT和FULLNAT"><a href="#3-2-LVS-x2F-NAT和FULLNAT" class="headerlink" title="3.2 LVS&#x2F;NAT和FULLNAT"></a>3.2 LVS&#x2F;NAT和FULLNAT</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_NAT.png" alt="LVS_NAT"></p>
-<blockquote>
-<p>还有一种工作模式是LVS&#x2F;FULLNAT。在DS将请求报文转发给RS时（即第三步），LVS&#x2F;NAT模式只修改目标IP为RIP，而LVS&#x2F;FULLNAT则同时将CIP和VIP分别修改为DIP和RIP。NAT模式DS和RS都需要在同一个子网（因为RS的网关为DS），FULLNAT模式DS和RS只要能通信可以不在同一个子网。</p>
-</blockquote>
-<blockquote>
-<p>NAT模式下，同一个物理网络的机器访问VIP会有数据流向的问题，详细分析请看最后一节。</p>
-</blockquote>
-<ol>
-<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
-<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
-<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，则修改数据包的目标IP地址为RS的RIP地址，然后将数据包发送至<code>POSTROUTING</code>调用链。此时，请求报文的<strong>源IP为CIP，目标IP为RIP</strong></li>
-<li><code>POSTROUTING</code>链通过路由，将数据包发送给RS</li>
-<li>RS接收到请求报文，开始构建响应报文返回给DS（因为DS是RS的网关，所以一定得经过DS）。此时响应报文的<strong>源IP为RIP，目标IP为CIP</strong></li>
-<li>DS在将响应报文发送给Client前，会将源IP地址修改为自己的VIP地址，然后发送给Client。此时报文的<strong>源IP为VIP，目标IP为CIP</strong></li>
-</ol>
-<h4 id="3-3-LVS-x2F-TUN"><a href="#3-3-LVS-x2F-TUN" class="headerlink" title="3.3 LVS&#x2F;TUN"></a>3.3 LVS&#x2F;TUN</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_TUN.png" alt="LVS_TUN"></p>
-<blockquote>
-<p>通过IP隧道时，在原有的IP报文外再次封装多一层IP首部，内层IP首部（源为CIP，目的为VIP），外层IP首部（源为DIP，目的为RIP）</p>
-</blockquote>
-<ol>
-<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
-<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
-<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，将整个请求包作为数据封装到一个新的IP报文中，新的封装报文<strong>源IP为DIP，目的IP为RIP</strong>。然后将新报文发送到<code>POSTROUTING</code>调用链</li>
-<li><code>POSTROUTING</code>根据新封装报文的目的IP地址将报文路由到RS，此时新报文<strong>源IP为DIP，目的IP为RIP</strong></li>
-<li>RS接收到报文之后，拆除掉外层的IP首部，会发现里面还有一层IP首部，而且目标IP是自己的lo接口VIP。此时，RS处理请求，将响应报文通过lo接口送给eth0网卡(与外网相接)，然后将报文路由到Client。此时<strong>源IP为VIP，目的IP为CIP</strong></li>
-<li>响应报文最终路由到Client</li>
-</ol>
-<h4 id="3-3-LVS-x2F-DR"><a href="#3-3-LVS-x2F-DR" class="headerlink" title="3.3 LVS&#x2F;DR"></a>3.3 LVS&#x2F;DR</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_DR.png" alt="LVS_DR"></p>
-<blockquote>
-<p>DS与RS必须在同一个物理网络中</p>
-</blockquote>
-<ol>
-<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
-<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
-<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，则将请求报文中的<strong>源MAC地址修改为DIP的MAC地址，将目标MAC地址修改为RIP的MAC地址</strong>，然后将数据包发送至<code>POSTROUTING</code>调用链。此时的源IP和目的IP均未修改，仅修改了源MAC地址和目的MAC地址</li>
-<li>由于DS和RS在同一个网络中，所以是通过数据链路层来传输。<code>POSTROUTING</code>检查目标MAC地址为RIP的MAC地址，那么此时数据包将会通过交换机发送至RS（因为在同一个网段，所以不会发送到网关，而是发送到内部网络中）</li>
-<li>RS接收到报文之后，发现MAC地址为自己的MAC地址，接收此报文并转交给上层协议。处理完成后，响应报文通过lo接口的VIP传送给eth0网卡向外发出。此时，响应报文的<strong>源IP为VIP，目的IP为CIP</strong></li>
-<li>响应报文最终路由到Client</li>
-</ol>
-<blockquote>
-<p>其中第3、5步是最为关键的，三个问题：</p>
-<ul>
-<li>DS如何知道RS的MAC地址</li>
-<li>RS如何接收目标IP为VIP的报文</li>
-<li>如何保证RS在源IP为VIP的情况下，将响应报文发送至外网</li>
-</ul>
-</blockquote>
-<blockquote>
-<p>第一个问题：DS如何知道RS的MAC地址？</p>
-<ul>
-<li>这个问题比较简单，因为DS必须要知道管理的RS的RIP地址，所以用ARP协议发送一个带有RIP的广播包。RS接收到这个广播包之后，打开并查看其中的IP是自己的RIP，就发送一个响应包，目的MAC地址是DS网卡接口的，而源MAC地址是RS网卡接口的。</li>
-</ul>
-</blockquote>
-<blockquote>
-<p>第二个问题：RS如何接收目标IP为VIP的报文</p>
-<ul>
-<li>要解决这个问题需要借助回环接口。在回环接口上配置VIP，在eth0上设置arp_ignore&#x3D;1。</li>
-<li>首先，RS通过请求报文中的目的MAC地址接收到报文后，会将其交给上层协议，即网络层，然后回判断目的IP地址是不是自己。正常情况下，这里的目的IP地址是VIP，但是我RS的网络接口地址是RIP，对不上，会不处理。</li>
-<li>于是需要配一个VIP地址到接口上。配到哪里呢？如果是配到eth0上，那在内部网络中使用ARP协议查找DS时，RS的eth0接口也会将自己的MAC地址返回，那不是发生IP冲突了？因此需要回环接口。<strong>回环接口是个逻辑接口，没有MAC地址，不会接收到ARP请求，因此也不会发送ARP响应，但是能够接收到IP数据报文</strong>。所以应该将VIP配置在回环接口上，但是有一个问题是，在默认arp_ignore&#x3D;0（代表回应任何网络接口上对任何本地IP地址的ARP查询请求）的情况下，eth0接口收到了对回环接口上的VIP地址的ARP请求，会将自己eth0接口的MAC地址响应出去，同样会发生IP冲突。所以需要将arg_ignore设置为1，即只响应目标IP地址为绑定在本接口的IP地址的ARP查询请求。如果有多张网卡，多张网卡都需要设置为1。</li>
-</ul>
-</blockquote>
-<blockquote>
-<p>第三个问题：如何保证RS在源IP为VIP的情况下，将响应报文发送至外网</p>
-<ul>
-<li>为什么会有这个问题呢？因为linux默认是使用IP报文的源IP作为ARP查询请求中的源IP地址，那么当RS发出ARP查询请求寻找能到达Client的网关MAC地址时，内部网络中的交换机会记录ARP查询请求中VIP地址和MAC地址作为以后转发接口使用，这样就会跟DS中配置的VIP网卡的MAC地址冲突了。</li>
-<li>咋办呢？配置eth0接口的arp_announce为2。arp_announce &#x3D; 0 (默认)表示在任意网络接口上的任何本地地址；arp_announce&#x3D; 2 表示对查询目标使用最适当的本地地址，此模式下将忽略这个IP数据包的源地址并尝试选择与能跟该地址通信的本地地址。优先选择所有网络接口的子网中外出访问子网中包含该目标 IP 地址的本地地址；如果没有合适的地址被发现，将选择当前的发送网络接口或其他的有可能接受到该 ARP 回应的网络接口来进行发送。</li>
-</ul>
-</blockquote>
-<h3 id="4-集群部署"><a href="#4-集群部署" class="headerlink" title="4. 集群部署"></a>4. 集群部署</h3><blockquote>
-<p>主要了解ipvsadm命令的使用，以及实际的路由规则</p>
-</blockquote>
-<h4 id="4-1-环境信息"><a href="#4-1-环境信息" class="headerlink" title="4.1 环境信息"></a>4.1 环境信息</h4><ul>
-<li>操作系统：Centos 7</li>
-<li>内核版本： 3.10.0-1160.el7.x86_64</li>
-<li>LVS工作模式：NAT</li>
-<li>网络信息</li>
-</ul>
-<table>
-<thead>
-<tr>
-<th>主机地址</th>
-<th>Director Server 01</th>
-<th>Real Server 01</th>
-<th>Real Server 02</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>IP</td>
-<td>172.23.118.10（内网IP）<br />192.23.118.13（VIP，对外访问）</td>
-<td>172.23.118.11（RIP）</td>
-<td>172.23.118.12（RIP）</td>
-</tr>
-<tr>
-<td>端口</td>
-<td>80</td>
-<td>80</td>
-<td>80</td>
-</tr>
-</tbody></table>
-<blockquote>
-<p><strong>需要事先将RS的默认网关设置为DS的内网地址172.23.118.10</strong>（反正要保证RS对客户端的响应能够先到达DS）</p>
-<p>其实这里DS的内网IP和VIP可以设置成同一个，但是通常在生产环境中，为了对外提供LVS集群服务，需要一个外网IP作为VIP</p>
-<p>我这里把DS的VIP绑定在了另外一个网卡上</p>
-</blockquote>
-<h4 id="4-2-LVS安装"><a href="#4-2-LVS安装" class="headerlink" title="4.2 LVS安装"></a>4.2 LVS安装</h4><p>Linux内核2.4版本以上基本都支持LVS，即已经有了<code>ipvs</code>，所以要想使用LVS只需要再装一个LVS管理工具<code>ipvsadm</code>。</p>
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">sudo yum install ipvsadm -y</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-3-Nginx安装"><a href="#4-3-Nginx安装" class="headerlink" title="4.3 Nginx安装"></a>4.3 Nginx安装</h4><p>安装nginx主要是为了方便测试请求被路由到那台服务器上</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">所有机器上执行</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装epel源</span></span><br><span class="line">sudo yum install -y epel-release</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装nginx</span></span><br><span class="line">sudo yum install nginx -y</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">启动nginx服务，默认80端口</span></span><br><span class="line">sudo servcie start nginx</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在DS上执行</span></span><br><span class="line">echo &#x27;DS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS01上执行</span></span><br><span class="line">echo &#x27;RS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS02上执行</span></span><br><span class="line">echo &#x27;RS02&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-4-关闭linux防火墙"><a href="#4-4-关闭linux防火墙" class="headerlink" title="4.4 关闭linux防火墙"></a>4.4 关闭linux防火墙</h4><p>不然无法从DS访问到RS的80端口。在生产环境下，通常只放开需要的端口。</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">关闭linux防火墙</span></span><br><span class="line">sudo systemctl stop firewalld</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-5-配置LVS"><a href="#4-5-配置LVS" class="headerlink" title="4.5 配置LVS"></a>4.5 配置LVS</h4><p>开始设置LVS集群</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">ipvsadm常用配置参数</span></span><br><span class="line">-A     添加虚拟服务VIP</span><br><span class="line">-D     删除虚拟服务VIP</span><br><span class="line">-L     查看虚拟服务VIP</span><br><span class="line">-C     清除所有虚拟服务VIP</span><br><span class="line"></span><br><span class="line">-t     指定虚拟服务及端口 VIP:Port</span><br><span class="line">-r     指定真实服务及端口 RS:Port </span><br><span class="line">-s     指定算法，rr（轮询）、wrr（加权轮询）、lc（最少连接）、sh（源地址散列）、dh(目标地址散列) 等等</span><br><span class="line">-w     指定权重</span><br><span class="line">-m     指定转发模式为NAT</span><br><span class="line">-g     指定转发模式为DR</span><br><span class="line">-i     指定转发模式为IP隧道</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在DS01上执行</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">开启IP数据包转发功能</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">以下命令只是暂时开启转发，重启后会失效</span></span><br><span class="line">echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">清除先前所有的ipvs配置信息</span></span><br><span class="line">sudo ipvsadm -C</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">添加一个LVS集群并且指定调度算法</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-A:添加集群 -t:VIP和端口 -s:调度算法</span></span><br><span class="line">sudo ipvsadm -A -t 192.23.118.13:80 -s rr</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">向LVS集群中添加真实服务器</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-a:添加真实服务器 -t:VIP和端口 -r:RIP和端口 -m:NAT模式 -w:转发权重</span></span><br><span class="line">sudo ipvsadm -a -t 192.23.118.13:80 -r 172.23.118.11:80 -m -w 1</span><br><span class="line">sudo ipvsadm -a -t 192.23.118.13:80 -r 172.23.118.12:80 -m -w 1</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">可以查看路由信息</span></span><br><span class="line">sudo watch ipvsadm -L -n -c</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-6-结果"><a href="#4-6-结果" class="headerlink" title="4.6 结果"></a>4.6 结果</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看LVS集群信息</span></span><br><span class="line">[junhao@localhost ~]$ sudo ipvsadm --list</span><br><span class="line">IP Virtual Server version 1.2.1 (size=4096)</span><br><span class="line">Prot LocalAddress:Port Scheduler Flags</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">RemoteAddress:Port           Forward Weight ActiveConn InActConn</span></span><br><span class="line">TCP  192.23.118.13:http rr</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.23.118.11:http           Masq    1      0          0</span>         </span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.23.118.12:http           Masq    1      0          0</span> </span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">访问LVS集群VIP</span></span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS01</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS01</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-7-操作过程中的一些问题"><a href="#4-7-操作过程中的一些问题" class="headerlink" title="4.7 操作过程中的一些问题"></a>4.7 操作过程中的一些问题</h4><ul>
-<li>在RS中会无法访问VIP（即内网中无法访问VIP）</li>
-</ul>
-<p>其实问题的本质跟着请求的源地址和目的地址走一遍就知道了，在RS1中发出请求（RIP1，VIP）。请求是能够到达DS的，LVS进行负载均衡后请求变为（RIP1，RIP），<strong>注意这里LVS只改变了目标地址，不改变源地址</strong>，请求被分配到随便一台真实服务器，RS1、RS2都可以。然后真实服务器接收到请求，处理之后根据源地址RIP1发出响应，<strong>注意这里因为RS1和RS2都在一个网段，所以响应发出后不会经过网关，即DS，而是在内网中发到RS1</strong>。然后没经过DS处理的响应（RIP，RIP1）就回到RS1中，然后<strong>RS1发现响应的源地址和目标地址与自己发出的请求（RIP1，VIP）不一致，就会把这个响应丢弃，而期望的响应是（VIP，RIP1）</strong>。所以在RS1中就无法访问VIP。</p>
-<ul>
-<li>IP转发的配置好像没用</li>
-</ul>
-<p>在实际操作过程中，试着把ip_forward设置成0再curl，但是也能通，没啥问题，这是因为把VIP绑定在了网卡上，所以肯定是能接收到的。然后试着把VIP解绑，即不绑定在任何网卡上，但是这个时候网络就不通了，即使ip_forward设置成1也不行，不清楚原因。</p>
-]]></content>
-      <categories>
-        <category>计算机网络</category>
-      </categories>
-      <tags>
-        <tag>LVS</tag>
-      </tags>
   </entry>
   <entry>
     <title>Kubeadm安装Kubernetes v1.26.1集群</title>
@@ -2163,6 +1891,279 @@
       </categories>
       <tags>
         <tag>k8s</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>LVS负载均衡实战</title>
+    <url>/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/</url>
+    <content><![CDATA[<h3 id="1-前言"><a href="#1-前言" class="headerlink" title="1. 前言"></a>1. 前言</h3><p>LVS的作用就是用作<strong>四层</strong>的<strong>负载均衡</strong>，四层是指<code>TCP/IP</code>七层协议中的传输层。目的是请求按一定的<strong>调度策略</strong>把用户的请求分发到多台后端设备上。区别于nginx，nginx是七层的负载均衡，能够看到http协议，而LVS只能看到四层的协议，即TCP协议等，所以无法通过Http cookie处理session。</p>
+<h3 id="2-简介"><a href="#2-简介" class="headerlink" title="2. 简介"></a>2. 简介</h3><p><a href="http://www.linuxvirtualserver.org/">LVS（Linux Virtual Server）</a>即Linux虚拟服务器，由章文嵩博士开发并已贡献给开源社区，用于构建高性能、高可用的Linux服务器集群，具有良好的可靠性、可扩展性和可操作性。</p>
+<blockquote>
+<p>LVS的高可用需要结合Keepalived，不然的话其实只有一个前端负载均衡节点负责着绑定到LVS上的IP流量，所以当这个前端负载均衡节点挂了之后，IP流量就无法分发到后端真实工作服务器上。Keepalived的作用就是保证前端负载均衡节点的高可用。</p>
+</blockquote>
+<h4 id="2-1-LVS的组成"><a href="#2-1-LVS的组成" class="headerlink" title="2.1 LVS的组成"></a>2.1 LVS的组成</h4><p>LVS主要由<code>ipvs</code>和<code>ipvsadm</code>两部分组成。</p>
+<ol>
+<li><code>ipvs(ip virtual server)</code>是工作在Linux内核态的四层负载均衡，是真正实现调度的程序，基于内核底层<code>netfilter</code>实现，通过<code>netfilter</code>的处理链上的钩子实现包的处理和转发。</li>
+<li><code>ipvsadm</code>工作在用户空间，负责与ipvs之间的交互，为ipvs框架编写规则，定义谁是前端负载均衡节点，谁是后端的真实服务器</li>
+</ol>
+<h4 id="2-2-LVS的三种工作模式"><a href="#2-2-LVS的三种工作模式" class="headerlink" title="2.2 LVS的三种工作模式"></a>2.2 LVS的三种工作模式</h4><ul>
+<li><p>VS&#x2F;NAT（Virtual Server via Network Address Translation）</p>
+<ul>
+<li>通过网络地址转换NAT实现</li>
+<li>调度器重写请求报文的目标地址，将请求分派到后端的真实服务器</li>
+<li>真实服务器将响应报文交给调度器，响应报文的源地址被重写，再转发给客户</li>
+<li>请求和响应都经过调度器</li>
+</ul>
+</li>
+<li><p>VS&#x2F;TUN（Virtual Server via IP Tunneling）</p>
+<ul>
+<li>通过IP隧道实现</li>
+<li>请求报文到达调度器之后，通过IP隧道转发到后端真实服务器</li>
+<li>真实服务器将响应报文直接返回给客户</li>
+<li>调度器只处理请求报文</li>
+</ul>
+</li>
+<li><p>VS&#x2F;DR（Virtual Server via Direct Routing）</p>
+<ul>
+<li>通过改写请求报文的MCA地址实现</li>
+<li>请求报文到达调度器之后，改写报文的MAC地址，发送到后端真实服务器</li>
+<li>真实服务器将响应报文直接返回给客户</li>
+<li>调度器只处理请求报文</li>
+</ul>
+</li>
+</ul>
+<h5 id="2-2-1-三种模式的主要区别"><a href="#2-2-1-三种模式的主要区别" class="headerlink" title="2.2.1 三种模式的主要区别"></a>2.2.1 三种模式的主要区别</h5><table>
+<thead>
+<tr>
+<th>模式与特点</th>
+<th>NAT模式</th>
+<th>TUN模式</th>
+<th>DR模式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>服务器要求</td>
+<td>服务器节点可以使用任何操作系统</td>
+<td>必须支持IP隧道</td>
+<td>服务器节点支持虚拟网卡设备，能够禁用设备的ARP响应</td>
+</tr>
+<tr>
+<td>网络要求</td>
+<td>拥有私有IP地址的局域网络</td>
+<td>拥有合法IP地址的局域网或广域网</td>
+<td>拥有合法IP地址的局域网，服务器节点与调度器必须在同一个网段</td>
+</tr>
+<tr>
+<td>支持节点数</td>
+<td>10到20个，根据调度器的处理能力而定</td>
+<td>较高，可以支持100个服务节点</td>
+<td>较高，可以支持100个服务节点</td>
+</tr>
+<tr>
+<td>网关</td>
+<td>调度器为服务器节点网关</td>
+<td>服务器节点同自己的网关或者路由器连接，不经过负载均衡器</td>
+<td>服务器节点同自己的网关或者路由器连接，不经过负载均衡器</td>
+</tr>
+<tr>
+<td>IP要求</td>
+<td>仅需要一个合法的IP地址作为调度器的VIP地址</td>
+<td>除了VIP地址外，每个服务器需要有能够路由到客户端的IP地址</td>
+<td>除了VIP地址外，每个服务器需要有能够路由到客户端的IP地址</td>
+</tr>
+<tr>
+<td>特点</td>
+<td>地址转换</td>
+<td>封装IP</td>
+<td>修改MAC地址</td>
+</tr>
+</tbody></table>
+<h4 id="2-3-调度算法"><a href="#2-3-调度算法" class="headerlink" title="2.3 调度算法"></a>2.3 调度算法</h4><blockquote>
+<p>只做简单介绍，其中缩写英文用于在ipvsadm命令中指定集群调度算法</p>
+</blockquote>
+<ul>
+<li>轮询算法 <code>rr</code>（Round Robin）</li>
+<li>加权轮询算法 <code>wrr</code> （Weighted Round Robin）</li>
+<li>源地址哈希算法 <code>sh</code> （Source Hashing）</li>
+<li>目标地址哈希算法 <code>dh</code> （Destination Hashing）</li>
+<li>最少连接算法 <code>lc</code> （Least Connections）</li>
+<li>加权最少连接算法 <code>wlc</code> （Weighted Least Connection）</li>
+<li>最短期望延迟算法 <code>sed</code> （Shortest Expected Delay Scheduling）</li>
+<li>最少队列算法 <code>nq</code> （Never Queue Scheduling）</li>
+<li>基于局部的最少连接算法 <code>lblc</code> （Locality-Based Least Connections）</li>
+<li>带复制的基于局部的最少连接算法 <code>lblcr</code> （Locality-Based Least Connections with Replication）</li>
+<li>FO算法 <code>fo</code> （Weighted Fail Over）</li>
+<li>OVF算法 <code>ovf</code> （Overflow-connection）</li>
+</ul>
+<h3 id="3-工作原理"><a href="#3-工作原理" class="headerlink" title="3. 工作原理"></a>3. 工作原理</h3><blockquote>
+<p>重点理解报文包源和目的IP地址、源和目的MAC地址的变化</p>
+</blockquote>
+<h4 id="3-1-别称约定"><a href="#3-1-别称约定" class="headerlink" title="3.1 别称约定"></a>3.1 别称约定</h4><ul>
+<li>服务器<ul>
+<li>DS (Director Server)，指的是前端负载均衡器节点，即调度器</li>
+<li>RS (Real Server)，后端真实的工作服务器</li>
+</ul>
+</li>
+<li>IP地址<ul>
+<li>CIP (Client IP)，访问客户端的 IP 地址</li>
+<li>VIP (Virtual IP)，虚拟的 IP 地址，向外部直接面向用户请求，作为用户请求的目标的 IP 地址</li>
+<li>DIP (Director IP)，主要用于和内部主机通讯的 IP 地址</li>
+<li>RIP (Real Server IP)，后端服务器的 IP 地址</li>
+</ul>
+</li>
+<li>netfilter的五个阶段<ul>
+<li>PREROUTING</li>
+<li>INPUT</li>
+<li>OUTPUT</li>
+<li>FORWARD</li>
+<li>POSTROUTING</li>
+</ul>
+</li>
+</ul>
+<h4 id="3-2-LVS-x2F-NAT和FULLNAT"><a href="#3-2-LVS-x2F-NAT和FULLNAT" class="headerlink" title="3.2 LVS&#x2F;NAT和FULLNAT"></a>3.2 LVS&#x2F;NAT和FULLNAT</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_NAT.png" alt="LVS_NAT"></p>
+<blockquote>
+<p>还有一种工作模式是LVS&#x2F;FULLNAT。在DS将请求报文转发给RS时（即第三步），LVS&#x2F;NAT模式只修改目标IP为RIP，而LVS&#x2F;FULLNAT则同时将CIP和VIP分别修改为DIP和RIP。NAT模式DS和RS都需要在同一个子网（因为RS的网关为DS），FULLNAT模式DS和RS只要能通信可以不在同一个子网。</p>
+</blockquote>
+<blockquote>
+<p>NAT模式下，同一个物理网络的机器访问VIP会有数据流向的问题，详细分析请看最后一节。</p>
+</blockquote>
+<ol>
+<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
+<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
+<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，则修改数据包的目标IP地址为RS的RIP地址，然后将数据包发送至<code>POSTROUTING</code>调用链。此时，请求报文的<strong>源IP为CIP，目标IP为RIP</strong></li>
+<li><code>POSTROUTING</code>链通过路由，将数据包发送给RS</li>
+<li>RS接收到请求报文，开始构建响应报文返回给DS（因为DS是RS的网关，所以一定得经过DS）。此时响应报文的<strong>源IP为RIP，目标IP为CIP</strong></li>
+<li>DS在将响应报文发送给Client前，会将源IP地址修改为自己的VIP地址，然后发送给Client。此时报文的<strong>源IP为VIP，目标IP为CIP</strong></li>
+</ol>
+<h4 id="3-3-LVS-x2F-TUN"><a href="#3-3-LVS-x2F-TUN" class="headerlink" title="3.3 LVS&#x2F;TUN"></a>3.3 LVS&#x2F;TUN</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_TUN.png" alt="LVS_TUN"></p>
+<blockquote>
+<p>通过IP隧道时，在原有的IP报文外再次封装多一层IP首部，内层IP首部（源为CIP，目的为VIP），外层IP首部（源为DIP，目的为RIP）</p>
+</blockquote>
+<ol>
+<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
+<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
+<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，将整个请求包作为数据封装到一个新的IP报文中，新的封装报文<strong>源IP为DIP，目的IP为RIP</strong>。然后将新报文发送到<code>POSTROUTING</code>调用链</li>
+<li><code>POSTROUTING</code>根据新封装报文的目的IP地址将报文路由到RS，此时新报文<strong>源IP为DIP，目的IP为RIP</strong></li>
+<li>RS接收到报文之后，拆除掉外层的IP首部，会发现里面还有一层IP首部，而且目标IP是自己的lo接口VIP。此时，RS处理请求，将响应报文通过lo接口送给eth0网卡(与外网相接)，然后将报文路由到Client。此时<strong>源IP为VIP，目的IP为CIP</strong></li>
+<li>响应报文最终路由到Client</li>
+</ol>
+<h4 id="3-3-LVS-x2F-DR"><a href="#3-3-LVS-x2F-DR" class="headerlink" title="3.3 LVS&#x2F;DR"></a>3.3 LVS&#x2F;DR</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_DR.png" alt="LVS_DR"></p>
+<blockquote>
+<p>DS与RS必须在同一个物理网络中</p>
+</blockquote>
+<ol>
+<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
+<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
+<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，则将请求报文中的<strong>源MAC地址修改为DIP的MAC地址，将目标MAC地址修改为RIP的MAC地址</strong>，然后将数据包发送至<code>POSTROUTING</code>调用链。此时的源IP和目的IP均未修改，仅修改了源MAC地址和目的MAC地址</li>
+<li>由于DS和RS在同一个网络中，所以是通过数据链路层来传输。<code>POSTROUTING</code>检查目标MAC地址为RIP的MAC地址，那么此时数据包将会通过交换机发送至RS（因为在同一个网段，所以不会发送到网关，而是发送到内部网络中）</li>
+<li>RS接收到报文之后，发现MAC地址为自己的MAC地址，接收此报文并转交给上层协议。处理完成后，响应报文通过lo接口的VIP传送给eth0网卡向外发出。此时，响应报文的<strong>源IP为VIP，目的IP为CIP</strong></li>
+<li>响应报文最终路由到Client</li>
+</ol>
+<blockquote>
+<p>其中第3、5步是最为关键的，三个问题：</p>
+<ul>
+<li>DS如何知道RS的MAC地址</li>
+<li>RS如何接收目标IP为VIP的报文</li>
+<li>如何保证RS在源IP为VIP的情况下，将响应报文发送至外网</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>第一个问题：DS如何知道RS的MAC地址？</p>
+<ul>
+<li>这个问题比较简单，因为DS必须要知道管理的RS的RIP地址，所以用ARP协议发送一个带有RIP的广播包。RS接收到这个广播包之后，打开并查看其中的IP是自己的RIP，就发送一个响应包，目的MAC地址是DS网卡接口的，而源MAC地址是RS网卡接口的。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>第二个问题：RS如何接收目标IP为VIP的报文</p>
+<ul>
+<li>要解决这个问题需要借助回环接口。在回环接口上配置VIP，在eth0上设置arp_ignore&#x3D;1。</li>
+<li>首先，RS通过请求报文中的目的MAC地址接收到报文后，会将其交给上层协议，即网络层，然后回判断目的IP地址是不是自己。正常情况下，这里的目的IP地址是VIP，但是我RS的网络接口地址是RIP，对不上，会不处理。</li>
+<li>于是需要配一个VIP地址到接口上。配到哪里呢？如果是配到eth0上，那在内部网络中使用ARP协议查找DS时，RS的eth0接口也会将自己的MAC地址返回，那不是发生IP冲突了？因此需要回环接口。<strong>回环接口是个逻辑接口，没有MAC地址，不会接收到ARP请求，因此也不会发送ARP响应，但是能够接收到IP数据报文</strong>。所以应该将VIP配置在回环接口上，但是有一个问题是，在默认arp_ignore&#x3D;0（代表回应任何网络接口上对任何本地IP地址的ARP查询请求）的情况下，eth0接口收到了对回环接口上的VIP地址的ARP请求，会将自己eth0接口的MAC地址响应出去，同样会发生IP冲突。所以需要将arg_ignore设置为1，即只响应目标IP地址为绑定在本接口的IP地址的ARP查询请求。如果有多张网卡，多张网卡都需要设置为1。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>第三个问题：如何保证RS在源IP为VIP的情况下，将响应报文发送至外网</p>
+<ul>
+<li>为什么会有这个问题呢？因为linux默认是使用IP报文的源IP作为ARP查询请求中的源IP地址，那么当RS发出ARP查询请求寻找能到达Client的网关MAC地址时，内部网络中的交换机会记录ARP查询请求中VIP地址和MAC地址作为以后转发接口使用，这样就会跟DS中配置的VIP网卡的MAC地址冲突了。</li>
+<li>咋办呢？配置eth0接口的arp_announce为2。arp_announce &#x3D; 0 (默认)表示在任意网络接口上的任何本地地址；arp_announce&#x3D; 2 表示对查询目标使用最适当的本地地址，此模式下将忽略这个IP数据包的源地址并尝试选择与能跟该地址通信的本地地址。优先选择所有网络接口的子网中外出访问子网中包含该目标 IP 地址的本地地址；如果没有合适的地址被发现，将选择当前的发送网络接口或其他的有可能接受到该 ARP 回应的网络接口来进行发送。</li>
+</ul>
+</blockquote>
+<h3 id="4-集群部署"><a href="#4-集群部署" class="headerlink" title="4. 集群部署"></a>4. 集群部署</h3><blockquote>
+<p>主要了解ipvsadm命令的使用，以及实际的路由规则</p>
+</blockquote>
+<h4 id="4-1-环境信息"><a href="#4-1-环境信息" class="headerlink" title="4.1 环境信息"></a>4.1 环境信息</h4><ul>
+<li>操作系统：Centos 7</li>
+<li>内核版本： 3.10.0-1160.el7.x86_64</li>
+<li>LVS工作模式：NAT</li>
+<li>网络信息</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>主机地址</th>
+<th>Director Server 01</th>
+<th>Real Server 01</th>
+<th>Real Server 02</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>IP</td>
+<td>172.23.118.10（内网IP）<br />192.23.118.13（VIP，对外访问）</td>
+<td>172.23.118.11（RIP）</td>
+<td>172.23.118.12（RIP）</td>
+</tr>
+<tr>
+<td>端口</td>
+<td>80</td>
+<td>80</td>
+<td>80</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>需要事先将RS的默认网关设置为DS的内网地址172.23.118.10</strong>（反正要保证RS对客户端的响应能够先到达DS）</p>
+<p>其实这里DS的内网IP和VIP可以设置成同一个，但是通常在生产环境中，为了对外提供LVS集群服务，需要一个外网IP作为VIP</p>
+<p>我这里把DS的VIP绑定在了另外一个网卡上</p>
+</blockquote>
+<h4 id="4-2-LVS安装"><a href="#4-2-LVS安装" class="headerlink" title="4.2 LVS安装"></a>4.2 LVS安装</h4><p>Linux内核2.4版本以上基本都支持LVS，即已经有了<code>ipvs</code>，所以要想使用LVS只需要再装一个LVS管理工具<code>ipvsadm</code>。</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">sudo yum install ipvsadm -y</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-3-Nginx安装"><a href="#4-3-Nginx安装" class="headerlink" title="4.3 Nginx安装"></a>4.3 Nginx安装</h4><p>安装nginx主要是为了方便测试请求被路由到那台服务器上</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">所有机器上执行</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装epel源</span></span><br><span class="line">sudo yum install -y epel-release</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装nginx</span></span><br><span class="line">sudo yum install nginx -y</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">启动nginx服务，默认80端口</span></span><br><span class="line">sudo servcie start nginx</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在DS上执行</span></span><br><span class="line">echo &#x27;DS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS01上执行</span></span><br><span class="line">echo &#x27;RS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS02上执行</span></span><br><span class="line">echo &#x27;RS02&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-4-关闭linux防火墙"><a href="#4-4-关闭linux防火墙" class="headerlink" title="4.4 关闭linux防火墙"></a>4.4 关闭linux防火墙</h4><p>不然无法从DS访问到RS的80端口。在生产环境下，通常只放开需要的端口。</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">关闭linux防火墙</span></span><br><span class="line">sudo systemctl stop firewalld</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-5-配置LVS"><a href="#4-5-配置LVS" class="headerlink" title="4.5 配置LVS"></a>4.5 配置LVS</h4><p>开始设置LVS集群</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">ipvsadm常用配置参数</span></span><br><span class="line">-A     添加虚拟服务VIP</span><br><span class="line">-D     删除虚拟服务VIP</span><br><span class="line">-L     查看虚拟服务VIP</span><br><span class="line">-C     清除所有虚拟服务VIP</span><br><span class="line"></span><br><span class="line">-t     指定虚拟服务及端口 VIP:Port</span><br><span class="line">-r     指定真实服务及端口 RS:Port </span><br><span class="line">-s     指定算法，rr（轮询）、wrr（加权轮询）、lc（最少连接）、sh（源地址散列）、dh(目标地址散列) 等等</span><br><span class="line">-w     指定权重</span><br><span class="line">-m     指定转发模式为NAT</span><br><span class="line">-g     指定转发模式为DR</span><br><span class="line">-i     指定转发模式为IP隧道</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在DS01上执行</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">开启IP数据包转发功能</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">以下命令只是暂时开启转发，重启后会失效</span></span><br><span class="line">echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">清除先前所有的ipvs配置信息</span></span><br><span class="line">sudo ipvsadm -C</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">添加一个LVS集群并且指定调度算法</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-A:添加集群 -t:VIP和端口 -s:调度算法</span></span><br><span class="line">sudo ipvsadm -A -t 192.23.118.13:80 -s rr</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">向LVS集群中添加真实服务器</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-a:添加真实服务器 -t:VIP和端口 -r:RIP和端口 -m:NAT模式 -w:转发权重</span></span><br><span class="line">sudo ipvsadm -a -t 192.23.118.13:80 -r 172.23.118.11:80 -m -w 1</span><br><span class="line">sudo ipvsadm -a -t 192.23.118.13:80 -r 172.23.118.12:80 -m -w 1</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">可以查看路由信息</span></span><br><span class="line">sudo watch ipvsadm -L -n -c</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-6-结果"><a href="#4-6-结果" class="headerlink" title="4.6 结果"></a>4.6 结果</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看LVS集群信息</span></span><br><span class="line">[junhao@localhost ~]$ sudo ipvsadm --list</span><br><span class="line">IP Virtual Server version 1.2.1 (size=4096)</span><br><span class="line">Prot LocalAddress:Port Scheduler Flags</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">RemoteAddress:Port           Forward Weight ActiveConn InActConn</span></span><br><span class="line">TCP  192.23.118.13:http rr</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.23.118.11:http           Masq    1      0          0</span>         </span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.23.118.12:http           Masq    1      0          0</span> </span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">访问LVS集群VIP</span></span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS01</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS01</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-7-操作过程中的一些问题"><a href="#4-7-操作过程中的一些问题" class="headerlink" title="4.7 操作过程中的一些问题"></a>4.7 操作过程中的一些问题</h4><ul>
+<li>在RS中会无法访问VIP（即内网中无法访问VIP）</li>
+</ul>
+<p>其实问题的本质跟着请求的源地址和目的地址走一遍就知道了，在RS1中发出请求（RIP1，VIP）。请求是能够到达DS的，LVS进行负载均衡后请求变为（RIP1，RIP），<strong>注意这里LVS只改变了目标地址，不改变源地址</strong>，请求被分配到随便一台真实服务器，RS1、RS2都可以。然后真实服务器接收到请求，处理之后根据源地址RIP1发出响应，<strong>注意这里因为RS1和RS2都在一个网段，所以响应发出后不会经过网关，即DS，而是在内网中发到RS1</strong>。然后没经过DS处理的响应（RIP，RIP1）就回到RS1中，然后<strong>RS1发现响应的源地址和目标地址与自己发出的请求（RIP1，VIP）不一致，就会把这个响应丢弃，而期望的响应是（VIP，RIP1）</strong>。所以在RS1中就无法访问VIP。</p>
+<ul>
+<li>IP转发的配置好像没用</li>
+</ul>
+<p>在实际操作过程中，试着把ip_forward设置成0再curl，但是也能通，没啥问题，这是因为把VIP绑定在了网卡上，所以肯定是能接收到的。然后试着把VIP解绑，即不绑定在任何网卡上，但是这个时候网络就不通了，即使ip_forward设置成1也不行，不清楚原因。</p>
+]]></content>
+      <categories>
+        <category>计算机网络</category>
+      </categories>
+      <tags>
+        <tag>LVS</tag>
       </tags>
   </entry>
   <entry>
@@ -2906,48 +2907,6 @@
       </tags>
   </entry>
   <entry>
-    <title>python模块加载顺序</title>
-    <url>/2022/08/17/python%E6%A8%A1%E5%9D%97%E5%8A%A0%E8%BD%BD%E9%A1%BA%E5%BA%8F/</url>
-    <content><![CDATA[<blockquote>
-<p>结论：工程自定义包 -&gt; 工程py文件 -&gt; 系统路径 </p>
-<p>所以如果在工程中自己创建了跟系统&#x2F;第三方模块重名的模块时，则无法加载系统&#x2F;第三方模块</p>
-</blockquote>
-<p>python出于性能考虑，每个模块在每个解释器会话中只导入一遍，所以如果程序运行过程中，你修改了自定义模块，那么需要重启解释器（即重启程序）或者使用<code>reload(moduleName)</code>重新加载模块（不用重启）</p>
-<h3 id="1-查看模块加载路径"><a href="#1-查看模块加载路径" class="headerlink" title="1. 查看模块加载路径"></a>1. 查看模块加载路径</h3><blockquote>
-<p>python解析器会从脚本执行目录、所有已安装内置模块和第三方模块中寻找导入的模块，按照sys.path中的路径顺序进行查找</p>
-</blockquote>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 查看sys.path</span></span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">import</span> sys</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>sys.path</span><br><span class="line">[<span class="string">&#x27;&#x27;</span>, <span class="string">&#x27;/usr/lib64/python27.zip&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/plat-linux2&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-tk&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-old&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-dynload&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/site-packages&#x27;</span>, <span class="string">&#x27;/usr/lib/python2.7/site-packages&#x27;</span>]</span><br><span class="line"><span class="comment"># 这里的列表中的第一个&#x27;&#x27;代表着当前目录，如果是使用文件执行，则是显示的脚本所在目录</span></span><br><span class="line"><span class="comment"># 可以通过sys.path.append(&#x27;/Users/michael/my_py_scripts&#x27;)临时添加搜索目录</span></span><br><span class="line"><span class="comment"># 或将目录添加到shell环境变量PYTHONPATH中</span></span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="2-自定义模块加载"><a href="#2-自定义模块加载" class="headerlink" title="2. 自定义模块加载"></a>2. 自定义模块加载</h3><ol>
-<li>导入一个叫<code>spam</code>的模块时，解释器先在当前目录中搜索名为<code>spam.py</code>的文件，import语句导入<code>spam.py</code>文件时，顺序执行其中的语句</li>
-</ol>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">目录结构</span><br><span class="line">projects/</span><br><span class="line">    test.py   # 内容 import spam</span><br><span class="line">    spam.py   # 内容 print(&quot;this is spam.py&quot;)</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">#</span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam.py</span><br></pre></td></tr></table></figure>
-
-<ol start="2">
-<li><strong>目录下存在<code>spam</code>包时，则优先调用<code>spam</code>包，不加载<code>spam.py</code>。加载包内文件时，先执行<code>__init__.py</code>再加载包内文件内容</strong></li>
-</ol>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">目录结构</span><br><span class="line">projects/</span><br><span class="line">    test.py   # 内容 import spam</span><br><span class="line">    spam.py   # 内容 print(&quot;this is spam.py&quot;)</span><br><span class="line">    spam/ </span><br><span class="line">        __init__.py  # 内容 print(&quot;this is spam/__init__.py&quot;)</span><br><span class="line">        sub.py        # 内容 print(&quot;this is spam/sub.py&quot;)</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam/__init__.py</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">修改test.py</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">echo</span> <span class="string">&quot;import spam.sub&quot;</span> &gt; test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam/__init__.py</span><br><span class="line">this is spam/sub.py</span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="3-查看第三方模块的所在路径"><a href="#3-查看第三方模块的所在路径" class="headerlink" title="3. 查看第三方模块的所在路径"></a>3. 查看第三方模块的所在路径</h3><p>哪如果想知道导入的第三方模块具体文件在哪里咋办呢？</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">import</span> imp</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>imp.find_module(<span class="string">&quot;paramiko&quot;</span>)</span><br><span class="line">(<span class="literal">None</span>, <span class="string">&#x27;/usr/local/lib/python3.6/site-packages/paramiko&#x27;</span>, (<span class="string">&#x27;&#x27;</span>, <span class="string">&#x27;&#x27;</span>, <span class="number">5</span>))</span><br></pre></td></tr></table></figure>
-
-]]></content>
-      <categories>
-        <category>Python</category>
-      </categories>
-      <tags>
-        <tag>Python</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>SpringBoot中使用Zookeeper进行服务发现</title>
     <url>/2022/12/05/SpringBoot%E4%B8%AD%E4%BD%BF%E7%94%A8Zookeeper%E8%BF%9B%E8%A1%8C%E6%9C%8D%E5%8A%A1%E5%8F%91%E7%8E%B0/</url>
     <content><![CDATA[<h2 id="1-什么是服务发现"><a href="#1-什么是服务发现" class="headerlink" title="1. 什么是服务发现"></a>1. 什么是服务发现</h2><p>首先引入三个角色，分别是服务提供者、服务消费者、服务中介。一个 HTTP 服务器既可以是服务提供者，也可以是服务消费者。</p>
@@ -3150,6 +3109,48 @@
 <h4 id="4-2-安装模块"><a href="#4-2-安装模块" class="headerlink" title="4.2 安装模块"></a>4.2 安装模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">easy_install module</span><br><span class="line">easy_install module==version   # 安装指定版本</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">指定镜像源安装</span></span><br><span class="line">esay_install -i `镜像源` module </span><br></pre></td></tr></table></figure>
 
 <h4 id="4-3-卸载模块"><a href="#4-3-卸载模块" class="headerlink" title="4.3 卸载模块"></a>4.3 卸载模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">easy_install -m module</span><br></pre></td></tr></table></figure>
+
+]]></content>
+      <categories>
+        <category>Python</category>
+      </categories>
+      <tags>
+        <tag>Python</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>python模块加载顺序</title>
+    <url>/2022/08/17/python%E6%A8%A1%E5%9D%97%E5%8A%A0%E8%BD%BD%E9%A1%BA%E5%BA%8F/</url>
+    <content><![CDATA[<blockquote>
+<p>结论：工程自定义包 -&gt; 工程py文件 -&gt; 系统路径 </p>
+<p>所以如果在工程中自己创建了跟系统&#x2F;第三方模块重名的模块时，则无法加载系统&#x2F;第三方模块</p>
+</blockquote>
+<p>python出于性能考虑，每个模块在每个解释器会话中只导入一遍，所以如果程序运行过程中，你修改了自定义模块，那么需要重启解释器（即重启程序）或者使用<code>reload(moduleName)</code>重新加载模块（不用重启）</p>
+<h3 id="1-查看模块加载路径"><a href="#1-查看模块加载路径" class="headerlink" title="1. 查看模块加载路径"></a>1. 查看模块加载路径</h3><blockquote>
+<p>python解析器会从脚本执行目录、所有已安装内置模块和第三方模块中寻找导入的模块，按照sys.path中的路径顺序进行查找</p>
+</blockquote>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 查看sys.path</span></span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">import</span> sys</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>sys.path</span><br><span class="line">[<span class="string">&#x27;&#x27;</span>, <span class="string">&#x27;/usr/lib64/python27.zip&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/plat-linux2&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-tk&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-old&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-dynload&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/site-packages&#x27;</span>, <span class="string">&#x27;/usr/lib/python2.7/site-packages&#x27;</span>]</span><br><span class="line"><span class="comment"># 这里的列表中的第一个&#x27;&#x27;代表着当前目录，如果是使用文件执行，则是显示的脚本所在目录</span></span><br><span class="line"><span class="comment"># 可以通过sys.path.append(&#x27;/Users/michael/my_py_scripts&#x27;)临时添加搜索目录</span></span><br><span class="line"><span class="comment"># 或将目录添加到shell环境变量PYTHONPATH中</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="2-自定义模块加载"><a href="#2-自定义模块加载" class="headerlink" title="2. 自定义模块加载"></a>2. 自定义模块加载</h3><ol>
+<li>导入一个叫<code>spam</code>的模块时，解释器先在当前目录中搜索名为<code>spam.py</code>的文件，import语句导入<code>spam.py</code>文件时，顺序执行其中的语句</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">目录结构</span><br><span class="line">projects/</span><br><span class="line">    test.py   # 内容 import spam</span><br><span class="line">    spam.py   # 内容 print(&quot;this is spam.py&quot;)</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">#</span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam.py</span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li><strong>目录下存在<code>spam</code>包时，则优先调用<code>spam</code>包，不加载<code>spam.py</code>。加载包内文件时，先执行<code>__init__.py</code>再加载包内文件内容</strong></li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">目录结构</span><br><span class="line">projects/</span><br><span class="line">    test.py   # 内容 import spam</span><br><span class="line">    spam.py   # 内容 print(&quot;this is spam.py&quot;)</span><br><span class="line">    spam/ </span><br><span class="line">        __init__.py  # 内容 print(&quot;this is spam/__init__.py&quot;)</span><br><span class="line">        sub.py        # 内容 print(&quot;this is spam/sub.py&quot;)</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam/__init__.py</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">修改test.py</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">echo</span> <span class="string">&quot;import spam.sub&quot;</span> &gt; test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam/__init__.py</span><br><span class="line">this is spam/sub.py</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="3-查看第三方模块的所在路径"><a href="#3-查看第三方模块的所在路径" class="headerlink" title="3. 查看第三方模块的所在路径"></a>3. 查看第三方模块的所在路径</h3><p>哪如果想知道导入的第三方模块具体文件在哪里咋办呢？</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">import</span> imp</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>imp.find_module(<span class="string">&quot;paramiko&quot;</span>)</span><br><span class="line">(<span class="literal">None</span>, <span class="string">&#x27;/usr/local/lib/python3.6/site-packages/paramiko&#x27;</span>, (<span class="string">&#x27;&#x27;</span>, <span class="string">&#x27;&#x27;</span>, <span class="number">5</span>))</span><br></pre></td></tr></table></figure>
 
 ]]></content>
       <categories>
