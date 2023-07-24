@@ -2,6 +2,17 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>http://example.com/2023/07/20/Linux%E5%B8%B8%E7%94%A8%E7%BD%91%E7%BB%9C%E5%91%BD%E4%BB%A4/</loc>
+    
+    <lastmod>2023-07-24T13:26:40.050Z</lastmod>
+    
+    <date>1689868798000</date>
+    <title>Linux常用网络命令 | IceVitalemon's Blog</title>
+    
+    <desc>记录和介绍Linux中常用排查网络问题的命令。</desc>
+  </url>
+  
+  <url>
     <loc>http://example.com/2023/04/07/Go%E4%B8%AD%E7%9A%84new%E4%B8%8Emake/</loc>
     
     <lastmod>2023-07-24T13:14:29.169Z</lastmod>
@@ -10,17 +21,6 @@
     <title>Go中的new与make | IceVitalemon's Blog</title>
     
     <desc>简要介绍Go语言中new与make的主要使用场景。</desc>
-  </url>
-  
-  <url>
-    <loc>http://example.com/2023/07/20/Linux%E5%B8%B8%E7%94%A8%E7%BD%91%E7%BB%9C%E5%91%BD%E4%BB%A4/</loc>
-    
-    <lastmod>2023-07-22T08:15:02.074Z</lastmod>
-    
-    <date>1689868798000</date>
-    <title>Linux常用网络命令 | IceVitalemon's Blog</title>
-    
-    <desc>记录和介绍Linux中常用排查网络问题的命令。</desc>
   </url>
   
   <url>
