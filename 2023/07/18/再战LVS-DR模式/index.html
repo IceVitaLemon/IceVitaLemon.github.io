@@ -31,7 +31,7 @@
 <meta property="og:description" content="上一年的时候，写了一篇文章《LVS负载均衡实战》，里面只实现了LVS的NAT模式，这次实现LVS的DR模式部署。">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2023-07-18T15:28:37.000Z">
-<meta property="article:modified_time" content="2023-07-19T15:48:33.344Z">
+<meta property="article:modified_time" content="2023-07-24T13:56:57.401Z">
 <meta property="article:author" content="Junhao Lin">
 <meta property="article:tag" content="LVS">
 <meta name="twitter:card" content="summary">
@@ -259,7 +259,7 @@
         <i class="far fa-calendar-check"></i>
       </span>
       <span class="post-meta-item-text">更新于</span>
-      <time title="修改时间：2023-07-19 23:48:33" itemprop="dateModified" datetime="2023-07-19T23:48:33+08:00">2023-07-19</time>
+      <time title="修改时间：2023-07-24 21:56:57" itemprop="dateModified" datetime="2023-07-24T21:56:57+08:00">2023-07-24</time>
     </span>
     <span class="post-meta-item">
       <span class="post-meta-item-icon">
@@ -298,31 +298,31 @@
     
     <div class="post-body" itemprop="articleBody">
         <h3 id="1-工作原理"><a href="#1-工作原理" class="headerlink" title="1.工作原理"></a>1.工作原理</h3><blockquote>
-<a href="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/" title="LVS负载均衡实战">上一篇文章</a>中已经详细写了NAT/TUN/DR模式的工作原理了，这里不重复造轮子，只做简单叙述。
+<a href="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/" title="LVS负载均衡实战">上一篇文章</a>中已经详细写了 NAT/TUN/DR 模式的工作原理了，这里不重复造轮子，只做简单叙述。
 </blockquote>
 <blockquote>
-<p>在DR模式下，无论是DS服务器还是RS服务器都需要绑定上VIP，需要知道VIP的地址。只不过VIP在DS、RS服务器上绑的网络接口不一样，但是只能由DS服务器响应ARP广播，RS服务器不响应。</p>
+<p>在 DR 模式下，无论是 DS 服务器还是 RS 服务器都需要绑定上 VIP，需要知道 VIP 的地址。只不过 VIP 在 DS、RS 服务器上绑的网络接口不一样，但是只能由 DS 服务器响应 ARP 广播，RS 服务器不响应。</p>
 </blockquote>
 <h4 id="1-1-关于Director-Server-DS"><a href="#1-1-关于Director-Server-DS" class="headerlink" title="1.1 关于Director Server(DS)"></a>1.1 关于Director Server(DS)</h4><ul>
-<li><p>LVS在DR模式对数据包仅仅修改目的MAC地址，让其路由到RS服务器上，因此DS服务器需要跟RS服务器在同一个物理网络中。</p>
+<li><p>LVS 在 DR 模式对数据包仅仅修改目的 MAC 地址，让其路由到 RS 服务器上，因此 DS 服务器需要跟 RS 服务器在同一个物理网络中。</p>
 </li>
-<li><p>DS服务器在DR模式下不能再充当RS服务器的网关。</p>
+<li><p>DS 服务器在 DR 模式下不能再充当 RS 服务器的网关。</p>
 </li>
-<li><p>VIP绑定在DS服务器的内网网卡上（如：eth0）。</p>
+<li><p>VIP 绑定在 DS 服务器的内网网卡上（如：eth0）。</p>
 </li>
 </ul>
-<h4 id="1-2-关于Real-Server-RS"><a href="#1-2-关于Real-Server-RS" class="headerlink" title="1.2 关于Real Server(RS)"></a>1.2 关于Real Server(RS)</h4><p>RS服务器也需要绑定VIP，为了解决ARP广播响应的问题，需要按以下设置：</p>
+<h4 id="1-2-关于Real-Server-RS"><a href="#1-2-关于Real-Server-RS" class="headerlink" title="1.2 关于Real Server(RS)"></a>1.2 关于Real Server(RS)</h4><p>RS 服务器也需要绑定 VIP，为了解决 ARP 广播响应的问题，需要按以下设置：</p>
 <ul>
-<li><p>使用回环虚接口lo:0承载VIP地址（回环接口没有MAC地址，不会接收ARP请求，也不会响应ARP请求）。</p>
+<li><p>使用回环虚接口 lo:0 承载 VIP 地址（回环接口没有 MAC 地址，不会接收 ARP 请求，也不会响应 ARP 请求）。</p>
 </li>
-<li><p>设置内核参数arp_ignore&#x3D;1：系统只响应目的IP为该网络接口IP的ARP请求（默认情况下，所有网络接口会响应对任何本机 IP 地址的 ARP 查询请求）。</p>
+<li><p>设置内核参数 arp_ignore&#x3D;1：系统只响应目的IP为该网络接口 IP 的 ARP 请求（默认情况下，所有网络接口会响应对任何本机 IP 地址的 ARP 查询请求）。</p>
 </li>
-<li><p>设置内核参数arp_announce&#x3D;2：保证RS以源IP为VIP的情况下，发送出去数据包（避免通过ARP请求查询能到达客户端的网关MAC地址）。</p>
+<li><p>设置内核参数 arp_announce&#x3D;2：保证 RS 以源 IP 为 VIP 的情况下，发送出去数据包（避免通过 ARP 请求查询能到达客户端的网关 MAC 地址）。</p>
 </li>
 </ul>
 <h3 id="2-环境信息"><a href="#2-环境信息" class="headerlink" title="2. 环境信息"></a>2. 环境信息</h3><ul>
 <li>操作系统：Centos7.9</li>
-<li>LVS工作模式：DR</li>
+<li>LVS 工作模式：DR</li>
 </ul>
 <table>
 <thead>
@@ -368,9 +368,9 @@
 
 
 
-<h3 id="4-后记"><a href="#4-后记" class="headerlink" title="4. 后记"></a>4. 后记</h3><p>ipvs只能通过ipvsadm进行管理，如果想要通过读取配置文件进行管理，可以结合keepalived使用。</p>
-<p>因为LVS的结构体系中，只有一个DS节点，所以如果想要做高可用，需要把VIP在多个DS节点中漂移，这也是keepalived的功能。</p>
-<p>以后会再写一篇文章介绍keepalived。</p>
+<h3 id="4-后记"><a href="#4-后记" class="headerlink" title="4. 后记"></a>4. 后记</h3><p>ipvs 只能通过 ipvsadm 进行管理，如果想要通过读取配置文件进行管理，可以结合 Keepalived 使用。</p>
+<p>因为 LVS 的结构体系中，只有一个 DS 节点，所以如果想要做高可用，需要把 VIP 在多个 DS 节点中漂移，这也是 Keepalived 的功能。</p>
+<p>以后会再写一篇文章介绍 Keepalived。</p>
 
     </div>
 
@@ -433,7 +433,7 @@
     <span class="post-meta-item-icon">
       <i class="fa fa-coffee"></i>
     </span>
-    <span title="站点阅读时长">6:17</span>
+    <span title="站点阅读时长">6:19</span>
   </span>
 </div><script color="0,0,255" opacity="0.5" zIndex="-1" count="99" src="/js/canvas-nest.js"></script>
 
