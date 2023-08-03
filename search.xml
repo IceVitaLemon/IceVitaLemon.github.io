@@ -1422,279 +1422,6 @@
       </tags>
   </entry>
   <entry>
-    <title>LVS负载均衡实战</title>
-    <url>/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/</url>
-    <content><![CDATA[<h3 id="1-前言"><a href="#1-前言" class="headerlink" title="1. 前言"></a>1. 前言</h3><p>LVS的作用就是用作<strong>四层</strong>的<strong>负载均衡</strong>，四层是指<code>TCP/IP</code>七层协议中的传输层。目的是请求按一定的<strong>调度策略</strong>把用户的请求分发到多台后端设备上。区别于nginx，nginx是七层的负载均衡，能够看到http协议，而LVS只能看到四层的协议，即TCP协议等，所以无法通过Http cookie处理session。</p>
-<h3 id="2-简介"><a href="#2-简介" class="headerlink" title="2. 简介"></a>2. 简介</h3><p><a href="http://www.linuxvirtualserver.org/">LVS（Linux Virtual Server）</a>即Linux虚拟服务器，由章文嵩博士开发并已贡献给开源社区，用于构建高性能、高可用的Linux服务器集群，具有良好的可靠性、可扩展性和可操作性。</p>
-<blockquote>
-<p>LVS的高可用需要结合Keepalived，不然的话其实只有一个前端负载均衡节点负责着绑定到LVS上的IP流量，所以当这个前端负载均衡节点挂了之后，IP流量就无法分发到后端真实工作服务器上。Keepalived的作用就是保证前端负载均衡节点的高可用。</p>
-</blockquote>
-<h4 id="2-1-LVS的组成"><a href="#2-1-LVS的组成" class="headerlink" title="2.1 LVS的组成"></a>2.1 LVS的组成</h4><p>LVS主要由<code>ipvs</code>和<code>ipvsadm</code>两部分组成。</p>
-<ol>
-<li><code>ipvs(ip virtual server)</code>是工作在Linux内核态的四层负载均衡，是真正实现调度的程序，基于内核底层<code>netfilter</code>实现，通过<code>netfilter</code>的处理链上的钩子实现包的处理和转发。</li>
-<li><code>ipvsadm</code>工作在用户空间，负责与ipvs之间的交互，为ipvs框架编写规则，定义谁是前端负载均衡节点，谁是后端的真实服务器</li>
-</ol>
-<h4 id="2-2-LVS的三种工作模式"><a href="#2-2-LVS的三种工作模式" class="headerlink" title="2.2 LVS的三种工作模式"></a>2.2 LVS的三种工作模式</h4><ul>
-<li><p>VS&#x2F;NAT（Virtual Server via Network Address Translation）</p>
-<ul>
-<li>通过网络地址转换NAT实现</li>
-<li>调度器重写请求报文的目标地址，将请求分派到后端的真实服务器</li>
-<li>真实服务器将响应报文交给调度器，响应报文的源地址被重写，再转发给客户</li>
-<li>请求和响应都经过调度器</li>
-</ul>
-</li>
-<li><p>VS&#x2F;TUN（Virtual Server via IP Tunneling）</p>
-<ul>
-<li>通过IP隧道实现</li>
-<li>请求报文到达调度器之后，通过IP隧道转发到后端真实服务器</li>
-<li>真实服务器将响应报文直接返回给客户</li>
-<li>调度器只处理请求报文</li>
-</ul>
-</li>
-<li><p>VS&#x2F;DR（Virtual Server via Direct Routing）</p>
-<ul>
-<li>通过改写请求报文的MCA地址实现</li>
-<li>请求报文到达调度器之后，改写报文的MAC地址，发送到后端真实服务器</li>
-<li>真实服务器将响应报文直接返回给客户</li>
-<li>调度器只处理请求报文</li>
-</ul>
-</li>
-</ul>
-<h5 id="2-2-1-三种模式的主要区别"><a href="#2-2-1-三种模式的主要区别" class="headerlink" title="2.2.1 三种模式的主要区别"></a>2.2.1 三种模式的主要区别</h5><table>
-<thead>
-<tr>
-<th>模式与特点</th>
-<th>NAT模式</th>
-<th>TUN模式</th>
-<th>DR模式</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>服务器要求</td>
-<td>服务器节点可以使用任何操作系统</td>
-<td>必须支持IP隧道</td>
-<td>服务器节点支持虚拟网卡设备，能够禁用设备的ARP响应</td>
-</tr>
-<tr>
-<td>网络要求</td>
-<td>拥有私有IP地址的局域网络</td>
-<td>拥有合法IP地址的局域网或广域网</td>
-<td>拥有合法IP地址的局域网，服务器节点与调度器必须在同一个网段</td>
-</tr>
-<tr>
-<td>支持节点数</td>
-<td>10到20个，根据调度器的处理能力而定</td>
-<td>较高，可以支持100个服务节点</td>
-<td>较高，可以支持100个服务节点</td>
-</tr>
-<tr>
-<td>网关</td>
-<td>调度器为服务器节点网关</td>
-<td>服务器节点同自己的网关或者路由器连接，不经过负载均衡器</td>
-<td>服务器节点同自己的网关或者路由器连接，不经过负载均衡器</td>
-</tr>
-<tr>
-<td>IP要求</td>
-<td>仅需要一个合法的IP地址作为调度器的VIP地址</td>
-<td>除了VIP地址外，每个服务器需要有能够路由到客户端的IP地址</td>
-<td>除了VIP地址外，每个服务器需要有能够路由到客户端的IP地址</td>
-</tr>
-<tr>
-<td>特点</td>
-<td>地址转换</td>
-<td>封装IP</td>
-<td>修改MAC地址</td>
-</tr>
-</tbody></table>
-<h4 id="2-3-调度算法"><a href="#2-3-调度算法" class="headerlink" title="2.3 调度算法"></a>2.3 调度算法</h4><blockquote>
-<p>只做简单介绍，其中缩写英文用于在ipvsadm命令中指定集群调度算法</p>
-</blockquote>
-<ul>
-<li>轮询算法 <code>rr</code>（Round Robin）</li>
-<li>加权轮询算法 <code>wrr</code> （Weighted Round Robin）</li>
-<li>源地址哈希算法 <code>sh</code> （Source Hashing）</li>
-<li>目标地址哈希算法 <code>dh</code> （Destination Hashing）</li>
-<li>最少连接算法 <code>lc</code> （Least Connections）</li>
-<li>加权最少连接算法 <code>wlc</code> （Weighted Least Connection）</li>
-<li>最短期望延迟算法 <code>sed</code> （Shortest Expected Delay Scheduling）</li>
-<li>最少队列算法 <code>nq</code> （Never Queue Scheduling）</li>
-<li>基于局部的最少连接算法 <code>lblc</code> （Locality-Based Least Connections）</li>
-<li>带复制的基于局部的最少连接算法 <code>lblcr</code> （Locality-Based Least Connections with Replication）</li>
-<li>FO算法 <code>fo</code> （Weighted Fail Over）</li>
-<li>OVF算法 <code>ovf</code> （Overflow-connection）</li>
-</ul>
-<h3 id="3-工作原理"><a href="#3-工作原理" class="headerlink" title="3. 工作原理"></a>3. 工作原理</h3><blockquote>
-<p>重点理解报文包源和目的IP地址、源和目的MAC地址的变化</p>
-</blockquote>
-<h4 id="3-1-别称约定"><a href="#3-1-别称约定" class="headerlink" title="3.1 别称约定"></a>3.1 别称约定</h4><ul>
-<li>服务器<ul>
-<li>DS (Director Server)，指的是前端负载均衡器节点，即调度器</li>
-<li>RS (Real Server)，后端真实的工作服务器</li>
-</ul>
-</li>
-<li>IP地址<ul>
-<li>CIP (Client IP)，访问客户端的 IP 地址</li>
-<li>VIP (Virtual IP)，虚拟的 IP 地址，向外部直接面向用户请求，作为用户请求的目标的 IP 地址</li>
-<li>DIP (Director IP)，主要用于和内部主机通讯的 IP 地址</li>
-<li>RIP (Real Server IP)，后端服务器的 IP 地址</li>
-</ul>
-</li>
-<li>netfilter的五个阶段<ul>
-<li>PREROUTING</li>
-<li>INPUT</li>
-<li>OUTPUT</li>
-<li>FORWARD</li>
-<li>POSTROUTING</li>
-</ul>
-</li>
-</ul>
-<h4 id="3-2-LVS-x2F-NAT和FULLNAT"><a href="#3-2-LVS-x2F-NAT和FULLNAT" class="headerlink" title="3.2 LVS&#x2F;NAT和FULLNAT"></a>3.2 LVS&#x2F;NAT和FULLNAT</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_NAT.png" alt="LVS_NAT"></p>
-<blockquote>
-<p>还有一种工作模式是LVS&#x2F;FULLNAT。在DS将请求报文转发给RS时（即第三步），LVS&#x2F;NAT模式只修改目标IP为RIP，而LVS&#x2F;FULLNAT则同时将CIP和VIP分别修改为DIP和RIP。NAT模式DS和RS都需要在同一个子网（因为RS的网关为DS），FULLNAT模式DS和RS只要能通信可以不在同一个子网。</p>
-</blockquote>
-<blockquote>
-<p>NAT模式下，同一个物理网络的机器访问VIP会有数据流向的问题，详细分析请看最后一节。</p>
-</blockquote>
-<ol>
-<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
-<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
-<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，则修改数据包的目标IP地址为RS的RIP地址，然后将数据包发送至<code>POSTROUTING</code>调用链。此时，请求报文的<strong>源IP为CIP，目标IP为RIP</strong></li>
-<li><code>POSTROUTING</code>链通过路由，将数据包发送给RS</li>
-<li>RS接收到请求报文，开始构建响应报文返回给DS（因为DS是RS的网关，所以一定得经过DS）。此时响应报文的<strong>源IP为RIP，目标IP为CIP</strong></li>
-<li>DS在将响应报文发送给Client前，会将源IP地址修改为自己的VIP地址，然后发送给Client。此时报文的<strong>源IP为VIP，目标IP为CIP</strong></li>
-</ol>
-<h4 id="3-3-LVS-x2F-TUN"><a href="#3-3-LVS-x2F-TUN" class="headerlink" title="3.3 LVS&#x2F;TUN"></a>3.3 LVS&#x2F;TUN</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_TUN.png" alt="LVS_TUN"></p>
-<blockquote>
-<p>通过IP隧道时，在原有的IP报文外再次封装多一层IP首部，内层IP首部（源为CIP，目的为VIP），外层IP首部（源为DIP，目的为RIP）</p>
-</blockquote>
-<ol>
-<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
-<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
-<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，将整个请求包作为数据封装到一个新的IP报文中，新的封装报文<strong>源IP为DIP，目的IP为RIP</strong>。然后将新报文发送到<code>POSTROUTING</code>调用链</li>
-<li><code>POSTROUTING</code>根据新封装报文的目的IP地址将报文路由到RS，此时新报文<strong>源IP为DIP，目的IP为RIP</strong></li>
-<li>RS接收到报文之后，拆除掉外层的IP首部，会发现里面还有一层IP首部，而且目标IP是自己的lo接口VIP。此时，RS处理请求，将响应报文通过lo接口送给eth0网卡(与外网相接)，然后将报文路由到Client。此时<strong>源IP为VIP，目的IP为CIP</strong></li>
-<li>响应报文最终路由到Client</li>
-</ol>
-<h4 id="3-3-LVS-x2F-DR"><a href="#3-3-LVS-x2F-DR" class="headerlink" title="3.3 LVS&#x2F;DR"></a>3.3 LVS&#x2F;DR</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_DR.png" alt="LVS_DR"></p>
-<blockquote>
-<p>DS与RS必须在同一个物理网络中</p>
-</blockquote>
-<ol>
-<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
-<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
-<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，则将请求报文中的<strong>源MAC地址修改为DIP的MAC地址，将目标MAC地址修改为RIP的MAC地址</strong>，然后将数据包发送至<code>POSTROUTING</code>调用链。此时的源IP和目的IP均未修改，仅修改了源MAC地址和目的MAC地址</li>
-<li>由于DS和RS在同一个网络中，所以是通过数据链路层来传输。<code>POSTROUTING</code>检查目标MAC地址为RIP的MAC地址，那么此时数据包将会通过交换机发送至RS（因为在同一个网段，所以不会发送到网关，而是发送到内部网络中）</li>
-<li>RS接收到报文之后，发现MAC地址为自己的MAC地址，接收此报文并转交给上层协议。处理完成后，响应报文通过lo接口的VIP传送给eth0网卡向外发出。此时，响应报文的<strong>源IP为VIP，目的IP为CIP</strong></li>
-<li>响应报文最终路由到Client</li>
-</ol>
-<blockquote>
-<p>其中第3、5步是最为关键的，三个问题：</p>
-<ul>
-<li>DS如何知道RS的MAC地址</li>
-<li>RS如何接收目标IP为VIP的报文</li>
-<li>如何保证RS在源IP为VIP的情况下，将响应报文发送至外网</li>
-</ul>
-</blockquote>
-<blockquote>
-<p>第一个问题：DS如何知道RS的MAC地址？</p>
-<ul>
-<li>这个问题比较简单，因为DS必须要知道管理的RS的RIP地址，所以用ARP协议发送一个带有RIP的广播包。RS接收到这个广播包之后，打开并查看其中的IP是自己的RIP，就发送一个响应包，目的MAC地址是DS网卡接口的，而源MAC地址是RS网卡接口的。</li>
-</ul>
-</blockquote>
-<blockquote>
-<p>第二个问题：RS如何接收目标IP为VIP的报文</p>
-<ul>
-<li>要解决这个问题需要借助回环接口。在回环接口上配置VIP，在eth0上设置arp_ignore&#x3D;1。</li>
-<li>首先，RS通过请求报文中的目的MAC地址接收到报文后，会将其交给上层协议，即网络层，然后回判断目的IP地址是不是自己。正常情况下，这里的目的IP地址是VIP，但是我RS的网络接口地址是RIP，对不上，会不处理。</li>
-<li>于是需要配一个VIP地址到接口上。配到哪里呢？如果是配到eth0上，那在内部网络中使用ARP协议查找DS时，RS的eth0接口也会将自己的MAC地址返回，那不是发生IP冲突了？因此需要回环接口。<strong>回环接口是个逻辑接口，没有MAC地址，不会接收到ARP请求，因此也不会发送ARP响应，但是能够接收到IP数据报文</strong>。所以应该将VIP配置在回环接口上，但是有一个问题是，在默认arp_ignore&#x3D;0（代表回应任何网络接口上对任何本地IP地址的ARP查询请求）的情况下，eth0接口收到了对回环接口上的VIP地址的ARP请求，会将自己eth0接口的MAC地址响应出去，同样会发生IP冲突。所以需要将arg_ignore设置为1，即只响应目标IP地址为绑定在本接口的IP地址的ARP查询请求。如果有多张网卡，多张网卡都需要设置为1。</li>
-</ul>
-</blockquote>
-<blockquote>
-<p>第三个问题：如何保证RS在源IP为VIP的情况下，将响应报文发送至外网</p>
-<ul>
-<li>为什么会有这个问题呢？因为linux默认是使用IP报文的源IP作为ARP查询请求中的源IP地址，那么当RS发出ARP查询请求寻找能到达Client的网关MAC地址时，内部网络中的交换机会记录ARP查询请求中VIP地址和MAC地址作为以后转发接口使用，这样就会跟DS中配置的VIP网卡的MAC地址冲突了。</li>
-<li>咋办呢？配置eth0接口的arp_announce为2。arp_announce &#x3D; 0 (默认)表示在任意网络接口上的任何本地地址；arp_announce&#x3D; 2 表示对查询目标使用最适当的本地地址，此模式下将忽略这个IP数据包的源地址并尝试选择与能跟该地址通信的本地地址。优先选择所有网络接口的子网中外出访问子网中包含该目标 IP 地址的本地地址；如果没有合适的地址被发现，将选择当前的发送网络接口或其他的有可能接受到该 ARP 回应的网络接口来进行发送。</li>
-</ul>
-</blockquote>
-<h3 id="4-集群部署"><a href="#4-集群部署" class="headerlink" title="4. 集群部署"></a>4. 集群部署</h3><blockquote>
-<p>主要了解ipvsadm命令的使用，以及实际的路由规则</p>
-</blockquote>
-<h4 id="4-1-环境信息"><a href="#4-1-环境信息" class="headerlink" title="4.1 环境信息"></a>4.1 环境信息</h4><ul>
-<li>操作系统：Centos 7</li>
-<li>内核版本： 3.10.0-1160.el7.x86_64</li>
-<li>LVS工作模式：NAT</li>
-<li>网络信息</li>
-</ul>
-<table>
-<thead>
-<tr>
-<th>主机地址</th>
-<th>Director Server 01</th>
-<th>Real Server 01</th>
-<th>Real Server 02</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>IP</td>
-<td>172.23.118.10（内网IP）<br />192.23.118.13（VIP，对外访问）</td>
-<td>172.23.118.11（RIP）</td>
-<td>172.23.118.12（RIP）</td>
-</tr>
-<tr>
-<td>端口</td>
-<td>80</td>
-<td>80</td>
-<td>80</td>
-</tr>
-</tbody></table>
-<blockquote>
-<p><strong>需要事先将RS的默认网关设置为DS的内网地址172.23.118.10</strong>（反正要保证RS对客户端的响应能够先到达DS）</p>
-<p>其实这里DS的内网IP和VIP可以设置成同一个，但是通常在生产环境中，为了对外提供LVS集群服务，需要一个外网IP作为VIP</p>
-<p>我这里把DS的VIP绑定在了另外一个网卡上</p>
-</blockquote>
-<h4 id="4-2-LVS安装"><a href="#4-2-LVS安装" class="headerlink" title="4.2 LVS安装"></a>4.2 LVS安装</h4><p>Linux内核2.4版本以上基本都支持LVS，即已经有了<code>ipvs</code>，所以要想使用LVS只需要再装一个LVS管理工具<code>ipvsadm</code>。</p>
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">sudo yum install ipvsadm -y</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-3-Nginx安装"><a href="#4-3-Nginx安装" class="headerlink" title="4.3 Nginx安装"></a>4.3 Nginx安装</h4><p>安装nginx主要是为了方便测试请求被路由到那台服务器上</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">所有机器上执行</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装epel源</span></span><br><span class="line">sudo yum install -y epel-release</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装nginx</span></span><br><span class="line">sudo yum install nginx -y</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">启动nginx服务，默认80端口</span></span><br><span class="line">sudo servcie start nginx</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在DS上执行</span></span><br><span class="line">echo &#x27;DS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS01上执行</span></span><br><span class="line">echo &#x27;RS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS02上执行</span></span><br><span class="line">echo &#x27;RS02&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-4-关闭linux防火墙"><a href="#4-4-关闭linux防火墙" class="headerlink" title="4.4 关闭linux防火墙"></a>4.4 关闭linux防火墙</h4><p>不然无法从DS访问到RS的80端口。在生产环境下，通常只放开需要的端口。</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">关闭linux防火墙</span></span><br><span class="line">sudo systemctl stop firewalld</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-5-配置LVS"><a href="#4-5-配置LVS" class="headerlink" title="4.5 配置LVS"></a>4.5 配置LVS</h4><p>开始设置LVS集群</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">ipvsadm常用配置参数</span></span><br><span class="line">-A     添加虚拟服务VIP</span><br><span class="line">-D     删除虚拟服务VIP</span><br><span class="line">-L     查看虚拟服务VIP</span><br><span class="line">-C     清除所有虚拟服务VIP</span><br><span class="line"></span><br><span class="line">-t     指定虚拟服务及端口 VIP:Port</span><br><span class="line">-r     指定真实服务及端口 RS:Port </span><br><span class="line">-s     指定算法，rr（轮询）、wrr（加权轮询）、lc（最少连接）、sh（源地址散列）、dh(目标地址散列) 等等</span><br><span class="line">-w     指定权重</span><br><span class="line">-m     指定转发模式为NAT</span><br><span class="line">-g     指定转发模式为DR</span><br><span class="line">-i     指定转发模式为IP隧道</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在DS01上执行</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">开启IP数据包转发功能</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">以下命令只是暂时开启转发，重启后会失效</span></span><br><span class="line">echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">清除先前所有的ipvs配置信息</span></span><br><span class="line">sudo ipvsadm -C</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">添加一个LVS集群并且指定调度算法</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-A:添加集群 -t:VIP和端口 -s:调度算法</span></span><br><span class="line">sudo ipvsadm -A -t 192.23.118.13:80 -s rr</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">向LVS集群中添加真实服务器</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-a:添加真实服务器 -t:VIP和端口 -r:RIP和端口 -m:NAT模式 -w:转发权重</span></span><br><span class="line">sudo ipvsadm -a -t 192.23.118.13:80 -r 172.23.118.11:80 -m -w 1</span><br><span class="line">sudo ipvsadm -a -t 192.23.118.13:80 -r 172.23.118.12:80 -m -w 1</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">可以查看路由信息</span></span><br><span class="line">sudo watch ipvsadm -L -n -c</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-6-结果"><a href="#4-6-结果" class="headerlink" title="4.6 结果"></a>4.6 结果</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看LVS集群信息</span></span><br><span class="line">[junhao@localhost ~]$ sudo ipvsadm --list</span><br><span class="line">IP Virtual Server version 1.2.1 (size=4096)</span><br><span class="line">Prot LocalAddress:Port Scheduler Flags</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">RemoteAddress:Port           Forward Weight ActiveConn InActConn</span></span><br><span class="line">TCP  192.23.118.13:http rr</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.23.118.11:http           Masq    1      0          0</span>         </span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.23.118.12:http           Masq    1      0          0</span> </span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">访问LVS集群VIP</span></span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS01</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS01</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="4-7-操作过程中的一些问题"><a href="#4-7-操作过程中的一些问题" class="headerlink" title="4.7 操作过程中的一些问题"></a>4.7 操作过程中的一些问题</h4><ul>
-<li>在RS中会无法访问VIP（即内网中无法访问VIP）</li>
-</ul>
-<p>其实问题的本质跟着请求的源地址和目的地址走一遍就知道了，在RS1中发出请求（RIP1，VIP）。请求是能够到达DS的，LVS进行负载均衡后请求变为（RIP1，RIP），<strong>注意这里LVS只改变了目标地址，不改变源地址</strong>，请求被分配到随便一台真实服务器，RS1、RS2都可以。然后真实服务器接收到请求，处理之后根据源地址RIP1发出响应，<strong>注意这里因为RS1和RS2都在一个网段，所以响应发出后不会经过网关，即DS，而是在内网中发到RS1</strong>。然后没经过DS处理的响应（RIP，RIP1）就回到RS1中，然后<strong>RS1发现响应的源地址和目标地址与自己发出的请求（RIP1，VIP）不一致，就会把这个响应丢弃，而期望的响应是（VIP，RIP1）</strong>。所以在RS1中就无法访问VIP。</p>
-<ul>
-<li>IP转发的配置好像没用</li>
-</ul>
-<p>在实际操作过程中，试着把ip_forward设置成0再curl，但是也能通，没啥问题，这是因为把VIP绑定在了网卡上，所以肯定是能接收到的。然后试着把VIP解绑，即不绑定在任何网卡上，但是这个时候网络就不通了，即使ip_forward设置成1也不行，不清楚原因。</p>
-]]></content>
-      <categories>
-        <category>计算机网络</category>
-      </categories>
-      <tags>
-        <tag>LVS</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>Kubeadm安装Kubernetes v1.26.1集群</title>
     <url>/2023/01/19/Kubeadm%E5%AE%89%E8%A3%85Kubernetes%20v1.26.1%E9%9B%86%E7%BE%A4/</url>
     <content><![CDATA[<h2 id="1-版本信息"><a href="#1-版本信息" class="headerlink" title="1. 版本信息"></a>1. 版本信息</h2><table>
@@ -2405,17 +2132,6 @@
       </tags>
   </entry>
   <entry>
-    <title>Linux常用网络命令</title>
-    <url>/2023/07/20/Linux%E5%B8%B8%E7%94%A8%E7%BD%91%E7%BB%9C%E5%91%BD%E4%BB%A4/</url>
-    <content><![CDATA[<h4 id="netstat"><a href="#netstat" class="headerlink" title="netstat"></a>netstat</h4><h4 id="telnet"><a href="#telnet" class="headerlink" title="telnet"></a>telnet</h4><h4 id="traceroute"><a href="#traceroute" class="headerlink" title="traceroute"></a>traceroute</h4><h4 id="nslookup"><a href="#nslookup" class="headerlink" title="nslookup"></a>nslookup</h4><h4 id="nc"><a href="#nc" class="headerlink" title="nc"></a>nc</h4><h4 id="curl-x2F-wget"><a href="#curl-x2F-wget" class="headerlink" title="curl&#x2F;wget"></a>curl&#x2F;wget</h4><h4 id="tcpdump"><a href="#tcpdump" class="headerlink" title="tcpdump"></a>tcpdump</h4><h4 id="lsof"><a href="#lsof" class="headerlink" title="lsof"></a>lsof</h4><h4 id="arping"><a href="#arping" class="headerlink" title="arping"></a>arping</h4><h4 id="dig"><a href="#dig" class="headerlink" title="dig"></a>dig</h4><h4 id="ss"><a href="#ss" class="headerlink" title="ss"></a>ss</h4><h4 id="ip"><a href="#ip" class="headerlink" title="ip"></a>ip</h4>]]></content>
-      <categories>
-        <category>计算机网络</category>
-      </categories>
-      <tags>
-        <tag>Linux</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>Linux中的login shell和non-login shell</title>
     <url>/2022/10/10/Linux%E4%B8%AD%E7%9A%84login-shell%E5%92%8Cnon-login-shell/</url>
     <content><![CDATA[<h3 id="1-简要介绍"><a href="#1-简要介绍" class="headerlink" title="1. 简要介绍"></a>1. 简要介绍</h3><p>Shell是用于为用户提供与Linux内核交互的工具，比如sh、bash、zch等都是shell。当我们使用Linux的时候，一进入系统就有一堆的变量可以使用，那么这些变量从哪里来呢？在Linux启动的时候，会按一定的顺序读取配置文件，并且将这些配置文件中的环境变量设置到当前的shell中，所以我们才能使用这些环境变量中目录里面的命令。</p>
@@ -2487,6 +2203,290 @@
 ]]></content>
       <categories>
         <category>Linux基础知识</category>
+      </categories>
+      <tags>
+        <tag>Linux</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>LVS负载均衡实战</title>
+    <url>/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/</url>
+    <content><![CDATA[<h3 id="1-前言"><a href="#1-前言" class="headerlink" title="1. 前言"></a>1. 前言</h3><p>LVS的作用就是用作<strong>四层</strong>的<strong>负载均衡</strong>，四层是指<code>TCP/IP</code>七层协议中的传输层。目的是请求按一定的<strong>调度策略</strong>把用户的请求分发到多台后端设备上。区别于nginx，nginx是七层的负载均衡，能够看到http协议，而LVS只能看到四层的协议，即TCP协议等，所以无法通过Http cookie处理session。</p>
+<h3 id="2-简介"><a href="#2-简介" class="headerlink" title="2. 简介"></a>2. 简介</h3><p><a href="http://www.linuxvirtualserver.org/">LVS（Linux Virtual Server）</a>即Linux虚拟服务器，由章文嵩博士开发并已贡献给开源社区，用于构建高性能、高可用的Linux服务器集群，具有良好的可靠性、可扩展性和可操作性。</p>
+<blockquote>
+<p>LVS的高可用需要结合Keepalived，不然的话其实只有一个前端负载均衡节点负责着绑定到LVS上的IP流量，所以当这个前端负载均衡节点挂了之后，IP流量就无法分发到后端真实工作服务器上。Keepalived的作用就是保证前端负载均衡节点的高可用。</p>
+</blockquote>
+<h4 id="2-1-LVS的组成"><a href="#2-1-LVS的组成" class="headerlink" title="2.1 LVS的组成"></a>2.1 LVS的组成</h4><p>LVS主要由<code>ipvs</code>和<code>ipvsadm</code>两部分组成。</p>
+<ol>
+<li><code>ipvs(ip virtual server)</code>是工作在Linux内核态的四层负载均衡，是真正实现调度的程序，基于内核底层<code>netfilter</code>实现，通过<code>netfilter</code>的处理链上的钩子实现包的处理和转发。</li>
+<li><code>ipvsadm</code>工作在用户空间，负责与ipvs之间的交互，为ipvs框架编写规则，定义谁是前端负载均衡节点，谁是后端的真实服务器</li>
+</ol>
+<h4 id="2-2-LVS的三种工作模式"><a href="#2-2-LVS的三种工作模式" class="headerlink" title="2.2 LVS的三种工作模式"></a>2.2 LVS的三种工作模式</h4><ul>
+<li><p>VS&#x2F;NAT（Virtual Server via Network Address Translation）</p>
+<ul>
+<li>通过网络地址转换NAT实现</li>
+<li>调度器重写请求报文的目标地址，将请求分派到后端的真实服务器</li>
+<li>真实服务器将响应报文交给调度器，响应报文的源地址被重写，再转发给客户</li>
+<li>请求和响应都经过调度器</li>
+</ul>
+</li>
+<li><p>VS&#x2F;TUN（Virtual Server via IP Tunneling）</p>
+<ul>
+<li>通过IP隧道实现</li>
+<li>请求报文到达调度器之后，通过IP隧道转发到后端真实服务器</li>
+<li>真实服务器将响应报文直接返回给客户</li>
+<li>调度器只处理请求报文</li>
+</ul>
+</li>
+<li><p>VS&#x2F;DR（Virtual Server via Direct Routing）</p>
+<ul>
+<li>通过改写请求报文的MCA地址实现</li>
+<li>请求报文到达调度器之后，改写报文的MAC地址，发送到后端真实服务器</li>
+<li>真实服务器将响应报文直接返回给客户</li>
+<li>调度器只处理请求报文</li>
+</ul>
+</li>
+</ul>
+<h5 id="2-2-1-三种模式的主要区别"><a href="#2-2-1-三种模式的主要区别" class="headerlink" title="2.2.1 三种模式的主要区别"></a>2.2.1 三种模式的主要区别</h5><table>
+<thead>
+<tr>
+<th>模式与特点</th>
+<th>NAT模式</th>
+<th>TUN模式</th>
+<th>DR模式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>服务器要求</td>
+<td>服务器节点可以使用任何操作系统</td>
+<td>必须支持IP隧道</td>
+<td>服务器节点支持虚拟网卡设备，能够禁用设备的ARP响应</td>
+</tr>
+<tr>
+<td>网络要求</td>
+<td>拥有私有IP地址的局域网络</td>
+<td>拥有合法IP地址的局域网或广域网</td>
+<td>拥有合法IP地址的局域网，服务器节点与调度器必须在同一个网段</td>
+</tr>
+<tr>
+<td>支持节点数</td>
+<td>10到20个，根据调度器的处理能力而定</td>
+<td>较高，可以支持100个服务节点</td>
+<td>较高，可以支持100个服务节点</td>
+</tr>
+<tr>
+<td>网关</td>
+<td>调度器为服务器节点网关</td>
+<td>服务器节点同自己的网关或者路由器连接，不经过负载均衡器</td>
+<td>服务器节点同自己的网关或者路由器连接，不经过负载均衡器</td>
+</tr>
+<tr>
+<td>IP要求</td>
+<td>仅需要一个合法的IP地址作为调度器的VIP地址</td>
+<td>除了VIP地址外，每个服务器需要有能够路由到客户端的IP地址</td>
+<td>除了VIP地址外，每个服务器需要有能够路由到客户端的IP地址</td>
+</tr>
+<tr>
+<td>特点</td>
+<td>地址转换</td>
+<td>封装IP</td>
+<td>修改MAC地址</td>
+</tr>
+</tbody></table>
+<h4 id="2-3-调度算法"><a href="#2-3-调度算法" class="headerlink" title="2.3 调度算法"></a>2.3 调度算法</h4><blockquote>
+<p>只做简单介绍，其中缩写英文用于在ipvsadm命令中指定集群调度算法</p>
+</blockquote>
+<ul>
+<li>轮询算法 <code>rr</code>（Round Robin）</li>
+<li>加权轮询算法 <code>wrr</code> （Weighted Round Robin）</li>
+<li>源地址哈希算法 <code>sh</code> （Source Hashing）</li>
+<li>目标地址哈希算法 <code>dh</code> （Destination Hashing）</li>
+<li>最少连接算法 <code>lc</code> （Least Connections）</li>
+<li>加权最少连接算法 <code>wlc</code> （Weighted Least Connection）</li>
+<li>最短期望延迟算法 <code>sed</code> （Shortest Expected Delay Scheduling）</li>
+<li>最少队列算法 <code>nq</code> （Never Queue Scheduling）</li>
+<li>基于局部的最少连接算法 <code>lblc</code> （Locality-Based Least Connections）</li>
+<li>带复制的基于局部的最少连接算法 <code>lblcr</code> （Locality-Based Least Connections with Replication）</li>
+<li>FO算法 <code>fo</code> （Weighted Fail Over）</li>
+<li>OVF算法 <code>ovf</code> （Overflow-connection）</li>
+</ul>
+<h3 id="3-工作原理"><a href="#3-工作原理" class="headerlink" title="3. 工作原理"></a>3. 工作原理</h3><blockquote>
+<p>重点理解报文包源和目的IP地址、源和目的MAC地址的变化</p>
+</blockquote>
+<h4 id="3-1-别称约定"><a href="#3-1-别称约定" class="headerlink" title="3.1 别称约定"></a>3.1 别称约定</h4><ul>
+<li>服务器<ul>
+<li>DS (Director Server)，指的是前端负载均衡器节点，即调度器</li>
+<li>RS (Real Server)，后端真实的工作服务器</li>
+</ul>
+</li>
+<li>IP地址<ul>
+<li>CIP (Client IP)，访问客户端的 IP 地址</li>
+<li>VIP (Virtual IP)，虚拟的 IP 地址，向外部直接面向用户请求，作为用户请求的目标的 IP 地址</li>
+<li>DIP (Director IP)，主要用于和内部主机通讯的 IP 地址</li>
+<li>RIP (Real Server IP)，后端服务器的 IP 地址</li>
+</ul>
+</li>
+<li>netfilter的五个阶段<ul>
+<li>PREROUTING</li>
+<li>INPUT</li>
+<li>OUTPUT</li>
+<li>FORWARD</li>
+<li>POSTROUTING</li>
+</ul>
+</li>
+</ul>
+<h4 id="3-2-LVS-x2F-NAT和FULLNAT"><a href="#3-2-LVS-x2F-NAT和FULLNAT" class="headerlink" title="3.2 LVS&#x2F;NAT和FULLNAT"></a>3.2 LVS&#x2F;NAT和FULLNAT</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_NAT.png" alt="LVS_NAT"></p>
+<blockquote>
+<p>还有一种工作模式是LVS&#x2F;FULLNAT。在DS将请求报文转发给RS时（即第三步），LVS&#x2F;NAT模式只修改目标IP为RIP，而LVS&#x2F;FULLNAT则同时将CIP和VIP分别修改为DIP和RIP。NAT模式DS和RS都需要在同一个子网（因为RS的网关为DS），FULLNAT模式DS和RS只要能通信可以不在同一个子网。</p>
+</blockquote>
+<blockquote>
+<p>NAT模式下，同一个物理网络的机器访问VIP会有数据流向的问题，详细分析请看最后一节。</p>
+</blockquote>
+<ol>
+<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
+<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
+<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，则修改数据包的目标IP地址为RS的RIP地址，然后将数据包发送至<code>POSTROUTING</code>调用链。此时，请求报文的<strong>源IP为CIP，目标IP为RIP</strong></li>
+<li><code>POSTROUTING</code>链通过路由，将数据包发送给RS</li>
+<li>RS接收到请求报文，开始构建响应报文返回给DS（因为DS是RS的网关，所以一定得经过DS）。此时响应报文的<strong>源IP为RIP，目标IP为CIP</strong></li>
+<li>DS在将响应报文发送给Client前，会将源IP地址修改为自己的VIP地址，然后发送给Client。此时报文的<strong>源IP为VIP，目标IP为CIP</strong></li>
+</ol>
+<h4 id="3-3-LVS-x2F-TUN"><a href="#3-3-LVS-x2F-TUN" class="headerlink" title="3.3 LVS&#x2F;TUN"></a>3.3 LVS&#x2F;TUN</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_TUN.png" alt="LVS_TUN"></p>
+<blockquote>
+<p>通过IP隧道时，在原有的IP报文外再次封装多一层IP首部，内层IP首部（源为CIP，目的为VIP），外层IP首部（源为DIP，目的为RIP）</p>
+</blockquote>
+<ol>
+<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
+<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
+<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，将整个请求包作为数据封装到一个新的IP报文中，新的封装报文<strong>源IP为DIP，目的IP为RIP</strong>。然后将新报文发送到<code>POSTROUTING</code>调用链</li>
+<li><code>POSTROUTING</code>根据新封装报文的目的IP地址将报文路由到RS，此时新报文<strong>源IP为DIP，目的IP为RIP</strong></li>
+<li>RS接收到报文之后，拆除掉外层的IP首部，会发现里面还有一层IP首部，而且目标IP是自己的lo接口VIP。此时，RS处理请求，将响应报文通过lo接口送给eth0网卡(与外网相接)，然后将报文路由到Client。此时<strong>源IP为VIP，目的IP为CIP</strong></li>
+<li>响应报文最终路由到Client</li>
+</ol>
+<h4 id="3-3-LVS-x2F-DR"><a href="#3-3-LVS-x2F-DR" class="headerlink" title="3.3 LVS&#x2F;DR"></a>3.3 LVS&#x2F;DR</h4><p><img src="/2022/08/18/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E5%AE%9E%E6%88%98/LVS_DR.png" alt="LVS_DR"></p>
+<blockquote>
+<p>DS与RS必须在同一个物理网络中</p>
+</blockquote>
+<ol>
+<li>Client报文请求到达DS，此时请求的数据报文会先到<code>netfilter</code>的<code>PREROUTEING</code>调用链，此时报文的<strong>源IP为CIP，目的IP为VIP</strong></li>
+<li><code>PREROUTING</code>检查发现数据包的目标IP是本机，将数据包发送至<code>INPUT</code>调用链</li>
+<li>IPVS对比数据包请求的服务是否为负载均衡集群服务。如果是，则将请求报文中的<strong>源MAC地址修改为DIP的MAC地址，将目标MAC地址修改为RIP的MAC地址</strong>，然后将数据包发送至<code>POSTROUTING</code>调用链。此时的源IP和目的IP均未修改，仅修改了源MAC地址和目的MAC地址</li>
+<li>由于DS和RS在同一个网络中，所以是通过数据链路层来传输。<code>POSTROUTING</code>检查目标MAC地址为RIP的MAC地址，那么此时数据包将会通过交换机发送至RS（因为在同一个网段，所以不会发送到网关，而是发送到内部网络中）</li>
+<li>RS接收到报文之后，发现MAC地址为自己的MAC地址，接收此报文并转交给上层协议。处理完成后，响应报文通过lo接口的VIP传送给eth0网卡向外发出。此时，响应报文的<strong>源IP为VIP，目的IP为CIP</strong></li>
+<li>响应报文最终路由到Client</li>
+</ol>
+<blockquote>
+<p>其中第3、5步是最为关键的，三个问题：</p>
+<ul>
+<li>DS如何知道RS的MAC地址</li>
+<li>RS如何接收目标IP为VIP的报文</li>
+<li>如何保证RS在源IP为VIP的情况下，将响应报文发送至外网</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>第一个问题：DS如何知道RS的MAC地址？</p>
+<ul>
+<li>这个问题比较简单，因为DS必须要知道管理的RS的RIP地址，所以用ARP协议发送一个带有RIP的广播包。RS接收到这个广播包之后，打开并查看其中的IP是自己的RIP，就发送一个响应包，目的MAC地址是DS网卡接口的，而源MAC地址是RS网卡接口的。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>第二个问题：RS如何接收目标IP为VIP的报文</p>
+<ul>
+<li>要解决这个问题需要借助回环接口。在回环接口上配置VIP，在eth0上设置arp_ignore&#x3D;1。</li>
+<li>首先，RS通过请求报文中的目的MAC地址接收到报文后，会将其交给上层协议，即网络层，然后回判断目的IP地址是不是自己。正常情况下，这里的目的IP地址是VIP，但是我RS的网络接口地址是RIP，对不上，会不处理。</li>
+<li>于是需要配一个VIP地址到接口上。配到哪里呢？如果是配到eth0上，那在内部网络中使用ARP协议查找DS时，RS的eth0接口也会将自己的MAC地址返回，那不是发生IP冲突了？因此需要回环接口。<strong>回环接口是个逻辑接口，没有MAC地址，不会接收到ARP请求，因此也不会发送ARP响应，但是能够接收到IP数据报文</strong>。所以应该将VIP配置在回环接口上，但是有一个问题是，在默认arp_ignore&#x3D;0（代表回应任何网络接口上对任何本地IP地址的ARP查询请求）的情况下，eth0接口收到了对回环接口上的VIP地址的ARP请求，会将自己eth0接口的MAC地址响应出去，同样会发生IP冲突。所以需要将arg_ignore设置为1，即只响应目标IP地址为绑定在本接口的IP地址的ARP查询请求。如果有多张网卡，多张网卡都需要设置为1。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>第三个问题：如何保证RS在源IP为VIP的情况下，将响应报文发送至外网</p>
+<ul>
+<li>为什么会有这个问题呢？因为linux默认是使用IP报文的源IP作为ARP查询请求中的源IP地址，那么当RS发出ARP查询请求寻找能到达Client的网关MAC地址时，内部网络中的交换机会记录ARP查询请求中VIP地址和MAC地址作为以后转发接口使用，这样就会跟DS中配置的VIP网卡的MAC地址冲突了。</li>
+<li>咋办呢？配置eth0接口的arp_announce为2。arp_announce &#x3D; 0 (默认)表示在任意网络接口上的任何本地地址；arp_announce&#x3D; 2 表示对查询目标使用最适当的本地地址，此模式下将忽略这个IP数据包的源地址并尝试选择与能跟该地址通信的本地地址。优先选择所有网络接口的子网中外出访问子网中包含该目标 IP 地址的本地地址；如果没有合适的地址被发现，将选择当前的发送网络接口或其他的有可能接受到该 ARP 回应的网络接口来进行发送。</li>
+</ul>
+</blockquote>
+<h3 id="4-集群部署"><a href="#4-集群部署" class="headerlink" title="4. 集群部署"></a>4. 集群部署</h3><blockquote>
+<p>主要了解ipvsadm命令的使用，以及实际的路由规则</p>
+</blockquote>
+<h4 id="4-1-环境信息"><a href="#4-1-环境信息" class="headerlink" title="4.1 环境信息"></a>4.1 环境信息</h4><ul>
+<li>操作系统：Centos 7</li>
+<li>内核版本： 3.10.0-1160.el7.x86_64</li>
+<li>LVS工作模式：NAT</li>
+<li>网络信息</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>主机地址</th>
+<th>Director Server 01</th>
+<th>Real Server 01</th>
+<th>Real Server 02</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>IP</td>
+<td>172.23.118.10（内网IP）<br />192.23.118.13（VIP，对外访问）</td>
+<td>172.23.118.11（RIP）</td>
+<td>172.23.118.12（RIP）</td>
+</tr>
+<tr>
+<td>端口</td>
+<td>80</td>
+<td>80</td>
+<td>80</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>需要事先将RS的默认网关设置为DS的内网地址172.23.118.10</strong>（反正要保证RS对客户端的响应能够先到达DS）</p>
+<p>其实这里DS的内网IP和VIP可以设置成同一个，但是通常在生产环境中，为了对外提供LVS集群服务，需要一个外网IP作为VIP</p>
+<p>我这里把DS的VIP绑定在了另外一个网卡上</p>
+</blockquote>
+<h4 id="4-2-LVS安装"><a href="#4-2-LVS安装" class="headerlink" title="4.2 LVS安装"></a>4.2 LVS安装</h4><p>Linux内核2.4版本以上基本都支持LVS，即已经有了<code>ipvs</code>，所以要想使用LVS只需要再装一个LVS管理工具<code>ipvsadm</code>。</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">sudo yum install ipvsadm -y</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-3-Nginx安装"><a href="#4-3-Nginx安装" class="headerlink" title="4.3 Nginx安装"></a>4.3 Nginx安装</h4><p>安装nginx主要是为了方便测试请求被路由到那台服务器上</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">所有机器上执行</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装epel源</span></span><br><span class="line">sudo yum install -y epel-release</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装nginx</span></span><br><span class="line">sudo yum install nginx -y</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">启动nginx服务，默认80端口</span></span><br><span class="line">sudo servcie start nginx</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在DS上执行</span></span><br><span class="line">echo &#x27;DS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS01上执行</span></span><br><span class="line">echo &#x27;RS01&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在RS02上执行</span></span><br><span class="line">echo &#x27;RS02&#x27; | sudo tee /usr/share/nginx/html/index.html</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-4-关闭linux防火墙"><a href="#4-4-关闭linux防火墙" class="headerlink" title="4.4 关闭linux防火墙"></a>4.4 关闭linux防火墙</h4><p>不然无法从DS访问到RS的80端口。在生产环境下，通常只放开需要的端口。</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">关闭linux防火墙</span></span><br><span class="line">sudo systemctl stop firewalld</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-5-配置LVS"><a href="#4-5-配置LVS" class="headerlink" title="4.5 配置LVS"></a>4.5 配置LVS</h4><p>开始设置LVS集群</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">ipvsadm常用配置参数</span></span><br><span class="line">-A     添加虚拟服务VIP</span><br><span class="line">-D     删除虚拟服务VIP</span><br><span class="line">-L     查看虚拟服务VIP</span><br><span class="line">-C     清除所有虚拟服务VIP</span><br><span class="line"></span><br><span class="line">-t     指定虚拟服务及端口 VIP:Port</span><br><span class="line">-r     指定真实服务及端口 RS:Port </span><br><span class="line">-s     指定算法，rr（轮询）、wrr（加权轮询）、lc（最少连接）、sh（源地址散列）、dh(目标地址散列) 等等</span><br><span class="line">-w     指定权重</span><br><span class="line">-m     指定转发模式为NAT</span><br><span class="line">-g     指定转发模式为DR</span><br><span class="line">-i     指定转发模式为IP隧道</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在DS01上执行</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">开启IP数据包转发功能</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">以下命令只是暂时开启转发，重启后会失效</span></span><br><span class="line">echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">清除先前所有的ipvs配置信息</span></span><br><span class="line">sudo ipvsadm -C</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">添加一个LVS集群并且指定调度算法</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-A:添加集群 -t:VIP和端口 -s:调度算法</span></span><br><span class="line">sudo ipvsadm -A -t 192.23.118.13:80 -s rr</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">向LVS集群中添加真实服务器</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-a:添加真实服务器 -t:VIP和端口 -r:RIP和端口 -m:NAT模式 -w:转发权重</span></span><br><span class="line">sudo ipvsadm -a -t 192.23.118.13:80 -r 172.23.118.11:80 -m -w 1</span><br><span class="line">sudo ipvsadm -a -t 192.23.118.13:80 -r 172.23.118.12:80 -m -w 1</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">可以查看路由信息</span></span><br><span class="line">sudo watch ipvsadm -L -n -c</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-6-结果"><a href="#4-6-结果" class="headerlink" title="4.6 结果"></a>4.6 结果</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看LVS集群信息</span></span><br><span class="line">[junhao@localhost ~]$ sudo ipvsadm --list</span><br><span class="line">IP Virtual Server version 1.2.1 (size=4096)</span><br><span class="line">Prot LocalAddress:Port Scheduler Flags</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">RemoteAddress:Port           Forward Weight ActiveConn InActConn</span></span><br><span class="line">TCP  192.23.118.13:http rr</span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.23.118.11:http           Masq    1      0          0</span>         </span><br><span class="line"><span class="meta prompt_">  -&gt; </span><span class="language-bash">172.23.118.12:http           Masq    1      0          0</span> </span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">访问LVS集群VIP</span></span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS01</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS01</span><br><span class="line">[junhao@localhost ~]$ curl 192.23.118.13</span><br><span class="line">RS02</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="4-7-操作过程中的一些问题"><a href="#4-7-操作过程中的一些问题" class="headerlink" title="4.7 操作过程中的一些问题"></a>4.7 操作过程中的一些问题</h4><ul>
+<li>在RS中会无法访问VIP（即内网中无法访问VIP）</li>
+</ul>
+<p>其实问题的本质跟着请求的源地址和目的地址走一遍就知道了，在RS1中发出请求（RIP1，VIP）。请求是能够到达DS的，LVS进行负载均衡后请求变为（RIP1，RIP），<strong>注意这里LVS只改变了目标地址，不改变源地址</strong>，请求被分配到随便一台真实服务器，RS1、RS2都可以。然后真实服务器接收到请求，处理之后根据源地址RIP1发出响应，<strong>注意这里因为RS1和RS2都在一个网段，所以响应发出后不会经过网关，即DS，而是在内网中发到RS1</strong>。然后没经过DS处理的响应（RIP，RIP1）就回到RS1中，然后<strong>RS1发现响应的源地址和目标地址与自己发出的请求（RIP1，VIP）不一致，就会把这个响应丢弃，而期望的响应是（VIP，RIP1）</strong>。所以在RS1中就无法访问VIP。</p>
+<ul>
+<li>IP转发的配置好像没用</li>
+</ul>
+<p>在实际操作过程中，试着把ip_forward设置成0再curl，但是也能通，没啥问题，这是因为把VIP绑定在了网卡上，所以肯定是能接收到的。然后试着把VIP解绑，即不绑定在任何网卡上，但是这个时候网络就不通了，即使ip_forward设置成1也不行，不清楚原因。</p>
+]]></content>
+      <categories>
+        <category>计算机网络</category>
+      </categories>
+      <tags>
+        <tag>LVS</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Linux常用网络命令</title>
+    <url>/2023/07/20/Linux%E5%B8%B8%E7%94%A8%E7%BD%91%E7%BB%9C%E5%91%BD%E4%BB%A4/</url>
+    <content><![CDATA[<h4 id="netstat"><a href="#netstat" class="headerlink" title="netstat"></a>netstat</h4><h4 id="telnet"><a href="#telnet" class="headerlink" title="telnet"></a>telnet</h4><h4 id="traceroute"><a href="#traceroute" class="headerlink" title="traceroute"></a>traceroute</h4><h4 id="nslookup"><a href="#nslookup" class="headerlink" title="nslookup"></a>nslookup</h4><h4 id="nc"><a href="#nc" class="headerlink" title="nc"></a>nc</h4><h4 id="curl-x2F-wget"><a href="#curl-x2F-wget" class="headerlink" title="curl&#x2F;wget"></a>curl&#x2F;wget</h4><h4 id="tcpdump"><a href="#tcpdump" class="headerlink" title="tcpdump"></a>tcpdump</h4><h4 id="lsof"><a href="#lsof" class="headerlink" title="lsof"></a>lsof</h4><h4 id="arping"><a href="#arping" class="headerlink" title="arping"></a>arping</h4><h4 id="dig"><a href="#dig" class="headerlink" title="dig"></a>dig</h4><h4 id="ss"><a href="#ss" class="headerlink" title="ss"></a>ss</h4><h4 id="ip"><a href="#ip" class="headerlink" title="ip"></a>ip</h4>]]></content>
+      <categories>
+        <category>计算机网络</category>
       </categories>
       <tags>
         <tag>Linux</tag>
@@ -3151,6 +3151,17 @@
       </tags>
   </entry>
   <entry>
+    <title>WebRTC简介</title>
+    <url>/2023/08/03/WebRTC%E7%AE%80%E4%BB%8B/</url>
+    <content><![CDATA[<h3 id="WebRTC是什么，能做什么？"><a href="#WebRTC是什么，能做什么？" class="headerlink" title="WebRTC是什么，能做什么？"></a>WebRTC是什么，能做什么？</h3>]]></content>
+      <categories>
+        <category>WebRTC</category>
+      </categories>
+      <tags>
+        <tag>WebRTC</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>SpringBoot中使用Zookeeper进行服务发现</title>
     <url>/2022/12/05/SpringBoot%E4%B8%AD%E4%BD%BF%E7%94%A8Zookeeper%E8%BF%9B%E8%A1%8C%E6%9C%8D%E5%8A%A1%E5%8F%91%E7%8E%B0/</url>
     <content><![CDATA[<h2 id="1-什么是服务发现"><a href="#1-什么是服务发现" class="headerlink" title="1. 什么是服务发现"></a>1. 什么是服务发现</h2><p>首先引入三个角色，分别是服务提供者、服务消费者、服务中介。一个 HTTP 服务器既可以是服务提供者，也可以是服务消费者。</p>
@@ -3304,59 +3315,6 @@
       </tags>
   </entry>
   <entry>
-    <title>WebRTC简介</title>
-    <url>/2023/08/03/WebRTC%E7%AE%80%E4%BB%8B/</url>
-    <content><![CDATA[<h3 id="WebRTC是什么，能做什么？"><a href="#WebRTC是什么，能做什么？" class="headerlink" title="WebRTC是什么，能做什么？"></a>WebRTC是什么，能做什么？</h3>]]></content>
-      <categories>
-        <category>WebRTC</category>
-      </categories>
-      <tags>
-        <tag>WebRTC</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>python模块加载顺序</title>
-    <url>/2022/08/17/python%E6%A8%A1%E5%9D%97%E5%8A%A0%E8%BD%BD%E9%A1%BA%E5%BA%8F/</url>
-    <content><![CDATA[<blockquote>
-<p>结论：工程自定义包 -&gt; 工程py文件 -&gt; 系统路径 </p>
-<p>所以如果在工程中自己创建了跟系统&#x2F;第三方模块重名的模块时，则无法加载系统&#x2F;第三方模块</p>
-</blockquote>
-<p>python出于性能考虑，每个模块在每个解释器会话中只导入一遍，所以如果程序运行过程中，你修改了自定义模块，那么需要重启解释器（即重启程序）或者使用<code>reload(moduleName)</code>重新加载模块（不用重启）</p>
-<h3 id="1-查看模块加载路径"><a href="#1-查看模块加载路径" class="headerlink" title="1. 查看模块加载路径"></a>1. 查看模块加载路径</h3><blockquote>
-<p>python解析器会从脚本执行目录、所有已安装内置模块和第三方模块中寻找导入的模块，按照sys.path中的路径顺序进行查找</p>
-</blockquote>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 查看sys.path</span></span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">import</span> sys</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>sys.path</span><br><span class="line">[<span class="string">&#x27;&#x27;</span>, <span class="string">&#x27;/usr/lib64/python27.zip&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/plat-linux2&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-tk&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-old&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-dynload&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/site-packages&#x27;</span>, <span class="string">&#x27;/usr/lib/python2.7/site-packages&#x27;</span>]</span><br><span class="line"><span class="comment"># 这里的列表中的第一个&#x27;&#x27;代表着当前目录，如果是使用文件执行，则是显示的脚本所在目录</span></span><br><span class="line"><span class="comment"># 可以通过sys.path.append(&#x27;/Users/michael/my_py_scripts&#x27;)临时添加搜索目录</span></span><br><span class="line"><span class="comment"># 或将目录添加到shell环境变量PYTHONPATH中</span></span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="2-自定义模块加载"><a href="#2-自定义模块加载" class="headerlink" title="2. 自定义模块加载"></a>2. 自定义模块加载</h3><ol>
-<li>导入一个叫<code>spam</code>的模块时，解释器先在当前目录中搜索名为<code>spam.py</code>的文件，import语句导入<code>spam.py</code>文件时，顺序执行其中的语句</li>
-</ol>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">目录结构</span><br><span class="line">projects/</span><br><span class="line">    test.py   # 内容 import spam</span><br><span class="line">    spam.py   # 内容 print(&quot;this is spam.py&quot;)</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">#</span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam.py</span><br></pre></td></tr></table></figure>
-
-<ol start="2">
-<li><strong>目录下存在<code>spam</code>包时，则优先调用<code>spam</code>包，不加载<code>spam.py</code>。加载包内文件时，先执行<code>__init__.py</code>再加载包内文件内容</strong></li>
-</ol>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">目录结构</span><br><span class="line">projects/</span><br><span class="line">    test.py   # 内容 import spam</span><br><span class="line">    spam.py   # 内容 print(&quot;this is spam.py&quot;)</span><br><span class="line">    spam/ </span><br><span class="line">        __init__.py  # 内容 print(&quot;this is spam/__init__.py&quot;)</span><br><span class="line">        sub.py        # 内容 print(&quot;this is spam/sub.py&quot;)</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam/__init__.py</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">修改test.py</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">echo</span> <span class="string">&quot;import spam.sub&quot;</span> &gt; test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam/__init__.py</span><br><span class="line">this is spam/sub.py</span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="3-查看第三方模块的所在路径"><a href="#3-查看第三方模块的所在路径" class="headerlink" title="3. 查看第三方模块的所在路径"></a>3. 查看第三方模块的所在路径</h3><p>哪如果想知道导入的第三方模块具体文件在哪里咋办呢？</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">import</span> imp</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>imp.find_module(<span class="string">&quot;paramiko&quot;</span>)</span><br><span class="line">(<span class="literal">None</span>, <span class="string">&#x27;/usr/local/lib/python3.6/site-packages/paramiko&#x27;</span>, (<span class="string">&#x27;&#x27;</span>, <span class="string">&#x27;&#x27;</span>, <span class="number">5</span>))</span><br></pre></td></tr></table></figure>
-
-]]></content>
-      <categories>
-        <category>Python</category>
-      </categories>
-      <tags>
-        <tag>Python</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>python包安装与卸载</title>
     <url>/2022/08/17/python%E5%8C%85%E5%AE%89%E8%A3%85%E4%B8%8E%E5%8D%B8%E8%BD%BD/</url>
     <content><![CDATA[<h3 id="1-python包安装方式"><a href="#1-python包安装方式" class="headerlink" title="1. python包安装方式"></a>1. python包安装方式</h3><ol>
@@ -3406,6 +3364,48 @@
 <h4 id="4-2-安装模块"><a href="#4-2-安装模块" class="headerlink" title="4.2 安装模块"></a>4.2 安装模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">easy_install module</span><br><span class="line">easy_install module==version   # 安装指定版本</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">指定镜像源安装</span></span><br><span class="line">esay_install -i `镜像源` module </span><br></pre></td></tr></table></figure>
 
 <h4 id="4-3-卸载模块"><a href="#4-3-卸载模块" class="headerlink" title="4.3 卸载模块"></a>4.3 卸载模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">easy_install -m module</span><br></pre></td></tr></table></figure>
+
+]]></content>
+      <categories>
+        <category>Python</category>
+      </categories>
+      <tags>
+        <tag>Python</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>python模块加载顺序</title>
+    <url>/2022/08/17/python%E6%A8%A1%E5%9D%97%E5%8A%A0%E8%BD%BD%E9%A1%BA%E5%BA%8F/</url>
+    <content><![CDATA[<blockquote>
+<p>结论：工程自定义包 -&gt; 工程py文件 -&gt; 系统路径 </p>
+<p>所以如果在工程中自己创建了跟系统&#x2F;第三方模块重名的模块时，则无法加载系统&#x2F;第三方模块</p>
+</blockquote>
+<p>python出于性能考虑，每个模块在每个解释器会话中只导入一遍，所以如果程序运行过程中，你修改了自定义模块，那么需要重启解释器（即重启程序）或者使用<code>reload(moduleName)</code>重新加载模块（不用重启）</p>
+<h3 id="1-查看模块加载路径"><a href="#1-查看模块加载路径" class="headerlink" title="1. 查看模块加载路径"></a>1. 查看模块加载路径</h3><blockquote>
+<p>python解析器会从脚本执行目录、所有已安装内置模块和第三方模块中寻找导入的模块，按照sys.path中的路径顺序进行查找</p>
+</blockquote>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 查看sys.path</span></span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">import</span> sys</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>sys.path</span><br><span class="line">[<span class="string">&#x27;&#x27;</span>, <span class="string">&#x27;/usr/lib64/python27.zip&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/plat-linux2&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-tk&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-old&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-dynload&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/site-packages&#x27;</span>, <span class="string">&#x27;/usr/lib/python2.7/site-packages&#x27;</span>]</span><br><span class="line"><span class="comment"># 这里的列表中的第一个&#x27;&#x27;代表着当前目录，如果是使用文件执行，则是显示的脚本所在目录</span></span><br><span class="line"><span class="comment"># 可以通过sys.path.append(&#x27;/Users/michael/my_py_scripts&#x27;)临时添加搜索目录</span></span><br><span class="line"><span class="comment"># 或将目录添加到shell环境变量PYTHONPATH中</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="2-自定义模块加载"><a href="#2-自定义模块加载" class="headerlink" title="2. 自定义模块加载"></a>2. 自定义模块加载</h3><ol>
+<li>导入一个叫<code>spam</code>的模块时，解释器先在当前目录中搜索名为<code>spam.py</code>的文件，import语句导入<code>spam.py</code>文件时，顺序执行其中的语句</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">目录结构</span><br><span class="line">projects/</span><br><span class="line">    test.py   # 内容 import spam</span><br><span class="line">    spam.py   # 内容 print(&quot;this is spam.py&quot;)</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">#</span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam.py</span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li><strong>目录下存在<code>spam</code>包时，则优先调用<code>spam</code>包，不加载<code>spam.py</code>。加载包内文件时，先执行<code>__init__.py</code>再加载包内文件内容</strong></li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">目录结构</span><br><span class="line">projects/</span><br><span class="line">    test.py   # 内容 import spam</span><br><span class="line">    spam.py   # 内容 print(&quot;this is spam.py&quot;)</span><br><span class="line">    spam/ </span><br><span class="line">        __init__.py  # 内容 print(&quot;this is spam/__init__.py&quot;)</span><br><span class="line">        sub.py        # 内容 print(&quot;this is spam/sub.py&quot;)</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam/__init__.py</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">修改test.py</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">echo</span> <span class="string">&quot;import spam.sub&quot;</span> &gt; test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam/__init__.py</span><br><span class="line">this is spam/sub.py</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="3-查看第三方模块的所在路径"><a href="#3-查看第三方模块的所在路径" class="headerlink" title="3. 查看第三方模块的所在路径"></a>3. 查看第三方模块的所在路径</h3><p>哪如果想知道导入的第三方模块具体文件在哪里咋办呢？</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">import</span> imp</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>imp.find_module(<span class="string">&quot;paramiko&quot;</span>)</span><br><span class="line">(<span class="literal">None</span>, <span class="string">&#x27;/usr/local/lib/python3.6/site-packages/paramiko&#x27;</span>, (<span class="string">&#x27;&#x27;</span>, <span class="string">&#x27;&#x27;</span>, <span class="number">5</span>))</span><br></pre></td></tr></table></figure>
 
 ]]></content>
       <categories>
@@ -3744,300 +3744,6 @@
       </categories>
       <tags>
         <tag>LVS</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>文件名大小写引起的血案</title>
-    <url>/2023/01/28/%E6%96%87%E4%BB%B6%E5%90%8D%E5%A4%A7%E5%B0%8F%E5%86%99%E5%BC%95%E8%B5%B7%E7%9A%84%E8%A1%80%E6%A1%88/</url>
-    <content><![CDATA[<h2 id="1-前言"><a href="#1-前言" class="headerlink" title="1. 前言"></a>1. 前言</h2><p>之前写博客的时候，觉得 tags 标签英文字母都是小写的，不太好看，于是乎将其编辑了一遍，修改为首字母大写。但是，随之而来的就是页面访问出现了问题。</p>
-<p>一开始时 Debug 的方向，想着是不是有的文件没有生成成功，或者是标签的设置是不是有问题。不过查看目录结构以后发现什么毛病都没有。</p>
-<p>于是乎看浏览器的访问路径。因为 Hexo 生成的网页都是静态页面，所以浏览器的访问路径应该是跟目录的路径差不多。然后突然发现，虽然修改了 tags 标签，但是文件系统中的文件夹名没有变化，即没有重新生成。才想起来 Windows 文件名对大小写不敏感这回事。</p>
-<p>这时觉得满心欢喜，本地访问没有问题了。然后 Git 一提交，GitHub Pages 上访问倒是不行了。是不是没提交成功？重新提交了好几遍都不行，Github 上确实也有提交的记录，只是文件夹的名字还是小写的。明显是 Git 默认对文件名大小写不敏感的问题。</p>
-<p>这件事联想起了最新有个项目的 Git 代码，不知道为什么多了一个重名的分支，只有大小写不一样，导致联调的时候一堆问题，估摸着不知道是谁对文件名改动了。</p>
-<h2 id="2-Windows-大小写敏感设置"><a href="#2-Windows-大小写敏感设置" class="headerlink" title="2. Windows 大小写敏感设置"></a>2. Windows 大小写敏感设置</h2><blockquote>
-<p>C 盘中系统相关的目录最好不要修改，因为某些 Windows 应用程序可能不会使用大小写敏感来引用文件，此时如果修改了，应用程序将无法正常运行。</p>
-</blockquote>
-<p>默认情况下，Linux 是对文件名大小写敏感的，但是 Windows 是对文件名大小写不敏感的（可以通过新建文件进行测试），即：</p>
-<ul>
-<li>区分大小写：FOO.txt ≠ foo.txt ≠ Foo.txt</li>
-<li>不区分大小写：FOO.txt &#x3D; foo.txt &#x3D; Foo.txt</li>
-</ul>
-<p>Windows 文件系统支持使用属性标志按目录设置区分大小写。 虽然标准行为是不区分大小写，但可以分配属性标志来使目录区分大小写，以便它能够识别可能仅大小写不同的 Linux 文件和文件夹。</p>
-<p>在将驱动器装载到适用于 Linux 的 Windows 子系统 (WSL) 文件系统时，尤其如此。 在 WSL 文件系统中工作时，运行的是 Linux，因此默认情况下，文件和目录被视为区分大小写。</p>
-<h3 id="2-1-敏感设置需求"><a href="#2-1-敏感设置需求" class="headerlink" title="2.1 敏感设置需求"></a>2.1 敏感设置需求</h3><ol>
-<li><strong>自 Windows 10 内部版本 17107 开始，支持按目录区分大小写。 在 Windows 10 内部版本 17692 中，支持更新目录区分大小写</strong>，包括从 WSL 内检查和修改目录的区分大小写标志。 使用名为 <code>system.wsl_case_sensitive</code> 的扩展属性公开区分大小写。 对于不区分大小写的目录，此属性的值为 0；对于区分大小写的目录，此属性的值为 1。</li>
-<li><strong>只能在 NTFS 格式的文件系统中的目录上设置区分大小写属性</strong>。默认情况下，WSL (Linux) 文件系统中的目录区分大小写（不能使用 fsutil.exe 工具设置为不区分大小写）。</li>
-<li>以管理员的身份运行 DOS 或者 PowerShell。</li>
-</ol>
-<h3 id="2-2-检查是否大小写敏感"><a href="#2-2-检查是否大小写敏感" class="headerlink" title="2.2 检查是否大小写敏感"></a>2.2 检查是否大小写敏感</h3><figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 将 &lt;path&gt; 替换为文件路径</span></span><br><span class="line">&gt; fsutil.exe file queryCaseSensitiveInfo &lt;path&gt;</span><br></pre></td></tr></table></figure>
-
-<p>例子：</p>
-<figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line">&gt; fsutil.exe file queryCaseSensitiveInfo ./</span><br><span class="line">已启用目录 D:\blog\ 的区分大小写属性。</span><br></pre></td></tr></table></figure>
-
-<h3 id="2-3-设置目录大小写敏感"><a href="#2-3-设置目录大小写敏感" class="headerlink" title="2.3 设置目录大小写敏感"></a>2.3 设置目录大小写敏感</h3><blockquote>
-<p>创建新目录的时候，新目录将会继承父目录的大小写敏感设置。</p>
-</blockquote>
-<p>修改目录大小写敏感设置需要以管理员的身份运行，并且还需要对目录具有 “写入属性”、“创建文件”、“创建文件夹” 和 “删除子文件夹和文件” 权限。</p>
-<figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 启用大小写敏感</span></span><br><span class="line"><span class="comment"># 将 &lt;path&gt; 替换为文件路径</span></span><br><span class="line">&gt; fsutil.exe file setCaseSensitiveInfo &lt;path&gt; enable</span><br><span class="line"></span><br><span class="line"><span class="comment"># 停用大小写敏感</span></span><br><span class="line">&gt; fsutil.exe file setCaseSensitiveInfo &lt;path&gt; disable</span><br></pre></td></tr></table></figure>
-
-
-
-<h2 id="3-Git-大小写敏感设置"><a href="#3-Git-大小写敏感设置" class="headerlink" title="3. Git 大小写敏感设置"></a>3. Git 大小写敏感设置</h2><p>Git 默认不区分文件名大小写。</p>
-<p>当你创建一个 <code>readme.md</code>文件之后，提交到线上代码仓库，然后在本地修改文件名为 <code>Readme.md</code>，再提交，会发现代码没有变化。</p>
-<p>但是，可以通过 Git 配置文件中的 <code>core.ignorecase</code> 属性来配置是否大小写敏感（不敏感：true，敏感：false）。</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">当前 Git 仓库</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">设置大小写敏感</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">git config core.ignorecase <span class="literal">false</span></span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">设置大小写不敏感</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">git config core.ignorecase <span class="literal">true</span></span></span><br></pre></td></tr></table></figure>
-
-<p>设置之后，如果需要修改已经提交到代码仓库的文件，需要先删除文件之后，再添加后提交。</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">从 Git 中移除 readme.md 文件</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">git <span class="built_in">rm</span> readme.md</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">重新添加文件</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">git add Readme.md</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">提交</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">git commit -m <span class="string">&#x27;Readme.md&#x27;</span></span></span><br></pre></td></tr></table></figure>
-
-
-
-<hr>
-<p>相关链接：</p>
-<p><a href="https://learn.microsoft.com/zh-cn/windows/wsl/case-sensitivity">Windows区分大小写</a></p>
-<p><a href="https://git-scm.com/docs/git-config/#Documentation/git-config.txt-coreignoreCase">Git core.ignoreCase配置</a></p>
-]]></content>
-      <categories>
-        <category>日常踩坑</category>
-      </categories>
-      <tags>
-        <tag>Git</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>网络抓包工具使用</title>
-    <url>/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/</url>
-    <content><![CDATA[<h2 id="1-网络抓包原理"><a href="#1-网络抓包原理" class="headerlink" title="1. 网络抓包原理"></a>1. 网络抓包原理</h2><blockquote>
-<p>抓包实际上是分析网络协议的一种过程，只要网络数据流经过我们的节点，就能够对数据流进行抓包。</p>
-</blockquote>
-<h3 id="1-1-网卡或代理抓包"><a href="#1-1-网卡或代理抓包" class="headerlink" title="1.1 网卡或代理抓包"></a>1.1 网卡或代理抓包</h3><p>目前的抓包软件总体上可以分成两类：</p>
-<ul>
-<li>一种是设置代理抓取 http 包，比如Charles、mitmproxy这些软件。</li>
-<li>另一种是直接抓取经过本机网络的所有协议包，其中最出名的就是 wireshark 以及 Linux 自带的抓包软件命令 tcpdump。</li>
-</ul>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/15202375411791.jpg" alt="img"></p>
-<h3 id="1-2-http-与-https"><a href="#1-2-http-与-https" class="headerlink" title="1.2 http 与 https"></a>1.2 http 与 https</h3><p>http 与 https 最大的区别是 http 的数据包是不加密的， https 的数据包是加密的。因此对于 wireshark 这种在数据链路层进行抓包的工具，所获取到的 https 数据包是加密的，因此无法分析包的内容。而 Charles 等只要安装 Charles 的证书，就能够解密 https 数据包的内容。</p>
-<h2 id="2-tcpdump-使用"><a href="#2-tcpdump-使用" class="headerlink" title="2. tcpdump 使用"></a>2. tcpdump 使用</h2><blockquote>
-<p>tcpdump可以把抓取到的数据包导出为 wireshark 格式的文件。</p>
-</blockquote>
-<blockquote>
-<p>不重复造轮子，详情请看<a href="https://www.cnblogs.com/wongbingming/p/13212306.html">tcpdump使用指南</a>，或者参考 man 文档。</p>
-</blockquote>
-<h3 id="2-1-命令格式"><a href="#2-1-命令格式" class="headerlink" title="2.1 命令格式"></a>2.1 命令格式</h3><p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/20200628111325.png" alt="img"></p>
-<ul>
-<li><p><strong>option 可选参数</strong>：常用的有<code>-i 指定网卡名字</code>、<code>-w 保存抓包数据到文件</code>、<code>-r 从文件中读取抓包数据</code>、<code>-v\-vv\-vvv 输出更详细的内容</code>、<code>-n\-nn\-N 不解析域名\端口</code>。</p>
-</li>
-<li><p><strong>proto 类过滤器</strong>：根据协议进行过滤，可识别的关键词有： <code>tcp、udp、icmp、ip、ip6、arp、rarp、ether、wlan、fddi、tr、decnet</code>。</p>
-</li>
-<li><p><strong>direction 类过滤器</strong>：根据数据流向进行过滤，可识别的关键字有：<code>src、dst</code>，同时你可以使用逻辑运算符进行组合，比如 <code>src or dst</code>。</p>
-</li>
-<li><p><strong>type 类过滤器</strong>：可识别的关键词有：<code>host、net、port、portrange</code>，这些词后边需要再接参数。</p>
-</li>
-</ul>
-<h3 id="2-2-输出内容格式"><a href="#2-2-输出内容格式" class="headerlink" title="2.2 输出内容格式"></a>2.2 输出内容格式</h3><blockquote>
-<p>加入不同的可选参数，可能会使得输出的内容格式会有区别，但是能够触类旁通。</p>
-</blockquote>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo tcpdump -nn src host 172.25.122.140</span></span><br><span class="line">tcpdump: verbose output suppressed, use -v or -vv for full protocol decode</span><br><span class="line">listening on eth0, link-type EN10MB (Ethernet), capture size 262144 bytes</span><br><span class="line">11:21:04.200134 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [S], seq 3457030617, win 64240, options [mss 1460,sackOK,TS val 148049843 ecr 0,nop,wscale 7], length 0</span><br><span class="line">11:21:04.206621 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [.], ack 3549651488, win 502, length 0</span><br><span class="line">11:21:04.212251 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [P.], seq 0:517, ack 1, win 502, length 517</span><br></pre></td></tr></table></figure>
-
-<p>以最后一条数据为例：</p>
-<ol>
-<li><strong>第一列，时分秒毫秒</strong> ：11:21:04.212251</li>
-<li><strong>第二列，网络协议</strong> ：IP</li>
-<li><strong>第三列，发送方 IP + 端口</strong>：IP - 172.25.122.140 | 端口 - 40236</li>
-<li><strong>第四列，数据流向 &gt;</strong> ：从 172.25.122.140.40236 流向 14.215.177.39.443</li>
-<li><strong>第五列，接收方 IP + 端口</strong>：IP - 14.215.177.39 | 端口 - 443</li>
-<li><strong>第六列，冒号</strong><code>：</code></li>
-<li><strong>第七列， 数据包内容</strong>：包括 Flags 标识符，seq 号，ack 号，win 窗口，数据长度 length</li>
-</ol>
-<p><strong>Flags 标识符</strong>：</p>
-<ul>
-<li><code>[S]</code> : SYN（开始连接）</li>
-<li><code>[P]</code> : PSH（推送数据）</li>
-<li><code>[F]</code> : FIN （结束连接）</li>
-<li><code>[R]</code> : RST（重置连接）</li>
-<li><code>[.]</code> : 没有 Flag （意思是除上面四种类型外的其他情况，有可能是 ACK 也有可能是 URG）</li>
-</ul>
-<h2 id="3-Wireshark-使用"><a href="#3-Wireshark-使用" class="headerlink" title="3. Wireshark 使用"></a>3. Wireshark 使用</h2><blockquote>
-<p>Wireshark 使用中最难的，其实就是过滤器的使用，如何从海量请求数据包过滤出自己需要分析的内容。</p>
-</blockquote>
-<blockquote>
-<p>Wireshark 包括两种过滤器：</p>
-<ul>
-<li><p>捕获过滤器：抓包的过滤规则，只抓取特定条件的数据包</p>
-</li>
-<li><p>显示过滤器：对抓取到的数据再次过滤，只显示符合特定规则数据包</p>
-</li>
-</ul>
-</blockquote>
-<h3 id="3-1-抓包示例"><a href="#3-1-抓包示例" class="headerlink" title="3.1 抓包示例"></a>3.1 抓包示例</h3><blockquote>
-<p>使用 Wireshark 抓取 ping <a href="http://www.baidu.com/">www.baidu.com</a> 的数据包</p>
-</blockquote>
-<ol>
-<li>打开 Wireshark 主界面。</li>
-</ol>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104161119826.png" alt="image-20230104161119826"></p>
-<ol start="2">
-<li>选择菜单栏上<code>捕获-&gt;选项-&gt;选择网卡-&gt;开始</code>，或者直接在主界面中选择需要抓包的网卡就能够开始抓包（网卡通常只会处理发送给它自身地址的流量，如果想要捕获所有经过网卡的流量就需要开启混杂模式）。</li>
-</ol>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104162023100.png" alt="image-20230104162023100"></p>
-<ol start="3">
-<li>启动之后，Wireshark 就处于抓包状态了。</li>
-</ol>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104162352660.png" alt="image-20230104162352660"></p>
-<ol start="4">
-<li>在 cmd 窗口执行<code>ping www.baidu.com</code>命令。</li>
-</ol>
-<img src="image-20230104162742232.png" alt="image-20230104162742232" style="zoom:60%;" />
-
-<ol start="5">
-<li>操作完成之后，就能在 Wireshark 中看到抓取的数据包了。为了避免其他不相关的数据包影响分析，可以在过滤栏设置显示过滤条件。<code>ip.addr == 14.215.177.39 and icmp</code>表示只显示源主机 IP 或者目标主机 IP 为 <code>14.215.177.39</code> 且 ICMP 协议的数据包。</li>
-</ol>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104163323961.png" alt="image-20230104163323961"></p>
-<h3 id="3-2-界面介绍"><a href="#3-2-界面介绍" class="headerlink" title="3.2 界面介绍"></a>3.2 界面介绍</h3><p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104164142717.png" alt="image-20230104164142717"></p>
-<h4 id="3-2-1-捕获过滤器"><a href="#3-2-1-捕获过滤器" class="headerlink" title="3.2.1 捕获过滤器"></a>3.2.1 捕获过滤器</h4><h5 id="3-2-1-1-界面设置"><a href="#3-2-1-1-界面设置" class="headerlink" title="3.2.1.1 界面设置"></a>3.2.1.1 界面设置</h5><p>能够在<code>捕获-&gt;捕获过滤器</code>中进行设置，只抓取符合规则的数据包，能够在开始抓包前进行设置。</p>
-<img src="image-20230104170403368.png" alt="image-20230104170403368"  />
-
-<img src="image-20230104170503369.png" alt="image-20230104170503369"  />
-
-<h5 id="3-2-1-2-捕获过滤器规则"><a href="#3-2-1-2-捕获过滤器规则" class="headerlink" title="3.2.1.2 捕获过滤器规则"></a>3.2.1.2 捕获过滤器规则</h5><blockquote>
-<p>捕获过滤器规则设置规则跟 tcpdump 是一样的，只介绍简单的过滤规则，详情请翻阅<a href="https://www.wireshark.org/docs/wsug_html_chunked/ChCapCaptureFilterSection.html">官方文档</a></p>
-</blockquote>
-<p>捕获过滤器的设置主要包括：网络类型 Type(host、net、port)、方向 Dir(src、dst)、协议类型 Proto(ether、ip、tcp、udp、http、icmp、ftp等)、逻辑运算符(&amp;&amp;、||、! 或者 and、or、not)。</p>
-<p>以下显示一些使用示例：</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">host 172.18.5.4     # 只捕捉源地址或者目的地址为172.18.5.4的流量</span><br><span class="line">net 192.168.0.0/24  # 捕捉192.168.0.0/24网段中的流量</span><br><span class="line">src net 192.168.0.0/24 # 捕捉源地址IP在网段192.168.0.0/24中的流量</span><br><span class="line">not broadcast and not multicast # 仅捕捉单播流量，不捕捉广播和多播的流量</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="3-2-2-显示过滤器"><a href="#3-2-2-显示过滤器" class="headerlink" title="3.2.2 显示过滤器"></a>3.2.2 显示过滤器</h4><h5 id="3-2-2-1-界面设置"><a href="#3-2-2-1-界面设置" class="headerlink" title="3.2.2.1 界面设置"></a>3.2.2.1 界面设置</h5><p>对抓取到的数据再次过滤，只显示符合特定规则数据包。显示过滤器能够在<code>分析-&gt;显示过滤器</code>中进行设置。</p>
-<p>在主界面中右键选择<code>作为过滤器应用</code>有惊喜，可以将界面中的一些数据作为过滤规则。</p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104170955371.png" alt="image-20230104170955371"></p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104173929469.png" alt="image-20230104173929469"></p>
-<h5 id="3-2-2-2-显示过滤器规则"><a href="#3-2-2-2-显示过滤器规则" class="headerlink" title="3.2.2.2 显示过滤器规则"></a>3.2.2.2 显示过滤器规则</h5><blockquote>
-<p>详细设置规则请参阅<a href="https://www.wireshark.org/docs/wsug_html_chunked/ChWorkBuildDisplayFilterSection.html">官方文档</a></p>
-</blockquote>
-<p>设置规则基本上是<code>key 运算符 value</code>的格式，运算符可以取<code>==、!=、===、!==、&gt;、&lt;、&gt;=、&lt;=、~</code>。</p>
-<p>使用示例：</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">tcp # 只显示tcp协议的数据包列表</span><br><span class="line">http # 只显示http协议的数据包列表</span><br><span class="line">ip.src == 192.168.1.104 # 显示源地址为192.168.1.104的数据包列表</span><br><span class="line">ip.dst == 192.168.1.104 # 显示目标地址为192.168.1.104的数据包列表</span><br><span class="line">ip.addr == 192.168.1.104 # 显示源IP地址或目标IP地址为192.168.1.104的数据包列表</span><br><span class="line">tcp.port == 80 # 显示源主机或者目的主机端口为80的数据包列表</span><br><span class="line">tcp.srcport == 80 # 只显示TCP协议的源主机端口为80的数据包列表</span><br><span class="line">tcp.dstport == 80 # 只显示TCP协议的目的主机端口为80的数据包列表</span><br><span class="line">http.request.method == &quot;GET&quot; # 只显示HTTP GET方法的</span><br></pre></td></tr></table></figure>
-
-<h4 id="3-2-3-数据包列表区"><a href="#3-2-3-数据包列表区" class="headerlink" title="3.2.3 数据包列表区"></a>3.2.3 数据包列表区</h4><p>显示捕获到的数据包，每一行代表一个数据包，每个数据包包含编号、时间戳、源地址、目的地址、协议、长度以及数据包信息。不同的协议数据包使用了不同的颜色显示进行区分，可以在<code>视图-&gt;着色规则</code>中查看详细的设定。</p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104175334347.png" alt="image-20230104175334347"></p>
-<img src="image-20230104165647707.png" alt="image-20230104165647707" style="zoom:50%;" />
-
-<h4 id="3-2-4-详细数据区"><a href="#3-2-4-详细数据区" class="headerlink" title="3.2.4 详细数据区"></a>3.2.4 详细数据区</h4><p>数据包详细信息面板是最重要的，包含了数据包的所有详细信息内容，从物理层到应用层的数据，用来查看协议中的每一个字段信息。</p>
-<p><strong>参照 OSI 七层模型， 每一行代表着每一层中的数据，根据不同层次的不同协议，显示可能会有所不同。</strong></p>
-<ul>
-<li>Frame：物理层的数据帧状况，即全部数据。</li>
-<li>Ethernet II：数据链路层以太网帧头部信息。</li>
-<li>Internet Protocol Version 4：IPv4 包的头部信息。</li>
-<li>Transmission Control Protocol：TCP 协议的头部信息。</li>
-<li>Hypertext Transfer Protocol：HTTP数据包的所有信息。</li>
-</ul>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104180450263.png" alt="image-20230104180450263"></p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105105346183.png" alt="image-20230105105346183"></p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105155339201.png" alt="image-20230105155339201"></p>
-<h4 id="3-2-5-数据包字节区"><a href="#3-2-5-数据包字节区" class="headerlink" title="3.2.5 数据包字节区"></a>3.2.5 数据包字节区</h4><p>显示原始接收到的数据包字节，通过点击数据包详情区对应的字段，会在数据包字节区显示所对应的数据。</p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104181425789.png" alt="image-20230104181425789"></p>
-<h3 id="3-3-抓包-TCP-三次握手"><a href="#3-3-抓包-TCP-三次握手" class="headerlink" title="3.3 抓包 TCP 三次握手"></a>3.3 抓包 TCP 三次握手</h3><h4 id="3-3-1-TCP-三次握手过程"><a href="#3-3-1-TCP-三次握手过程" class="headerlink" title="3.3.1 TCP 三次握手过程"></a>3.3.1 TCP 三次握手过程</h4><blockquote>
-<p>要分析抓到数据包，首先需要了解其原理</p>
-</blockquote>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105165221418.png" alt="image-20230105165221418"></p>
-<ol>
-<li>TCP服务器进程先创建传输控制块TCB，时刻准备接受客户进程的连接请求，此时服务器就进入了LISTEN（监听）状态；</li>
-<li>TCP客户进程也是先创建传输控制块TCB，然后向服务器发出连接请求报文，这是报文首部中的同部位 SYN&#x3D;1，同时选择一个初始序列号 seq&#x3D;x ，此时，TCP客户端进程进入了 SYN-SENT（同步已发送状态）状态。<strong>TCP规定，SYN报文段（SYN&#x3D;1的报文段）不能携带数据，但需要消耗掉一个序号</strong>；</li>
-<li>TCP服务器收到请求报文后，如果同意连接，则发出确认报文。确认报文中应该 ACK&#x3D;1，SYN&#x3D;1，确认号是ack&#x3D;x+1，同时也要为自己初始化一个序列号 seq&#x3D;y，此时，TCP服务器进程进入了SYN-RCVD（同步收到）状态。<strong>这个报文也不能携带数据，但是同样要消耗一个序号</strong>；</li>
-<li>TCP客户进程收到确认后，还要向服务器给出确认。确认报文的ACK&#x3D;1，ack&#x3D;y+1，自己的序列号seq&#x3D;x+1，此时，TCP连接建立，客户端进入ESTABLISHED（已建立连接）状态。<strong>TCP规定，ACK报文段可以携带数据，但是如果不携带数据则不消耗序号</strong>；</li>
-<li>当服务器收到客户端的确认后也进入ESTABLISHED状态，此后双方就可以开始通信了；</li>
-</ol>
-<h4 id="3-3-2-抓取-TCP-数据包"><a href="#3-3-2-抓取-TCP-数据包" class="headerlink" title="3.3.2 抓取 TCP 数据包"></a>3.3.2 抓取 TCP 数据包</h4><ol>
-<li>在 cmd 使用 <code>ping jandan.net</code>获取域名 IP；</li>
-</ol>
-<img src="image-20230105114055220.png" alt="image-20230105114055220" style="zoom:50%;" />
-
-<ol start="2">
-<li>启动 Wireshark 开始抓包；</li>
-<li>设置显示过滤器<code>ip.addr == 59.37.142.220 </code>；</li>
-</ol>
-<img src="image-20230105114302324.png" alt="image-20230105114302324" style="zoom:50%;" />
-
-<ol start="4">
-<li>浏览器中访问 <code>http://jandan.net/</code>；</li>
-</ol>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105142256229.png" alt="image-20230105142256229"></p>
-<p>从图中可以看到，这次访问 TCP 握手的三个过程。注意的是因为我这不是第一次访问网站，所以会有关闭之前连接的请求。然后访问的时候发起了两个 TCP 请求，可以通过端口号的不同进行区分，我们关注的是本地 54418 端口到服务器 80 端口的 TCP 请求。</p>
-<h4 id="3-3-3-第一次握手数据包"><a href="#3-3-3-第一次握手数据包" class="headerlink" title="3.3.3 第一次握手数据包"></a>3.3.3 第一次握手数据包</h4><p>WireShark 中显示了两个<code>Sequence Number</code>一个为<code>0</code>，一个为<code>605892471</code>，是因为 WireShark 为了更加容易观察进行的处理，一个是相对 Seq，一个是实际请求的 Seq，如果分别点击会发现数据包字节区是对应的同一块区域。</p>
-<ul>
-<li>SYN 标志位置为 1，表示向服务器请求建立连接；</li>
-<li>Seq 序列号为 605892471，相对位置为 0，表示当前客户端当前还没有发送数据；</li>
-</ul>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105144046541.png" alt="image-20230105144046541"></p>
-<h4 id="3-3-4-第二次握手数据包"><a href="#3-3-4-第二次握手数据包" class="headerlink" title="3.3.4 第二次握手数据包"></a>3.3.4 第二次握手数据包</h4><p>第二次握手数据包是服务器返回给客户端的，可以看到是从 59.37.142.220 的 80 端口到本机IP 的 54418 端口。跟 Seq 序列号一样，Acknowledgement number 也有相对与实际的区别。</p>
-<ul>
-<li>服务器响应新生成了 Seq 序列号：483437807，相对位置为 0， 表示当前服务器还没有发送数据；</li>
-<li>ack 设置为请求的 Seq 序列号 + 1，即为 605892472，表示响应的是第一次握手的数据包；</li>
-<li>ACK 和 SYN 标志位都置为 1，表示服务器同意建立连接并返回响应；</li>
-</ul>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105145332078.png" alt="image-20230105145332078"></p>
-<h4 id="3-3-5-第三次握手数据包"><a href="#3-3-5-第三次握手数据包" class="headerlink" title="3.3.5 第三次握手数据包"></a>3.3.5 第三次握手数据包</h4><p>第三次握手就比较简单了，建立完成之后就能开始数据交互：</p>
-<ul>
-<li>Seq 序列号为服务器响应 ack 的值，相对位置为 1，表示已经发送一个数据；</li>
-<li>ack 为服务器响应 Seq 序列号的值 + 1，表示当前客户端成功接收到的数据位数，虽然服务端没有发送任何有效数据，确认号还是被加 1，因为包含 SYN 或 FIN 标志位（并不会对有效数据的计数产生影响，因为含有SYN或FIN标志位的包并不携带有效数据)；</li>
-<li>ACK 标志位置 1，表示已经接收到第二次握手数据包；</li>
-</ul>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105150139918.png" alt="image-20230105150139918"></p>
-]]></content>
-      <categories>
-        <category>计算机网络</category>
-      </categories>
-  </entry>
-  <entry>
-    <title>记一次WSDL使用</title>
-    <url>/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/</url>
-    <content><![CDATA[<h3 id="1-起因"><a href="#1-起因" class="headerlink" title="1. 起因"></a>1. 起因</h3><p>突然要求对接公司集团的一个接口，给了一个 <code>http://192.168.1.1:7001/services/NotifyService?wsdl</code> 这种地址过来，然后还给了个说明文档，介绍用 XML 的格式发送报文。</p>
-<p>一开始觉得跟 restful 接口差不多，就没多大留意。然后按照说明文档构建了 XML 格式的报文，跟下面的例子差不多。觉得没啥问题了，用 Postman 一测试，哎，怎么返回失败呢？首先是网络，检查了一下是通的。哪说明是调用接口的方式出了问题。</p>
-<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">ReqRoot</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">ReqTime</span>&gt;</span>2022-10-27 10:03:02<span class="tag">&lt;/<span class="name">ReqTime</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">BillNo</span>&gt;</span></span><br><span class="line">            000000</span><br><span class="line">        <span class="tag">&lt;/<span class="name">BillNo</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Content</span>&gt;</span>消息成功发送<span class="tag">&lt;/<span class="name">Content</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">SendUser</span>&gt;</span>user<span class="tag">&lt;/<span class="name">SendUser</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Address</span>&gt;</span>mobile<span class="tag">&lt;/<span class="name">Address</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">ReqRoot</span>&gt;</span></span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="2-经过"><a href="#2-经过" class="headerlink" title="2. 经过"></a>2. 经过</h3><p>既然调用失败，那就百度一下为什么调用失败。看到给的链接后面有个 <code>wsdl</code> 的东西，感觉不太对劲，于是乎搜索了一下 <code>wsdl</code>。问了一下同事，说这是历史久远的接口。</p>
-<h4 id="2-1-什么是WSDL？"><a href="#2-1-什么是WSDL？" class="headerlink" title="2.1 什么是WSDL？"></a>2.1 什么是WSDL？</h4><blockquote>
-<p>WSDL 是一种使用 XML 编写的文档。这种文档可描述某个 Web service。它可规定服务的位置，以及此服务提供的操作（或方法）。</p>
-</blockquote>
-<blockquote>
-<p>在 2001 年 3 月，WSDL 1.1 被 IBM、微软作为一个 W3C 记录（W3C note）提交到有关 XML 协议的 W3C XML 活动，用于描述网络服务。（W3C 记录仅供讨论。一项 W3C 记录的发布并不代表它已被 W3C 或 W3C 团队亦或任何 W3C 成员认可。）</p>
-</blockquote>
-<ul>
-<li>WSDL（Web Services Description Language）指网络服务描述语言</li>
-<li>WSDL 使用 XML 编写</li>
-<li>WSDL 是一种 XML 文档</li>
-<li>WSDL 用于描述网络服务</li>
-<li>WSDL 也可用于定位网络服务</li>
-<li>WSDL 还不是 W3C 标准</li>
-</ul>
-<h4 id="2-2-怎么使用"><a href="#2-2-怎么使用" class="headerlink" title="2.2 怎么使用"></a>2.2 怎么使用</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">可以用下面的这个链接进行测试，这是一个中国电视节目预告 Web 服务</span><br><span class="line">http://www.webxml.com.cn/webservices/ChinaTVprogramWebService.asmx?wsdl</span><br></pre></td></tr></table></figure>
-
-<p>我主要关注的是怎么用这个接口，起码能保证业务上的功能正常再去关注这是什么东西。于是乎开始搜索怎么才能让接口调用成功。</p>
-<p>突然发现这个接口是能够直接在浏览器上面打开的，不过其实打开了，也看不出什么东西，因为是一堆的 XML 文本。大概知道的就是这个文本里面定义了有哪些接口，还有接口的调用方式。</p>
-<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/wsdl%E7%BD%91%E9%A1%B5.png" alt="image-20221124152448072"></p>
-<p>然后在网上找啊找，都没怎么找到比较好的方式去调用，但是起码别人是能调通的。观察发现怎么有一个应用叫 SoapUI 能够生成请求的报文体呢（截图截全一点对大家都好）。于是乎自己下载了一个下来看一下。</p>
-<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/soapui.png" alt="image-20221124153100317"></p>
-<p>界面上就是上面的样子，填入 wsdl 的链接就能够比较直观的看到有哪些能够调用的方法，在对应的方法里面创建请求还会帮你填充好一些 SOAP 协议相关的东西（之前就是缺少了这一部分）。如果把请求部分填充完整，是能够使用 SoapUI 请求成功。</p>
-<h4 id="2-3-使用-Postman-调用"><a href="#2-3-使用-Postman-调用" class="headerlink" title="2.3 使用 Postman 调用"></a>2.3 使用 Postman 调用</h4><p>既然能够使用 SoapUI 请求成功，那么就要尝试一下怎样才能使用 Postman 请求成功了。简单分为以下三步：</p>
-<ul>
-<li>将请求的 Content-Type 设置为 text&#x2F;xml</li>
-<li>请求头部加上SOAPAction，值可以置为空</li>
-<li>将 SoapUI 中接口自动生成的部分填入到请求体的 Body 中，然后填充必要的内容。（接口中给定的文档是 XML 文本，因此需要使用<code>&lt;![CDATA[your_data]]&gt;</code>的格式，your_data替换为接口文档中的格式）（CDATA 代表字符数据，其中的数据可以包含 XML 标记，但是还是会被当做字符串）</li>
-</ul>
-<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version=<span class="string">&quot;1.0&quot;</span> encoding=<span class="string">&quot;UTF-8&quot;</span>?&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">soapenv:Envelope</span> <span class="attr">xmlns:soapenv</span>=<span class="string">&quot;http://schemas.xmlsoap.org/soap/envelope/&quot;</span> <span class="attr">xmlns:dom</span>=<span class="string">&quot;http://domain.webservice.itsm.ffcs.com&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">soapenv:Header</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">soapenv:Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">dom:sendMsgNew</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">dom:request</span>&gt;</span></span><br><span class="line">                &lt;![CDATA[</span><br><span class="line">                &lt;ReqRoot&gt;</span><br><span class="line">                    &lt;Body&gt;</span><br><span class="line">                        &lt;ReqTime&gt;2022-10-27 10:03:02&lt;/ReqTime&gt;</span><br><span class="line">                        &lt;BillNo&gt;</span><br><span class="line">                            000000</span><br><span class="line">                        &lt;/BillNo&gt;</span><br><span class="line">                        &lt;Content&gt;消息成功发送&lt;/Content&gt;</span><br><span class="line">                        &lt;SendUser&gt;user&lt;/SendUser&gt;</span><br><span class="line">                        &lt;Address&gt;mobile&lt;/Address&gt;</span><br><span class="line">                    &lt;/Body&gt;</span><br><span class="line">                &lt;/ReqRoot&gt;</span><br><span class="line">               ]]&gt;</span><br><span class="line">            <span class="tag">&lt;/<span class="name">dom:request</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">dom:sendMsgNew</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">soapenv:Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">soapenv:Envelope</span>&gt;</span></span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="3-总结"><a href="#3-总结" class="headerlink" title="3. 总结"></a>3. 总结</h3><p>其实就是 WSDL 与 Soap 的相关知识，但是其实现在很少用，等什么时候有空了再详细看看吧。</p>
-]]></content>
-      <categories>
-        <category>日常踩坑</category>
-      </categories>
-      <tags>
-        <tag>日常</tag>
       </tags>
   </entry>
   <entry>
@@ -5521,5 +5227,299 @@
 <p>3.2.0版本后添加的特性，Chroot特性允许每个客户端为自己设置一个命名空间。如果一个客户端设置了Chroot，那么对Zookeeper集群的任何操作，都会被限制在自己的命名空间下。Chroot能够将客户端对应上Zookeeper的一颗子树，因此在多个应用公用一个Zookeeper集群的时候，有利于应用间的相互隔离。</p>
 </blockquote>
 <h3 id="ACL-访问控制"><a href="#ACL-访问控制" class="headerlink" title="ACL 访问控制"></a>ACL 访问控制</h3>]]></content>
+  </entry>
+  <entry>
+    <title>文件名大小写引起的血案</title>
+    <url>/2023/01/28/%E6%96%87%E4%BB%B6%E5%90%8D%E5%A4%A7%E5%B0%8F%E5%86%99%E5%BC%95%E8%B5%B7%E7%9A%84%E8%A1%80%E6%A1%88/</url>
+    <content><![CDATA[<h2 id="1-前言"><a href="#1-前言" class="headerlink" title="1. 前言"></a>1. 前言</h2><p>之前写博客的时候，觉得 tags 标签英文字母都是小写的，不太好看，于是乎将其编辑了一遍，修改为首字母大写。但是，随之而来的就是页面访问出现了问题。</p>
+<p>一开始时 Debug 的方向，想着是不是有的文件没有生成成功，或者是标签的设置是不是有问题。不过查看目录结构以后发现什么毛病都没有。</p>
+<p>于是乎看浏览器的访问路径。因为 Hexo 生成的网页都是静态页面，所以浏览器的访问路径应该是跟目录的路径差不多。然后突然发现，虽然修改了 tags 标签，但是文件系统中的文件夹名没有变化，即没有重新生成。才想起来 Windows 文件名对大小写不敏感这回事。</p>
+<p>这时觉得满心欢喜，本地访问没有问题了。然后 Git 一提交，GitHub Pages 上访问倒是不行了。是不是没提交成功？重新提交了好几遍都不行，Github 上确实也有提交的记录，只是文件夹的名字还是小写的。明显是 Git 默认对文件名大小写不敏感的问题。</p>
+<p>这件事联想起了最新有个项目的 Git 代码，不知道为什么多了一个重名的分支，只有大小写不一样，导致联调的时候一堆问题，估摸着不知道是谁对文件名改动了。</p>
+<h2 id="2-Windows-大小写敏感设置"><a href="#2-Windows-大小写敏感设置" class="headerlink" title="2. Windows 大小写敏感设置"></a>2. Windows 大小写敏感设置</h2><blockquote>
+<p>C 盘中系统相关的目录最好不要修改，因为某些 Windows 应用程序可能不会使用大小写敏感来引用文件，此时如果修改了，应用程序将无法正常运行。</p>
+</blockquote>
+<p>默认情况下，Linux 是对文件名大小写敏感的，但是 Windows 是对文件名大小写不敏感的（可以通过新建文件进行测试），即：</p>
+<ul>
+<li>区分大小写：FOO.txt ≠ foo.txt ≠ Foo.txt</li>
+<li>不区分大小写：FOO.txt &#x3D; foo.txt &#x3D; Foo.txt</li>
+</ul>
+<p>Windows 文件系统支持使用属性标志按目录设置区分大小写。 虽然标准行为是不区分大小写，但可以分配属性标志来使目录区分大小写，以便它能够识别可能仅大小写不同的 Linux 文件和文件夹。</p>
+<p>在将驱动器装载到适用于 Linux 的 Windows 子系统 (WSL) 文件系统时，尤其如此。 在 WSL 文件系统中工作时，运行的是 Linux，因此默认情况下，文件和目录被视为区分大小写。</p>
+<h3 id="2-1-敏感设置需求"><a href="#2-1-敏感设置需求" class="headerlink" title="2.1 敏感设置需求"></a>2.1 敏感设置需求</h3><ol>
+<li><strong>自 Windows 10 内部版本 17107 开始，支持按目录区分大小写。 在 Windows 10 内部版本 17692 中，支持更新目录区分大小写</strong>，包括从 WSL 内检查和修改目录的区分大小写标志。 使用名为 <code>system.wsl_case_sensitive</code> 的扩展属性公开区分大小写。 对于不区分大小写的目录，此属性的值为 0；对于区分大小写的目录，此属性的值为 1。</li>
+<li><strong>只能在 NTFS 格式的文件系统中的目录上设置区分大小写属性</strong>。默认情况下，WSL (Linux) 文件系统中的目录区分大小写（不能使用 fsutil.exe 工具设置为不区分大小写）。</li>
+<li>以管理员的身份运行 DOS 或者 PowerShell。</li>
+</ol>
+<h3 id="2-2-检查是否大小写敏感"><a href="#2-2-检查是否大小写敏感" class="headerlink" title="2.2 检查是否大小写敏感"></a>2.2 检查是否大小写敏感</h3><figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 将 &lt;path&gt; 替换为文件路径</span></span><br><span class="line">&gt; fsutil.exe file queryCaseSensitiveInfo &lt;path&gt;</span><br></pre></td></tr></table></figure>
+
+<p>例子：</p>
+<figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line">&gt; fsutil.exe file queryCaseSensitiveInfo ./</span><br><span class="line">已启用目录 D:\blog\ 的区分大小写属性。</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-3-设置目录大小写敏感"><a href="#2-3-设置目录大小写敏感" class="headerlink" title="2.3 设置目录大小写敏感"></a>2.3 设置目录大小写敏感</h3><blockquote>
+<p>创建新目录的时候，新目录将会继承父目录的大小写敏感设置。</p>
+</blockquote>
+<p>修改目录大小写敏感设置需要以管理员的身份运行，并且还需要对目录具有 “写入属性”、“创建文件”、“创建文件夹” 和 “删除子文件夹和文件” 权限。</p>
+<figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 启用大小写敏感</span></span><br><span class="line"><span class="comment"># 将 &lt;path&gt; 替换为文件路径</span></span><br><span class="line">&gt; fsutil.exe file setCaseSensitiveInfo &lt;path&gt; enable</span><br><span class="line"></span><br><span class="line"><span class="comment"># 停用大小写敏感</span></span><br><span class="line">&gt; fsutil.exe file setCaseSensitiveInfo &lt;path&gt; disable</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="3-Git-大小写敏感设置"><a href="#3-Git-大小写敏感设置" class="headerlink" title="3. Git 大小写敏感设置"></a>3. Git 大小写敏感设置</h2><p>Git 默认不区分文件名大小写。</p>
+<p>当你创建一个 <code>readme.md</code>文件之后，提交到线上代码仓库，然后在本地修改文件名为 <code>Readme.md</code>，再提交，会发现代码没有变化。</p>
+<p>但是，可以通过 Git 配置文件中的 <code>core.ignorecase</code> 属性来配置是否大小写敏感（不敏感：true，敏感：false）。</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">当前 Git 仓库</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">设置大小写敏感</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">git config core.ignorecase <span class="literal">false</span></span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">设置大小写不敏感</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">git config core.ignorecase <span class="literal">true</span></span></span><br></pre></td></tr></table></figure>
+
+<p>设置之后，如果需要修改已经提交到代码仓库的文件，需要先删除文件之后，再添加后提交。</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">从 Git 中移除 readme.md 文件</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">git <span class="built_in">rm</span> readme.md</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">重新添加文件</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">git add Readme.md</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">提交</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">git commit -m <span class="string">&#x27;Readme.md&#x27;</span></span></span><br></pre></td></tr></table></figure>
+
+
+
+<hr>
+<p>相关链接：</p>
+<p><a href="https://learn.microsoft.com/zh-cn/windows/wsl/case-sensitivity">Windows区分大小写</a></p>
+<p><a href="https://git-scm.com/docs/git-config/#Documentation/git-config.txt-coreignoreCase">Git core.ignoreCase配置</a></p>
+]]></content>
+      <categories>
+        <category>日常踩坑</category>
+      </categories>
+      <tags>
+        <tag>Git</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>记一次WSDL使用</title>
+    <url>/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/</url>
+    <content><![CDATA[<h3 id="1-起因"><a href="#1-起因" class="headerlink" title="1. 起因"></a>1. 起因</h3><p>突然要求对接公司集团的一个接口，给了一个 <code>http://192.168.1.1:7001/services/NotifyService?wsdl</code> 这种地址过来，然后还给了个说明文档，介绍用 XML 的格式发送报文。</p>
+<p>一开始觉得跟 restful 接口差不多，就没多大留意。然后按照说明文档构建了 XML 格式的报文，跟下面的例子差不多。觉得没啥问题了，用 Postman 一测试，哎，怎么返回失败呢？首先是网络，检查了一下是通的。哪说明是调用接口的方式出了问题。</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">ReqRoot</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">ReqTime</span>&gt;</span>2022-10-27 10:03:02<span class="tag">&lt;/<span class="name">ReqTime</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">BillNo</span>&gt;</span></span><br><span class="line">            000000</span><br><span class="line">        <span class="tag">&lt;/<span class="name">BillNo</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Content</span>&gt;</span>消息成功发送<span class="tag">&lt;/<span class="name">Content</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">SendUser</span>&gt;</span>user<span class="tag">&lt;/<span class="name">SendUser</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Address</span>&gt;</span>mobile<span class="tag">&lt;/<span class="name">Address</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">ReqRoot</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="2-经过"><a href="#2-经过" class="headerlink" title="2. 经过"></a>2. 经过</h3><p>既然调用失败，那就百度一下为什么调用失败。看到给的链接后面有个 <code>wsdl</code> 的东西，感觉不太对劲，于是乎搜索了一下 <code>wsdl</code>。问了一下同事，说这是历史久远的接口。</p>
+<h4 id="2-1-什么是WSDL？"><a href="#2-1-什么是WSDL？" class="headerlink" title="2.1 什么是WSDL？"></a>2.1 什么是WSDL？</h4><blockquote>
+<p>WSDL 是一种使用 XML 编写的文档。这种文档可描述某个 Web service。它可规定服务的位置，以及此服务提供的操作（或方法）。</p>
+</blockquote>
+<blockquote>
+<p>在 2001 年 3 月，WSDL 1.1 被 IBM、微软作为一个 W3C 记录（W3C note）提交到有关 XML 协议的 W3C XML 活动，用于描述网络服务。（W3C 记录仅供讨论。一项 W3C 记录的发布并不代表它已被 W3C 或 W3C 团队亦或任何 W3C 成员认可。）</p>
+</blockquote>
+<ul>
+<li>WSDL（Web Services Description Language）指网络服务描述语言</li>
+<li>WSDL 使用 XML 编写</li>
+<li>WSDL 是一种 XML 文档</li>
+<li>WSDL 用于描述网络服务</li>
+<li>WSDL 也可用于定位网络服务</li>
+<li>WSDL 还不是 W3C 标准</li>
+</ul>
+<h4 id="2-2-怎么使用"><a href="#2-2-怎么使用" class="headerlink" title="2.2 怎么使用"></a>2.2 怎么使用</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">可以用下面的这个链接进行测试，这是一个中国电视节目预告 Web 服务</span><br><span class="line">http://www.webxml.com.cn/webservices/ChinaTVprogramWebService.asmx?wsdl</span><br></pre></td></tr></table></figure>
+
+<p>我主要关注的是怎么用这个接口，起码能保证业务上的功能正常再去关注这是什么东西。于是乎开始搜索怎么才能让接口调用成功。</p>
+<p>突然发现这个接口是能够直接在浏览器上面打开的，不过其实打开了，也看不出什么东西，因为是一堆的 XML 文本。大概知道的就是这个文本里面定义了有哪些接口，还有接口的调用方式。</p>
+<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/wsdl%E7%BD%91%E9%A1%B5.png" alt="image-20221124152448072"></p>
+<p>然后在网上找啊找，都没怎么找到比较好的方式去调用，但是起码别人是能调通的。观察发现怎么有一个应用叫 SoapUI 能够生成请求的报文体呢（截图截全一点对大家都好）。于是乎自己下载了一个下来看一下。</p>
+<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/soapui.png" alt="image-20221124153100317"></p>
+<p>界面上就是上面的样子，填入 wsdl 的链接就能够比较直观的看到有哪些能够调用的方法，在对应的方法里面创建请求还会帮你填充好一些 SOAP 协议相关的东西（之前就是缺少了这一部分）。如果把请求部分填充完整，是能够使用 SoapUI 请求成功。</p>
+<h4 id="2-3-使用-Postman-调用"><a href="#2-3-使用-Postman-调用" class="headerlink" title="2.3 使用 Postman 调用"></a>2.3 使用 Postman 调用</h4><p>既然能够使用 SoapUI 请求成功，那么就要尝试一下怎样才能使用 Postman 请求成功了。简单分为以下三步：</p>
+<ul>
+<li>将请求的 Content-Type 设置为 text&#x2F;xml</li>
+<li>请求头部加上SOAPAction，值可以置为空</li>
+<li>将 SoapUI 中接口自动生成的部分填入到请求体的 Body 中，然后填充必要的内容。（接口中给定的文档是 XML 文本，因此需要使用<code>&lt;![CDATA[your_data]]&gt;</code>的格式，your_data替换为接口文档中的格式）（CDATA 代表字符数据，其中的数据可以包含 XML 标记，但是还是会被当做字符串）</li>
+</ul>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version=<span class="string">&quot;1.0&quot;</span> encoding=<span class="string">&quot;UTF-8&quot;</span>?&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">soapenv:Envelope</span> <span class="attr">xmlns:soapenv</span>=<span class="string">&quot;http://schemas.xmlsoap.org/soap/envelope/&quot;</span> <span class="attr">xmlns:dom</span>=<span class="string">&quot;http://domain.webservice.itsm.ffcs.com&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">soapenv:Header</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">soapenv:Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">dom:sendMsgNew</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">dom:request</span>&gt;</span></span><br><span class="line">                &lt;![CDATA[</span><br><span class="line">                &lt;ReqRoot&gt;</span><br><span class="line">                    &lt;Body&gt;</span><br><span class="line">                        &lt;ReqTime&gt;2022-10-27 10:03:02&lt;/ReqTime&gt;</span><br><span class="line">                        &lt;BillNo&gt;</span><br><span class="line">                            000000</span><br><span class="line">                        &lt;/BillNo&gt;</span><br><span class="line">                        &lt;Content&gt;消息成功发送&lt;/Content&gt;</span><br><span class="line">                        &lt;SendUser&gt;user&lt;/SendUser&gt;</span><br><span class="line">                        &lt;Address&gt;mobile&lt;/Address&gt;</span><br><span class="line">                    &lt;/Body&gt;</span><br><span class="line">                &lt;/ReqRoot&gt;</span><br><span class="line">               ]]&gt;</span><br><span class="line">            <span class="tag">&lt;/<span class="name">dom:request</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">dom:sendMsgNew</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">soapenv:Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">soapenv:Envelope</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="3-总结"><a href="#3-总结" class="headerlink" title="3. 总结"></a>3. 总结</h3><p>其实就是 WSDL 与 Soap 的相关知识，但是其实现在很少用，等什么时候有空了再详细看看吧。</p>
+]]></content>
+      <categories>
+        <category>日常踩坑</category>
+      </categories>
+      <tags>
+        <tag>日常</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>网络抓包工具使用</title>
+    <url>/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/</url>
+    <content><![CDATA[<h2 id="1-网络抓包原理"><a href="#1-网络抓包原理" class="headerlink" title="1. 网络抓包原理"></a>1. 网络抓包原理</h2><blockquote>
+<p>抓包实际上是分析网络协议的一种过程，只要网络数据流经过我们的节点，就能够对数据流进行抓包。</p>
+</blockquote>
+<h3 id="1-1-网卡或代理抓包"><a href="#1-1-网卡或代理抓包" class="headerlink" title="1.1 网卡或代理抓包"></a>1.1 网卡或代理抓包</h3><p>目前的抓包软件总体上可以分成两类：</p>
+<ul>
+<li>一种是设置代理抓取 http 包，比如Charles、mitmproxy这些软件。</li>
+<li>另一种是直接抓取经过本机网络的所有协议包，其中最出名的就是 wireshark 以及 Linux 自带的抓包软件命令 tcpdump。</li>
+</ul>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/15202375411791.jpg" alt="img"></p>
+<h3 id="1-2-http-与-https"><a href="#1-2-http-与-https" class="headerlink" title="1.2 http 与 https"></a>1.2 http 与 https</h3><p>http 与 https 最大的区别是 http 的数据包是不加密的， https 的数据包是加密的。因此对于 wireshark 这种在数据链路层进行抓包的工具，所获取到的 https 数据包是加密的，因此无法分析包的内容。而 Charles 等只要安装 Charles 的证书，就能够解密 https 数据包的内容。</p>
+<h2 id="2-tcpdump-使用"><a href="#2-tcpdump-使用" class="headerlink" title="2. tcpdump 使用"></a>2. tcpdump 使用</h2><blockquote>
+<p>tcpdump可以把抓取到的数据包导出为 wireshark 格式的文件。</p>
+</blockquote>
+<blockquote>
+<p>不重复造轮子，详情请看<a href="https://www.cnblogs.com/wongbingming/p/13212306.html">tcpdump使用指南</a>，或者参考 man 文档。</p>
+</blockquote>
+<h3 id="2-1-命令格式"><a href="#2-1-命令格式" class="headerlink" title="2.1 命令格式"></a>2.1 命令格式</h3><p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/20200628111325.png" alt="img"></p>
+<ul>
+<li><p><strong>option 可选参数</strong>：常用的有<code>-i 指定网卡名字</code>、<code>-w 保存抓包数据到文件</code>、<code>-r 从文件中读取抓包数据</code>、<code>-v\-vv\-vvv 输出更详细的内容</code>、<code>-n\-nn\-N 不解析域名\端口</code>。</p>
+</li>
+<li><p><strong>proto 类过滤器</strong>：根据协议进行过滤，可识别的关键词有： <code>tcp、udp、icmp、ip、ip6、arp、rarp、ether、wlan、fddi、tr、decnet</code>。</p>
+</li>
+<li><p><strong>direction 类过滤器</strong>：根据数据流向进行过滤，可识别的关键字有：<code>src、dst</code>，同时你可以使用逻辑运算符进行组合，比如 <code>src or dst</code>。</p>
+</li>
+<li><p><strong>type 类过滤器</strong>：可识别的关键词有：<code>host、net、port、portrange</code>，这些词后边需要再接参数。</p>
+</li>
+</ul>
+<h3 id="2-2-输出内容格式"><a href="#2-2-输出内容格式" class="headerlink" title="2.2 输出内容格式"></a>2.2 输出内容格式</h3><blockquote>
+<p>加入不同的可选参数，可能会使得输出的内容格式会有区别，但是能够触类旁通。</p>
+</blockquote>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo tcpdump -nn src host 172.25.122.140</span></span><br><span class="line">tcpdump: verbose output suppressed, use -v or -vv for full protocol decode</span><br><span class="line">listening on eth0, link-type EN10MB (Ethernet), capture size 262144 bytes</span><br><span class="line">11:21:04.200134 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [S], seq 3457030617, win 64240, options [mss 1460,sackOK,TS val 148049843 ecr 0,nop,wscale 7], length 0</span><br><span class="line">11:21:04.206621 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [.], ack 3549651488, win 502, length 0</span><br><span class="line">11:21:04.212251 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [P.], seq 0:517, ack 1, win 502, length 517</span><br></pre></td></tr></table></figure>
+
+<p>以最后一条数据为例：</p>
+<ol>
+<li><strong>第一列，时分秒毫秒</strong> ：11:21:04.212251</li>
+<li><strong>第二列，网络协议</strong> ：IP</li>
+<li><strong>第三列，发送方 IP + 端口</strong>：IP - 172.25.122.140 | 端口 - 40236</li>
+<li><strong>第四列，数据流向 &gt;</strong> ：从 172.25.122.140.40236 流向 14.215.177.39.443</li>
+<li><strong>第五列，接收方 IP + 端口</strong>：IP - 14.215.177.39 | 端口 - 443</li>
+<li><strong>第六列，冒号</strong><code>：</code></li>
+<li><strong>第七列， 数据包内容</strong>：包括 Flags 标识符，seq 号，ack 号，win 窗口，数据长度 length</li>
+</ol>
+<p><strong>Flags 标识符</strong>：</p>
+<ul>
+<li><code>[S]</code> : SYN（开始连接）</li>
+<li><code>[P]</code> : PSH（推送数据）</li>
+<li><code>[F]</code> : FIN （结束连接）</li>
+<li><code>[R]</code> : RST（重置连接）</li>
+<li><code>[.]</code> : 没有 Flag （意思是除上面四种类型外的其他情况，有可能是 ACK 也有可能是 URG）</li>
+</ul>
+<h2 id="3-Wireshark-使用"><a href="#3-Wireshark-使用" class="headerlink" title="3. Wireshark 使用"></a>3. Wireshark 使用</h2><blockquote>
+<p>Wireshark 使用中最难的，其实就是过滤器的使用，如何从海量请求数据包过滤出自己需要分析的内容。</p>
+</blockquote>
+<blockquote>
+<p>Wireshark 包括两种过滤器：</p>
+<ul>
+<li><p>捕获过滤器：抓包的过滤规则，只抓取特定条件的数据包</p>
+</li>
+<li><p>显示过滤器：对抓取到的数据再次过滤，只显示符合特定规则数据包</p>
+</li>
+</ul>
+</blockquote>
+<h3 id="3-1-抓包示例"><a href="#3-1-抓包示例" class="headerlink" title="3.1 抓包示例"></a>3.1 抓包示例</h3><blockquote>
+<p>使用 Wireshark 抓取 ping <a href="http://www.baidu.com/">www.baidu.com</a> 的数据包</p>
+</blockquote>
+<ol>
+<li>打开 Wireshark 主界面。</li>
+</ol>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104161119826.png" alt="image-20230104161119826"></p>
+<ol start="2">
+<li>选择菜单栏上<code>捕获-&gt;选项-&gt;选择网卡-&gt;开始</code>，或者直接在主界面中选择需要抓包的网卡就能够开始抓包（网卡通常只会处理发送给它自身地址的流量，如果想要捕获所有经过网卡的流量就需要开启混杂模式）。</li>
+</ol>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104162023100.png" alt="image-20230104162023100"></p>
+<ol start="3">
+<li>启动之后，Wireshark 就处于抓包状态了。</li>
+</ol>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104162352660.png" alt="image-20230104162352660"></p>
+<ol start="4">
+<li>在 cmd 窗口执行<code>ping www.baidu.com</code>命令。</li>
+</ol>
+<img src="image-20230104162742232.png" alt="image-20230104162742232" style="zoom:60%;" />
+
+<ol start="5">
+<li>操作完成之后，就能在 Wireshark 中看到抓取的数据包了。为了避免其他不相关的数据包影响分析，可以在过滤栏设置显示过滤条件。<code>ip.addr == 14.215.177.39 and icmp</code>表示只显示源主机 IP 或者目标主机 IP 为 <code>14.215.177.39</code> 且 ICMP 协议的数据包。</li>
+</ol>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104163323961.png" alt="image-20230104163323961"></p>
+<h3 id="3-2-界面介绍"><a href="#3-2-界面介绍" class="headerlink" title="3.2 界面介绍"></a>3.2 界面介绍</h3><p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104164142717.png" alt="image-20230104164142717"></p>
+<h4 id="3-2-1-捕获过滤器"><a href="#3-2-1-捕获过滤器" class="headerlink" title="3.2.1 捕获过滤器"></a>3.2.1 捕获过滤器</h4><h5 id="3-2-1-1-界面设置"><a href="#3-2-1-1-界面设置" class="headerlink" title="3.2.1.1 界面设置"></a>3.2.1.1 界面设置</h5><p>能够在<code>捕获-&gt;捕获过滤器</code>中进行设置，只抓取符合规则的数据包，能够在开始抓包前进行设置。</p>
+<img src="image-20230104170403368.png" alt="image-20230104170403368"  />
+
+<img src="image-20230104170503369.png" alt="image-20230104170503369"  />
+
+<h5 id="3-2-1-2-捕获过滤器规则"><a href="#3-2-1-2-捕获过滤器规则" class="headerlink" title="3.2.1.2 捕获过滤器规则"></a>3.2.1.2 捕获过滤器规则</h5><blockquote>
+<p>捕获过滤器规则设置规则跟 tcpdump 是一样的，只介绍简单的过滤规则，详情请翻阅<a href="https://www.wireshark.org/docs/wsug_html_chunked/ChCapCaptureFilterSection.html">官方文档</a></p>
+</blockquote>
+<p>捕获过滤器的设置主要包括：网络类型 Type(host、net、port)、方向 Dir(src、dst)、协议类型 Proto(ether、ip、tcp、udp、http、icmp、ftp等)、逻辑运算符(&amp;&amp;、||、! 或者 and、or、not)。</p>
+<p>以下显示一些使用示例：</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">host 172.18.5.4     # 只捕捉源地址或者目的地址为172.18.5.4的流量</span><br><span class="line">net 192.168.0.0/24  # 捕捉192.168.0.0/24网段中的流量</span><br><span class="line">src net 192.168.0.0/24 # 捕捉源地址IP在网段192.168.0.0/24中的流量</span><br><span class="line">not broadcast and not multicast # 仅捕捉单播流量，不捕捉广播和多播的流量</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="3-2-2-显示过滤器"><a href="#3-2-2-显示过滤器" class="headerlink" title="3.2.2 显示过滤器"></a>3.2.2 显示过滤器</h4><h5 id="3-2-2-1-界面设置"><a href="#3-2-2-1-界面设置" class="headerlink" title="3.2.2.1 界面设置"></a>3.2.2.1 界面设置</h5><p>对抓取到的数据再次过滤，只显示符合特定规则数据包。显示过滤器能够在<code>分析-&gt;显示过滤器</code>中进行设置。</p>
+<p>在主界面中右键选择<code>作为过滤器应用</code>有惊喜，可以将界面中的一些数据作为过滤规则。</p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104170955371.png" alt="image-20230104170955371"></p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104173929469.png" alt="image-20230104173929469"></p>
+<h5 id="3-2-2-2-显示过滤器规则"><a href="#3-2-2-2-显示过滤器规则" class="headerlink" title="3.2.2.2 显示过滤器规则"></a>3.2.2.2 显示过滤器规则</h5><blockquote>
+<p>详细设置规则请参阅<a href="https://www.wireshark.org/docs/wsug_html_chunked/ChWorkBuildDisplayFilterSection.html">官方文档</a></p>
+</blockquote>
+<p>设置规则基本上是<code>key 运算符 value</code>的格式，运算符可以取<code>==、!=、===、!==、&gt;、&lt;、&gt;=、&lt;=、~</code>。</p>
+<p>使用示例：</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">tcp # 只显示tcp协议的数据包列表</span><br><span class="line">http # 只显示http协议的数据包列表</span><br><span class="line">ip.src == 192.168.1.104 # 显示源地址为192.168.1.104的数据包列表</span><br><span class="line">ip.dst == 192.168.1.104 # 显示目标地址为192.168.1.104的数据包列表</span><br><span class="line">ip.addr == 192.168.1.104 # 显示源IP地址或目标IP地址为192.168.1.104的数据包列表</span><br><span class="line">tcp.port == 80 # 显示源主机或者目的主机端口为80的数据包列表</span><br><span class="line">tcp.srcport == 80 # 只显示TCP协议的源主机端口为80的数据包列表</span><br><span class="line">tcp.dstport == 80 # 只显示TCP协议的目的主机端口为80的数据包列表</span><br><span class="line">http.request.method == &quot;GET&quot; # 只显示HTTP GET方法的</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-2-3-数据包列表区"><a href="#3-2-3-数据包列表区" class="headerlink" title="3.2.3 数据包列表区"></a>3.2.3 数据包列表区</h4><p>显示捕获到的数据包，每一行代表一个数据包，每个数据包包含编号、时间戳、源地址、目的地址、协议、长度以及数据包信息。不同的协议数据包使用了不同的颜色显示进行区分，可以在<code>视图-&gt;着色规则</code>中查看详细的设定。</p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104175334347.png" alt="image-20230104175334347"></p>
+<img src="image-20230104165647707.png" alt="image-20230104165647707" style="zoom:50%;" />
+
+<h4 id="3-2-4-详细数据区"><a href="#3-2-4-详细数据区" class="headerlink" title="3.2.4 详细数据区"></a>3.2.4 详细数据区</h4><p>数据包详细信息面板是最重要的，包含了数据包的所有详细信息内容，从物理层到应用层的数据，用来查看协议中的每一个字段信息。</p>
+<p><strong>参照 OSI 七层模型， 每一行代表着每一层中的数据，根据不同层次的不同协议，显示可能会有所不同。</strong></p>
+<ul>
+<li>Frame：物理层的数据帧状况，即全部数据。</li>
+<li>Ethernet II：数据链路层以太网帧头部信息。</li>
+<li>Internet Protocol Version 4：IPv4 包的头部信息。</li>
+<li>Transmission Control Protocol：TCP 协议的头部信息。</li>
+<li>Hypertext Transfer Protocol：HTTP数据包的所有信息。</li>
+</ul>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104180450263.png" alt="image-20230104180450263"></p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105105346183.png" alt="image-20230105105346183"></p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105155339201.png" alt="image-20230105155339201"></p>
+<h4 id="3-2-5-数据包字节区"><a href="#3-2-5-数据包字节区" class="headerlink" title="3.2.5 数据包字节区"></a>3.2.5 数据包字节区</h4><p>显示原始接收到的数据包字节，通过点击数据包详情区对应的字段，会在数据包字节区显示所对应的数据。</p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104181425789.png" alt="image-20230104181425789"></p>
+<h3 id="3-3-抓包-TCP-三次握手"><a href="#3-3-抓包-TCP-三次握手" class="headerlink" title="3.3 抓包 TCP 三次握手"></a>3.3 抓包 TCP 三次握手</h3><h4 id="3-3-1-TCP-三次握手过程"><a href="#3-3-1-TCP-三次握手过程" class="headerlink" title="3.3.1 TCP 三次握手过程"></a>3.3.1 TCP 三次握手过程</h4><blockquote>
+<p>要分析抓到数据包，首先需要了解其原理</p>
+</blockquote>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105165221418.png" alt="image-20230105165221418"></p>
+<ol>
+<li>TCP服务器进程先创建传输控制块TCB，时刻准备接受客户进程的连接请求，此时服务器就进入了LISTEN（监听）状态；</li>
+<li>TCP客户进程也是先创建传输控制块TCB，然后向服务器发出连接请求报文，这是报文首部中的同部位 SYN&#x3D;1，同时选择一个初始序列号 seq&#x3D;x ，此时，TCP客户端进程进入了 SYN-SENT（同步已发送状态）状态。<strong>TCP规定，SYN报文段（SYN&#x3D;1的报文段）不能携带数据，但需要消耗掉一个序号</strong>；</li>
+<li>TCP服务器收到请求报文后，如果同意连接，则发出确认报文。确认报文中应该 ACK&#x3D;1，SYN&#x3D;1，确认号是ack&#x3D;x+1，同时也要为自己初始化一个序列号 seq&#x3D;y，此时，TCP服务器进程进入了SYN-RCVD（同步收到）状态。<strong>这个报文也不能携带数据，但是同样要消耗一个序号</strong>；</li>
+<li>TCP客户进程收到确认后，还要向服务器给出确认。确认报文的ACK&#x3D;1，ack&#x3D;y+1，自己的序列号seq&#x3D;x+1，此时，TCP连接建立，客户端进入ESTABLISHED（已建立连接）状态。<strong>TCP规定，ACK报文段可以携带数据，但是如果不携带数据则不消耗序号</strong>；</li>
+<li>当服务器收到客户端的确认后也进入ESTABLISHED状态，此后双方就可以开始通信了；</li>
+</ol>
+<h4 id="3-3-2-抓取-TCP-数据包"><a href="#3-3-2-抓取-TCP-数据包" class="headerlink" title="3.3.2 抓取 TCP 数据包"></a>3.3.2 抓取 TCP 数据包</h4><ol>
+<li>在 cmd 使用 <code>ping jandan.net</code>获取域名 IP；</li>
+</ol>
+<img src="image-20230105114055220.png" alt="image-20230105114055220" style="zoom:50%;" />
+
+<ol start="2">
+<li>启动 Wireshark 开始抓包；</li>
+<li>设置显示过滤器<code>ip.addr == 59.37.142.220 </code>；</li>
+</ol>
+<img src="image-20230105114302324.png" alt="image-20230105114302324" style="zoom:50%;" />
+
+<ol start="4">
+<li>浏览器中访问 <code>http://jandan.net/</code>；</li>
+</ol>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105142256229.png" alt="image-20230105142256229"></p>
+<p>从图中可以看到，这次访问 TCP 握手的三个过程。注意的是因为我这不是第一次访问网站，所以会有关闭之前连接的请求。然后访问的时候发起了两个 TCP 请求，可以通过端口号的不同进行区分，我们关注的是本地 54418 端口到服务器 80 端口的 TCP 请求。</p>
+<h4 id="3-3-3-第一次握手数据包"><a href="#3-3-3-第一次握手数据包" class="headerlink" title="3.3.3 第一次握手数据包"></a>3.3.3 第一次握手数据包</h4><p>WireShark 中显示了两个<code>Sequence Number</code>一个为<code>0</code>，一个为<code>605892471</code>，是因为 WireShark 为了更加容易观察进行的处理，一个是相对 Seq，一个是实际请求的 Seq，如果分别点击会发现数据包字节区是对应的同一块区域。</p>
+<ul>
+<li>SYN 标志位置为 1，表示向服务器请求建立连接；</li>
+<li>Seq 序列号为 605892471，相对位置为 0，表示当前客户端当前还没有发送数据；</li>
+</ul>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105144046541.png" alt="image-20230105144046541"></p>
+<h4 id="3-3-4-第二次握手数据包"><a href="#3-3-4-第二次握手数据包" class="headerlink" title="3.3.4 第二次握手数据包"></a>3.3.4 第二次握手数据包</h4><p>第二次握手数据包是服务器返回给客户端的，可以看到是从 59.37.142.220 的 80 端口到本机IP 的 54418 端口。跟 Seq 序列号一样，Acknowledgement number 也有相对与实际的区别。</p>
+<ul>
+<li>服务器响应新生成了 Seq 序列号：483437807，相对位置为 0， 表示当前服务器还没有发送数据；</li>
+<li>ack 设置为请求的 Seq 序列号 + 1，即为 605892472，表示响应的是第一次握手的数据包；</li>
+<li>ACK 和 SYN 标志位都置为 1，表示服务器同意建立连接并返回响应；</li>
+</ul>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105145332078.png" alt="image-20230105145332078"></p>
+<h4 id="3-3-5-第三次握手数据包"><a href="#3-3-5-第三次握手数据包" class="headerlink" title="3.3.5 第三次握手数据包"></a>3.3.5 第三次握手数据包</h4><p>第三次握手就比较简单了，建立完成之后就能开始数据交互：</p>
+<ul>
+<li>Seq 序列号为服务器响应 ack 的值，相对位置为 1，表示已经发送一个数据；</li>
+<li>ack 为服务器响应 Seq 序列号的值 + 1，表示当前客户端成功接收到的数据位数，虽然服务端没有发送任何有效数据，确认号还是被加 1，因为包含 SYN 或 FIN 标志位（并不会对有效数据的计数产生影响，因为含有SYN或FIN标志位的包并不携带有效数据)；</li>
+<li>ACK 标志位置 1，表示已经接收到第二次握手数据包；</li>
+</ul>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105150139918.png" alt="image-20230105150139918"></p>
+]]></content>
+      <categories>
+        <category>计算机网络</category>
+      </categories>
   </entry>
 </search>
