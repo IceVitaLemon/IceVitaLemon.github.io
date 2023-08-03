@@ -2,6 +2,17 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>http://example.com/2023/08/03/WebRTC%E7%AE%80%E4%BB%8B/</loc>
+    
+    <lastmod>2023-08-03T15:13:43.216Z</lastmod>
+    
+    <date>1691075541000</date>
+    <title>WebRTC简介 | IceVitalemon's Blog</title>
+    
+    <desc>开坑WebRTC</desc>
+  </url>
+  
+  <url>
     <loc>http://example.com/2023/07/20/Keepalived%E9%83%A8%E7%BD%B2%E9%AB%98%E5%8F%AF%E7%94%A8%E9%9B%86%E7%BE%A4/</loc>
     
     <lastmod>2023-08-03T15:06:37.318Z</lastmod>
