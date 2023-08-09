@@ -31,7 +31,7 @@
 <meta property="og:description" content="简要介绍WebRTC协议中的概念">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2023-08-03T15:12:21.000Z">
-<meta property="article:modified_time" content="2023-08-09T10:11:20.319Z">
+<meta property="article:modified_time" content="2023-08-09T14:13:59.014Z">
 <meta property="article:author" content="Junhao Lin">
 <meta property="article:tag" content="WebRTC">
 <meta name="twitter:card" content="summary">
@@ -259,7 +259,7 @@
         <i class="far fa-calendar-check"></i>
       </span>
       <span class="post-meta-item-text">更新于</span>
-      <time title="修改时间：2023-08-09 18:11:20" itemprop="dateModified" datetime="2023-08-09T18:11:20+08:00">2023-08-09</time>
+      <time title="修改时间：2023-08-09 22:13:59" itemprop="dateModified" datetime="2023-08-09T22:13:59+08:00">2023-08-09</time>
     </span>
     <span class="post-meta-item">
       <span class="post-meta-item-icon">
@@ -278,7 +278,7 @@
         <i class="far fa-file-word"></i>
       </span>
       <span class="post-meta-item-text">本文字数：</span>
-      <span>1.3k</span>
+      <span>1.5k</span>
     </span>
     <span class="post-meta-item" title="阅读时长">
       <span class="post-meta-item-icon">
@@ -298,7 +298,8 @@
     
     <div class="post-body" itemprop="articleBody">
         <h3 id="1-WebRTC是什么？"><a href="#1-WebRTC是什么？" class="headerlink" title="1. WebRTC是什么？"></a>1. WebRTC是什么？</h3><blockquote>
-<p><strong>端对端的音视频通信协议</strong>，但是由于现实网络环境原比局域网复杂，因此需要服务器参与中间协商，还包括安全连接的建立。</p>
+<p><strong>端对端的音视频通信协议</strong>，但是由于现实网络环境原比局域网复杂，因此需要中继服务器参与中间协商，还包括安全连接的建立。</p>
+<p>端对端音视频应用最直观的应用就是视频会议&#x2F;远程访问，不同于视频直播（一对多模式）。</p>
 </blockquote>
 <p>WebRTC 是 Web 实时通信(Real-Time Communication)的缩写，它既是 API 也是协议。</p>
 <p>WebRTC 协议是两个 WebRTC Agent 协商双向安全实时通信的一组规则。开发人员可以通过 WebRTC API 使用 WebRTC 协议。目前 WebRTC API 仅有 JavaScript 版本，但是可以在其他语言中找到其他实现了 WebRTC 协议的工具，如 Golang 的 <a target="_blank" rel="noopener" href="https://github.com/pion/webrtc">Pion WebRTC</a>。</p>
@@ -347,13 +348,27 @@
 <p>ICE 成功连接后，WebRTC 就会继续建立加密传输。加密传输用于音频，视频和数据。</p>
 </blockquote>
 <p>现在我们有了双向通信（基于 ICE），我们需要建立安全的通信。</p>
-<p>WebRTC 中会传输两种数据，一种是 DataChannel 中的数据包 （可以理解为字符数据），一种是 RTP 中的音&#x2F;视频数据。在实时通信中，由于网络不稳定性和实时性的要求，使用可靠的 TCP 传输会引入过多的延迟，因此数据传输一般使用 UDP。</p>
+<p>WebRTC 中会传输两种数据，一种是 DataChannel 中的消息 （可以理解为字符数据），一种是 RTP 中的音&#x2F;视频数据。</p>
 <p>所有需要两种协议来保证 WebRTC传输的数据安全：</p>
 <ul>
-<li>**DTLS(Datagram Transport Layer Security)**：基于 UDP 的 TLS。与 HTTPS 不同，WebRTC 不使用中央授权来颁发证书。相反，WebRTC 只是判断通过 DTLS 交换的证书是否与通过信令共享的签名相符。然后，此 DTLS 连接可以被用于传输 DataChannel 消息。</li>
-<li>**SRTP(Secure Real-time Transport Protocol)**：SRTP 来保护的 RTP 数据包安全，在 RTP 的基础上增加了加密和认证机制，以保护通信数据免受恶意攻击和窃听。WebRTC 从协商的 DTLS 会话中提取密钥，用来初始化 SRTP 会话。</li>
+<li><strong>DTLS(Datagram Transport Layer Security)</strong> ：基于 UDP 的 TLS 。与 HTTPS 不同，WebRTC 不使用中央授权来颁发证书。相反，WebRTC 只是判断通过 DTLS 交换的证书是否与通过信令共享的签名相符。然后，此 DTLS 连接可以被用于传输 DataChannel 消息。（基于UDP并不是说 DataChannel 传输消息使用 UDP，只是DTLS 协议使用 UDP 来完成加密认证的过程，真正传输 DataChannel 消息的是 SCTP）。</li>
+<li><strong>SRTP(Secure Real-time Transport Protocol)</strong> ：SRTP 来保护的 RTP 数据包安全，在 RTP 的基础上增加了加密和认证机制，以保护通信数据免受恶意攻击和窃听。WebRTC 从协商的 DTLS 会话中提取密钥，用来初始化 SRTP 会话。</li>
 </ul>
-<h4 id="2-4-通信"><a href="#2-4-通信" class="headerlink" title="2.4 通信"></a>2.4 通信</h4><h3 id="3-WebRTC-时序图"><a href="#3-WebRTC-时序图" class="headerlink" title="3. WebRTC 时序图"></a>3. WebRTC 时序图</h3><hr>
+<h4 id="2-4-通信"><a href="#2-4-通信" class="headerlink" title="2.4 通信"></a>2.4 通信</h4><blockquote>
+<p>在前面的准备工作都做完之后，我们得到了两个具有安全的双向通信功能的 WebRTC Agent。</p>
+</blockquote>
+<p>WebRTC 使用两个协议来进行通信，分别是：</p>
+<ul>
+<li><strong>RTP(Real-time Transport Protocol)</strong> ：使用 RTP 来交换用 SRTP 加密过的媒体数据。</li>
+<li><strong>SCTP(Stream Control Transmission Protocol)</strong> ：使用 SCTP 发送和接收那些用 DTLS 加密过的 DataChannel 消息，SCTP 与 TCP、UDP 一样是传输层协议。</li>
+</ul>
+<h3 id="3-WebRTC-时序图"><a href="#3-WebRTC-时序图" class="headerlink" title="3. WebRTC 时序图"></a>3. WebRTC 时序图</h3><blockquote>
+<p>时序图中的流程部分与 WebRTC API 的调用流程相关。</p>
+</blockquote>
+<blockquote>
+<p>在开发中，我们其实不特别关注 API 的调用流程，而是关注音&#x2F;视频数据捕获，SDP信令服务器开发</p>
+</blockquote>
+<hr>
 <p>参考连接：</p>
 <p><a target="_blank" rel="noopener" href="https://webrtcforthecurious.com/zh/">WebRTC For The Curious</a></p>
 
