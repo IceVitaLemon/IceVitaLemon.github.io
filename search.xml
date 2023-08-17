@@ -46,59 +46,6 @@
       </tags>
   </entry>
   <entry>
-    <title>Go中的new与make</title>
-    <url>/2023/04/07/Go%E4%B8%AD%E7%9A%84new%E4%B8%8Emake/</url>
-    <content><![CDATA[<h3 id="Go中的数据类型"><a href="#Go中的数据类型" class="headerlink" title="Go中的数据类型"></a>Go中的数据类型</h3><p>Go 中的数据类型分两种：</p>
-<ul>
-<li>值类型：布尔、数字、字符串 String、数组 Array、结构体 Struct</li>
-<li>引用类型：切片 Slice、字典 Map、通道 Channel、函数 Function、指针 Pointer、接口 Interface</li>
-</ul>
-<h3 id="图示创建切片"><a href="#图示创建切片" class="headerlink" title="图示创建切片"></a>图示创建切片</h3><figure class="highlight go"><table><tr><td class="code"><pre><span class="line">x := []<span class="type">int</span>&#123;<span class="number">2</span>,<span class="number">3</span>,<span class="number">5</span>,<span class="number">7</span>,<span class="number">11</span>&#125;     <span class="comment">// 先创建了一个数组[5]int，随后创建了一个指向该数组的切片</span></span><br><span class="line">y := x[<span class="number">1</span>:<span class="number">3</span>]                <span class="comment">// 切片y与切片x使用同一个底层数组[5]int，只是窗口范围不同</span></span><br></pre></td></tr></table></figure>
-
-
-
-<p><img src="/2023/04/07/Go%E4%B8%AD%E7%9A%84new%E4%B8%8Emake/image-20230724210253450.png" alt="image-20230724210253450"></p>
-<figure class="highlight go"><table><tr><td class="code"><pre><span class="line">a := <span class="built_in">new</span>([]<span class="type">int</span>)     <span class="comment">// 首先new([]int)创建了一个切片，但是切片没有指向任何数组，所有底层指针为nil，随后返回一个指向切片类型的指针赋值给指针a</span></span><br><span class="line">b := <span class="built_in">make</span>([]<span class="type">int</span>, <span class="number">0</span>) <span class="comment">// 首先make()创建了一个切片和一个数组[0]int，并且初始化切片指针指向[0]int，返回一个切片类型赋值给变量b</span></span><br></pre></td></tr></table></figure>
-
-<p><img src="/2023/04/07/Go%E4%B8%AD%E7%9A%84new%E4%B8%8Emake/image-20230724210636292.png" alt="image-20230724210636292"></p>
-<h3 id="new-和make-的区别"><a href="#new-和make-的区别" class="headerlink" title="new()和make()的区别"></a>new()和make()的区别</h3><blockquote>
-<p>看起来两者没有什么区别，都在堆上分配内存，但是它们的行为不同，适用于不同的类型。</p>
-</blockquote>
-<ul>
-<li><p><code>new</code> 函数：</p>
-<ul>
-<li><code>new(T) </code>为每个新的类型 <code>T</code> 分配一片内存，初始化为 <code>0</code> 并且返回类型为 <code>*T</code> 的内存地址。返回一个指向类型 <code>T</code> ，值为 <code>0</code> 的地址的指针（所以需要赋值给指针），相当于 <code>&amp;T&#123;&#125;</code> 。</li>
-<li><strong>适用于创建值类型的变量，不适用于创建引用类型的变量。</strong></li>
-<li>如：<code>p := new(int)</code>。</li>
-</ul>
-</li>
-<li><p><code>make</code> 函数：</p>
-<ul>
-<li><code>make(T)</code> 返回一个类型为T的初始值。</li>
-<li><code>make(T, args...)</code> 用于创建引用类型的实例，并进行初始化。</li>
-<li><strong>只适用于3种内建的引用类型：切片 Slice、字典 Map、通道 Channel</strong>。</li>
-<li>如：<code>slice := make([]int, 5)</code> 创建一个长度为 5 的整形切片。</li>
-</ul>
-</li>
-</ul>
-<blockquote>
-<ol>
-<li><em>slice、map 以及 channel 都是 golang 内建的一种引用类型，三者在内存中存在多个组成部分， 需要对内存组成部分初始化后才能使用，而 make 就是对三者进行初始化的一种操作方式</em></li>
-<li><em>new 获取的是存储指定变量内存地址的一个变量，对于变量内部结构并不会执行相应的初始化操作， 所以 slice、map、channel 需要 make 进行初始化并获取对应的内存地址，而非 new 简单的获取内存地址</em></li>
-</ol>
-</blockquote>
-<hr>
-<p>参考资料：</p>
-<p><a href="https://github.com/unknwon/the-way-to-go_ZH_CN/blob/master/eBook/07.2.md">Go入门指南</a></p>
-]]></content>
-      <categories>
-        <category>Go</category>
-      </categories>
-      <tags>
-        <tag>Go</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>Hexo个人博客搭建</title>
     <url>/2022/08/17/Hexo%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2%E6%90%AD%E5%BB%BA/</url>
     <content><![CDATA[<h3 id="1-前言"><a href="#1-前言" class="headerlink" title="1. 前言"></a>1. 前言</h3><p>最近想找个地方简单地记录下自己学习过的一些东西，但是又不想用 CSDN 这种博客平台。寻思着就自己动手搞一下，目的是搭建一个比较简单的博客记录些思路，不太过花里胡哨，清晰明了即可。</p>
@@ -358,6 +305,59 @@
       </categories>
       <tags>
         <tag>Hexo</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Go中的new与make</title>
+    <url>/2023/04/07/Go%E4%B8%AD%E7%9A%84new%E4%B8%8Emake/</url>
+    <content><![CDATA[<h3 id="Go中的数据类型"><a href="#Go中的数据类型" class="headerlink" title="Go中的数据类型"></a>Go中的数据类型</h3><p>Go 中的数据类型分两种：</p>
+<ul>
+<li>值类型：布尔、数字、字符串 String、数组 Array、结构体 Struct</li>
+<li>引用类型：切片 Slice、字典 Map、通道 Channel、函数 Function、指针 Pointer、接口 Interface</li>
+</ul>
+<h3 id="图示创建切片"><a href="#图示创建切片" class="headerlink" title="图示创建切片"></a>图示创建切片</h3><figure class="highlight go"><table><tr><td class="code"><pre><span class="line">x := []<span class="type">int</span>&#123;<span class="number">2</span>,<span class="number">3</span>,<span class="number">5</span>,<span class="number">7</span>,<span class="number">11</span>&#125;     <span class="comment">// 先创建了一个数组[5]int，随后创建了一个指向该数组的切片</span></span><br><span class="line">y := x[<span class="number">1</span>:<span class="number">3</span>]                <span class="comment">// 切片y与切片x使用同一个底层数组[5]int，只是窗口范围不同</span></span><br></pre></td></tr></table></figure>
+
+
+
+<p><img src="/2023/04/07/Go%E4%B8%AD%E7%9A%84new%E4%B8%8Emake/image-20230724210253450.png" alt="image-20230724210253450"></p>
+<figure class="highlight go"><table><tr><td class="code"><pre><span class="line">a := <span class="built_in">new</span>([]<span class="type">int</span>)     <span class="comment">// 首先new([]int)创建了一个切片，但是切片没有指向任何数组，所有底层指针为nil，随后返回一个指向切片类型的指针赋值给指针a</span></span><br><span class="line">b := <span class="built_in">make</span>([]<span class="type">int</span>, <span class="number">0</span>) <span class="comment">// 首先make()创建了一个切片和一个数组[0]int，并且初始化切片指针指向[0]int，返回一个切片类型赋值给变量b</span></span><br></pre></td></tr></table></figure>
+
+<p><img src="/2023/04/07/Go%E4%B8%AD%E7%9A%84new%E4%B8%8Emake/image-20230724210636292.png" alt="image-20230724210636292"></p>
+<h3 id="new-和make-的区别"><a href="#new-和make-的区别" class="headerlink" title="new()和make()的区别"></a>new()和make()的区别</h3><blockquote>
+<p>看起来两者没有什么区别，都在堆上分配内存，但是它们的行为不同，适用于不同的类型。</p>
+</blockquote>
+<ul>
+<li><p><code>new</code> 函数：</p>
+<ul>
+<li><code>new(T) </code>为每个新的类型 <code>T</code> 分配一片内存，初始化为 <code>0</code> 并且返回类型为 <code>*T</code> 的内存地址。返回一个指向类型 <code>T</code> ，值为 <code>0</code> 的地址的指针（所以需要赋值给指针），相当于 <code>&amp;T&#123;&#125;</code> 。</li>
+<li><strong>适用于创建值类型的变量，不适用于创建引用类型的变量。</strong></li>
+<li>如：<code>p := new(int)</code>。</li>
+</ul>
+</li>
+<li><p><code>make</code> 函数：</p>
+<ul>
+<li><code>make(T)</code> 返回一个类型为T的初始值。</li>
+<li><code>make(T, args...)</code> 用于创建引用类型的实例，并进行初始化。</li>
+<li><strong>只适用于3种内建的引用类型：切片 Slice、字典 Map、通道 Channel</strong>。</li>
+<li>如：<code>slice := make([]int, 5)</code> 创建一个长度为 5 的整形切片。</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<ol>
+<li><em>slice、map 以及 channel 都是 golang 内建的一种引用类型，三者在内存中存在多个组成部分， 需要对内存组成部分初始化后才能使用，而 make 就是对三者进行初始化的一种操作方式</em></li>
+<li><em>new 获取的是存储指定变量内存地址的一个变量，对于变量内部结构并不会执行相应的初始化操作， 所以 slice、map、channel 需要 make 进行初始化并获取对应的内存地址，而非 new 简单的获取内存地址</em></li>
+</ol>
+</blockquote>
+<hr>
+<p>参考资料：</p>
+<p><a href="https://github.com/unknwon/the-way-to-go_ZH_CN/blob/master/eBook/07.2.md">Go入门指南</a></p>
+]]></content>
+      <categories>
+        <category>Go</category>
+      </categories>
+      <tags>
+        <tag>Go</tag>
       </tags>
   </entry>
   <entry>
@@ -2482,37 +2482,6 @@
       </tags>
   </entry>
   <entry>
-    <title>MySQL储存过程游标使用踩坑（NOT FOUND）</title>
-    <url>/2022/08/30/MySQL%E5%82%A8%E5%AD%98%E8%BF%87%E7%A8%8B%E6%B8%B8%E6%A0%87%E4%BD%BF%E7%94%A8%E8%B8%A9%E5%9D%91%EF%BC%88NOT-FOUND%EF%BC%89/</url>
-    <content><![CDATA[<h3 id="1-具体问题"><a href="#1-具体问题" class="headerlink" title="1. 具体问题"></a>1. 具体问题</h3><p>在使用游标的过程中，通常都会使用未找到（NOT FOUND或者SQLSTATE ‘02000’）的条件来标识游标的结束。</p>
-<p>即定义一个变量finished初始化为FALSE，并且定义一个事件处理程序处理NOT FOUND异常（FETCH时，游标已经达到末尾）将变量finished设置为TRUE，并通过检查变量finished来结束循环。</p>
-<h3 id="2-问题原因"><a href="#2-问题原因" class="headerlink" title="2. 问题原因"></a>2. 问题原因</h3><p>坑就在这个NOT FOUNT异常，作用范围是整个储存过程。当FETCH获取下一行数据为空时，会抛出NOT FOUND异常。但是！但是！当使用普通的SELECT语句时，查询为空也会抛出NOT FOUND异常，就会触发设定好的NOT FOUND异常处理程序，所以如果遍历游标的循环体内如果存在查询为空，会导致循环提前退出。</p>
-<h3 id="3-复现"><a href="#3-复现" class="headerlink" title="3. 复现"></a>3. 复现</h3><h4 id="3-1-相关的表"><a href="#3-1-相关的表" class="headerlink" title="3.1 相关的表"></a>3.1 相关的表</h4><ul>
-<li>inst（inst_id, tenant_id, user_id）</li>
-<li>data_resource(resource_id, inst_id)</li>
-</ul>
-<h4 id="3-2-错误示例"><a href="#3-2-错误示例" class="headerlink" title="3.2 错误示例"></a>3.2 错误示例</h4><p>这里在游标循环里面使用inst_id查询了关联表data_resource，但是当data_resource表中没有这条数据的时候就会出现NOT FOUND异常，将finished设置为TRUE，提前结束游标循环。如，本来是要显示inst_id为1、2、3这三行，但是当inst_id&#x3D;2时，data_resource表查询为空，就只显示inst_id为1这一行。</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">    DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">    DECLARE v_tenant_id BIGINT;</span><br><span class="line">    DECLARE v_user_id BIGINT;</span><br><span class="line">    DECLARE v_resource_id BIGINT;</span><br><span class="line">    -- 定义游标循环结束条件</span><br><span class="line">    DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">    -- 定义游标</span><br><span class="line">    DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">    -- 定义NOT FOUND结束处理程序</span><br><span class="line">    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">    </span><br><span class="line">    -- 开始使用游标</span><br><span class="line">    OPEN my_cursor;</span><br><span class="line">        foreach_inst: LOOP</span><br><span class="line">        FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 判断游标是否已经达到末尾</span><br><span class="line">            IF finished = TRUE THEN</span><br><span class="line">                LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">            END IF;</span><br><span class="line">            -- 显示当前行</span><br><span class="line">            SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 问题行！！！！</span><br><span class="line">            SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">            -- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">        -- 回到标签foreach_inst</span><br><span class="line">        END LOOP foreach_inst;</span><br><span class="line">    -- 关闭游标</span><br><span class="line">    CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="3-3-正确示例"><a href="#3-3-正确示例" class="headerlink" title="3.3 正确示例"></a>3.3 正确示例</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">    DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">    DECLARE v_tenant_id BIGINT;</span><br><span class="line">    DECLARE v_user_id BIGINT;</span><br><span class="line">    DECLARE v_resource_id BIGINT;</span><br><span class="line">    -- 定义游标循环结束条件</span><br><span class="line">    DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">    -- 定义游标</span><br><span class="line">    DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">    -- 定义NOT FOUND结束处理程序</span><br><span class="line">    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">    </span><br><span class="line">    -- 开始使用游标</span><br><span class="line">    OPEN my_cursor;</span><br><span class="line">        foreach_inst: LOOP</span><br><span class="line">        FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 判断游标是否已经达到末尾</span><br><span class="line">            IF finished = TRUE THEN</span><br><span class="line">                LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">            END IF;</span><br><span class="line">            -- 显示当前行</span><br><span class="line">            SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 问题行！！！！</span><br><span class="line">            -- SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">            SET v_resource_id = (SELECT resource_id FROM data_resource WHERE inst_id = v_inst_id);</span><br><span class="line">            -- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">        -- 回到标签foreach_inst</span><br><span class="line">        END LOOP foreach_inst;</span><br><span class="line">    -- 关闭游标</span><br><span class="line">    CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="4-解决办法"><a href="#4-解决办法" class="headerlink" title="4. 解决办法"></a>4. 解决办法</h3><ul>
-<li>保证循环中的查询不会出现 NOT FOUND 异常</li>
-<li>使用<code>SET variable = (SELECT cloumn FROM table);</code> 来设置变量，替代<code>SELECT cloumn INTO variable FROM table;</code> 的方式</li>
-</ul>
-]]></content>
-      <categories>
-        <category>日常踩坑</category>
-      </categories>
-      <tags>
-        <tag>MySQL</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>Linux常用网络命令</title>
     <url>/2023/07/20/Linux%E5%B8%B8%E7%94%A8%E7%BD%91%E7%BB%9C%E5%91%BD%E4%BB%A4/</url>
     <content><![CDATA[<h3 id="1-网络连接信息"><a href="#1-网络连接信息" class="headerlink" title="1. 网络连接信息"></a>1. 网络连接信息</h3><h4 id="1-1-netstat"><a href="#1-1-netstat" class="headerlink" title="1.1 netstat"></a>1.1 netstat</h4><blockquote>
@@ -2756,289 +2725,6 @@
       </categories>
       <tags>
         <tag>Linux</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>MySQL知识总结</title>
-    <url>/2022/12/05/MySQL%E7%9F%A5%E8%AF%86%E6%80%BB%E7%BB%93/</url>
-    <content><![CDATA[<h3 id="1-MyISAM和InnoDB的区别"><a href="#1-MyISAM和InnoDB的区别" class="headerlink" title="1. MyISAM和InnoDB的区别"></a>1. MyISAM和InnoDB的区别</h3><ul>
-<li><p>MyISAM</p>
-<ul>
-<li>不支持事务、崩溃恢复</li>
-<li>不支持行锁，只支持表锁</li>
-<li>不支持外键</li>
-<li>主键索引中叶子节点储存的不是数据记录，而是记录的内存地址，因此MyISAM的数据文件分为索引文件和数据文件</li>
-</ul>
-</li>
-<li><p>InnoDB</p>
-<ul>
-<li>支持事务，崩溃恢复，有redo log</li>
-<li>支持表锁、行级锁，通过MVCC和Next-key Lock在可重复读的隔离级别下解决幻读的问题</li>
-<li>支持外键</li>
-<li>InnoDB的主键索引是聚簇索引，所以数据文件只有一个</li>
-</ul>
-</li>
-</ul>
-<h3 id="2-索引"><a href="#2-索引" class="headerlink" title="2. 索引"></a>2. 索引</h3><blockquote>
-<p>以 InnoDB 的一个整数字段索引为例，N叉B+树的N 差不多是 1200。这棵树高是 4 的时候，就可以存 1200 的 3 次方个值，这已经 17 亿了。考虑到树根的数据块总是在内存中的，一个 10 亿行的表上一个整数字段的索引，查找一个值最多只需要访问 3 次磁盘。其实，树的第二层也有很大概率在内存中，那么访问磁盘的平均次数就更少了。</p>
-</blockquote>
-<h4 id="索引类型（分类角度）"><a href="#索引类型（分类角度）" class="headerlink" title="索引类型（分类角度）"></a>索引类型（分类角度）</h4><ul>
-<li><p><strong>主键索引</strong>：一种<strong>特殊的唯一索引</strong>，一个表只能有一个主键，<strong>不允许有空值</strong>，主键索引的记录在物理存储上的方式跟数据库引擎的实现有关，MyISAM中主键索引B+树的叶子节点储存的是记录的物理地址（所以数据库的数据文件分为索引文件和数据文件），而InnoDB中主键索引B+树的叶子节点储存了记录的所有字段值。</p>
-</li>
-<li><p><strong>普通索引</strong>：就是普通的索引。</p>
-</li>
-<li><p><strong>唯一索引</strong>：字段唯一，能够<strong>允许NULL值</strong>，就是只要是NULL就认为是不一样的，在InnoDB中NULL值储存在B+树的最左边。</p>
-</li>
-<li><p><strong>前缀索引</strong>：指对字符类型字段的前几个字符或对二进制类型字段的前几个bytes建立的索引，而不是在整个字段上建索引。前缀索引可以建立在类型为char、varchar、binary、varbinary的列上，可以大大减少索引占用的存储空间，也能提升索引的查询效率。</p>
-</li>
-<li><p><strong>全文索引</strong>：与搜索引擎相关，都是需要分词，然后根据关键字中的词频和重要性进行排序。</p>
-</li>
-<li><p><strong>联合索引</strong>：由多个字段组合形成的索引。</p>
-</li>
-</ul>
-<h4 id="聚簇索引与非聚簇索引（物理储存角度）"><a href="#聚簇索引与非聚簇索引（物理储存角度）" class="headerlink" title="聚簇索引与非聚簇索引（物理储存角度）"></a>聚簇索引与非聚簇索引（物理储存角度）</h4><ul>
-<li><p><strong>聚簇索引</strong>：记录的物理储存顺序与列值（一般是主键的一列）的逻辑顺序相同，一个表中只有一个聚簇索引（因为聚簇索引的记录在物理储存上是有序的，所以当按照主键遍历的时候，相邻的主键都在同一块内存页中，能够减少缺页中断，提高查询效率）。</p>
-</li>
-<li><p><strong>非聚簇索引</strong>（二级索引、辅助索引）：与聚簇索引相反，如果记录的物理储存顺序与列值的逻辑顺序不一样，那么就是非聚簇索引，一个表中可以有多个非聚簇索引。</p>
-</li>
-</ul>
-<h4 id="B-树索引和哈希索引（数据结构角度）"><a href="#B-树索引和哈希索引（数据结构角度）" class="headerlink" title="B+树索引和哈希索引（数据结构角度）"></a>B+树索引和哈希索引（数据结构角度）</h4><ul>
-<li><p><strong>B+树索引</strong>：B+树是多叉平衡树，所以能够快速搜索到记录的位置，B+树的特点是非叶子节点不储存数据，叶子节点储存数据，最后所有叶子节点组成一条有序的双向链表，<strong>因为非叶子节点不储存数据，所以单个非叶子节点能够储存大量的索引数据，而由于这些索引数据是经常被访问的，所以能够常驻在内存中，减少缺页中断（或SWAP）带来的性能消耗</strong>。</p>
-</li>
-<li><p><strong>B树索引</strong>：B树叶子节点也储存数据，而且所有叶子节点不会组成有序链表。</p>
-</li>
-<li><p><strong>哈希索引</strong>：经过哈希函数能够快速找到记录的位置，不需要进行搜索（哈希冲突解决的办法）</p>
-</li>
-</ul>
-<h4 id="自适应哈希索引"><a href="#自适应哈希索引" class="headerlink" title="自适应哈希索引"></a>自适应哈希索引</h4><blockquote>
-<p>InnoDB引擎支持自适应哈希索引，是数据库自动优化，只能选择开启或者关闭。</p>
-</blockquote>
-<p>因为当使用辅助索引进行查找的时候，如果并不是覆盖索引，就需要<strong>回表</strong>到主键索引中找到记录的所有数据，如果这种查询的次数变多，那么InnoDB就会自动创建自适应哈希索引，<strong>提高在通过辅助索引查找到主键Id的时候，再回表的查询速度</strong>。（即通过辅助索引查找到主键Id，然后通过主键Id的哈希索引直接找到记录的位置）。</p>
-<p>根据一些资料的统计，读取和写入速度可以提高2倍，辅助索引的连接操作性能可以提高5倍。</p>
-<p><a href="https://juejin.cn/post/6844903888080863245">自适应哈希索引(Adaptive Hash Index, AHI)</a></p>
-<h4 id="主键索引就是聚簇索引吗？"><a href="#主键索引就是聚簇索引吗？" class="headerlink" title="主键索引就是聚簇索引吗？"></a>主键索引就是聚簇索引吗？</h4><p><strong>不是</strong>！！！在InnoDB中主键的确是按聚簇索引的方式组织的，但是在MyISAM里面主键<strong>不是</strong>聚簇索引，sql server中还可以显示的指定聚簇索引。</p>
-<p>InnoDB中如果没有定义主键，Innodb会选择非空的唯一索引代替。如果没有这样的索引，Innodb会隐式的定义一个主键来作为聚簇索引。</p>
-<p><a href="https://www.cnblogs.com/lice-blog/p/11569443.html">主键索引就是聚集索引吗？</a></p>
-<h4 id="什么是联合索引、覆盖索引、索引最左匹配原则"><a href="#什么是联合索引、覆盖索引、索引最左匹配原则" class="headerlink" title="什么是联合索引、覆盖索引、索引最左匹配原则"></a>什么是联合索引、覆盖索引、索引最左匹配原则</h4><ul>
-<li><p><strong>联合索引</strong>：由多个字段组合形成的索引</p>
-</li>
-<li><p><strong>覆盖索引</strong>：查询的字段会被索引覆盖到，就<strong>不需要回表</strong>根据主键Id查询其他字段，<strong>单个字段的索引</strong>和<strong>联合索引</strong>都能实现覆盖索引的功能。所以说覆盖索引并不是一种真正的索引，是查询的时候用到的索引覆盖到了所有需要查询的字段。</p>
-</li>
-<li><p><strong>索引最左匹配原则</strong>：对于一个联合索引（a, b, c, d），如果查询的时候指定了查询条件<code>a = 1 AND b = 2 AND c &gt; 4 AND d &lt; 5</code>，因为索引整体上是按<code>a,b,c,d</code>来排序的（即先按a排序，a相等的时候按b排序，以此类推），所以<strong>当a和b指定了确切的值的时候，记录在c上是有序的，但是在d上就不确认了</strong>。当联合索引遇到范围查询（&gt;，&lt;，between，like）最左匹配就不能进一步匹配了。（当然MySQL会优化查询的顺序比如，<code>d &lt; 5 AND b = 2 AND c &gt; 4 AND a = 1</code> 会优化为<code>a = 1 AND b = 2 AND c &gt; 4 AND d &lt; 5</code>）</p>
-</li>
-</ul>
-<h4 id="说一下索引下推"><a href="#说一下索引下推" class="headerlink" title="说一下索引下推"></a>说一下索引下推</h4><blockquote>
-<p>索引下推可以在索引遍历过程中（引擎层），对索引中包含的字段先做判断，直接过滤掉不满足条件的记录，减少回表次数。</p>
-</blockquote>
-<p>对于一个联合索引<strong>（name, age）</strong>和一个SQL语句</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">select * from tuser where name like &#x27;张%&#x27; and age = 10 and ismale = 1;</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>如果没有索引下推，因为最左匹配原则，所以只会用到<code>name</code>的索引，所以在引擎层会找到所有<code>name like &#39;张%&#39;</code>的主键并返回给server层，然后逐个回表判断</li>
-<li>如果有索引下推，即使有最左匹配原则，也会将索引能用到的<code>age = 10</code>放到引擎层进行判断，引擎层根据索引判断，只返回<code>name like &#39;张%&#39; and age = 10</code>的主键，这样过滤了不符合的部分数据，就能减少回表的次数</li>
-</ul>
-<h3 id="3-事务"><a href="#3-事务" class="headerlink" title="3. 事务"></a>3. 事务</h3><h4 id="事务的四大特性（ACID）"><a href="#事务的四大特性（ACID）" class="headerlink" title="事务的四大特性（ACID）"></a>事务的四大特性（ACID）</h4><ol>
-<li>原子性：一个事务是最小执行单位，事务中的动作要么都做，要么都不做</li>
-<li>一致性：执行事务之后，数据保持一致，多个事务对同一个数据读取的结果是相同的</li>
-<li>隔离性：并发访问数据库的时候，各个事务之间不会相互影响</li>
-<li>持久性：一个事务被提交之后，对数据库的修改是持久的，即使数据库发生故障也不会有影响</li>
-</ol>
-<h4 id="可能出现的问题"><a href="#可能出现的问题" class="headerlink" title="可能出现的问题"></a>可能出现的问题</h4><ol>
-<li><strong>脏读</strong>：事务A能够读到事务B还没提交的数据</li>
-<li><strong>不可重复读</strong>：对于读取一行数据，一个事务中两次读到的数据不一样</li>
-<li><strong>幻读</strong>：对于读取多行数据，一个事务中第二次读到的行数比第一次读到的行数要多</li>
-<li><strong>丢失修改</strong>：ABA问题，事务A读取记录R为20，将R-1&#x3D;19后写入数据库，事务B也执行一样的操作，但是最后数据库中的记录是R&#x3D;19，事务A的操作被事务B覆盖（这种是程序逻辑本身的问题，所以需要对需要修改的数据加锁&#x2F;版本号&#x2F;旧值比较）</li>
-</ol>
-<h4 id="隔离等级"><a href="#隔离等级" class="headerlink" title="隔离等级"></a>隔离等级</h4><ol>
-<li><p><strong>读未提交</strong>：一个事务还没提交，其变更就能被其他事务看到</p>
-</li>
-<li><p><strong>读已提交</strong>：一个事务提交之后，其变更才能被其他事务看到，能够解决脏读的问题</p>
-</li>
-<li><p><strong>可重复读</strong>：一个事务执行过程中，对同一字段的多次读取结果是一样的，除非数据是被自己事务本身修改，能够解决不可重复读的问题，但是幻读仍然有可能发生<strong>（InnoDB通过MVCC和Next-key Lock在可重复读的隔离级别下解决了幻读的问题）</strong></p>
-</li>
-<li><p><strong>串行化</strong>：所有事务都是串行执行的，完全服从ACID的隔离级别，能解决所有问题</p>
-</li>
-</ol>
-<h3 id="4-锁-、间隙锁、Next-Key-Lock"><a href="#4-锁-、间隙锁、Next-Key-Lock" class="headerlink" title="4. 锁 、间隙锁、Next-Key Lock"></a>4. 锁 、间隙锁、Next-Key Lock</h3><ul>
-<li><p><strong>全局锁</strong>：对整个数据库加锁（Flush tables with read lock），典型应用场景是做全库逻辑备份（如果使用InnoDB，则使用mysqldump备份数据库的时候，有MVCC的支持，就不用加全局锁了）</p>
-</li>
-<li><p><strong>表级锁</strong>：又分为<strong>表锁</strong>和<strong>元数据锁（metadata lock， MDL）</strong></p>
-<ul>
-<li>元数据锁：锁住表结构，在访问一个表的时候会被自动加上，事务中的MDL锁会在语句执行开始时申请，但是语句结束后并不会马上释放，而是等到整个事务提交后才会释放</li>
-</ul>
-</li>
-<li><p><strong>行锁</strong>：锁住一行，在InnoDB的事务中，行锁是在语句执行的时候加上，但是要等到事务结束才会释放（<strong>两阶段锁协议</strong>）</p>
-<ul>
-<li>行锁可能出现死锁的一种情况，事务A执行了第一条语句，事务B执行了第一条语句，两个事务分别获得了不同的行锁</li>
-<li>解决行锁死锁的方法， <strong>1. 等待超时（innodb_lock_wait_timeout）</strong>，<strong>2. 发起死锁检测，发现死锁后，主动回滚死锁链条中的某一个事务（innodb_deadlock_detect &#x3D; on）</strong></li>
-</ul>
-</li>
-</ul>
-<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="comment">-- 事务A</span></span><br><span class="line"><span class="keyword">start</span> transaction;</span><br><span class="line"><span class="keyword">update</span> t <span class="keyword">set</span> k <span class="operator">=</span> k <span class="operator">+</span> <span class="number">1</span> <span class="keyword">where</span> id <span class="operator">=</span> <span class="number">1</span>;</span><br><span class="line"><span class="keyword">update</span> t <span class="keyword">set</span> k <span class="operator">=</span> k <span class="operator">+</span> <span class="number">1</span> <span class="keyword">where</span> id <span class="operator">=</span> <span class="number">2</span>;</span><br><span class="line"><span class="keyword">commit</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">-- 事务B</span></span><br><span class="line"><span class="keyword">start</span> transaction;</span><br><span class="line"><span class="keyword">update</span> t <span class="keyword">set</span> k <span class="operator">=</span> k <span class="operator">+</span> <span class="number">1</span> <span class="keyword">where</span> id <span class="operator">=</span> <span class="number">2</span>;</span><br><span class="line"><span class="keyword">update</span> t <span class="keyword">set</span> k <span class="operator">=</span> k <span class="operator">+</span> <span class="number">1</span> <span class="keyword">where</span> id <span class="operator">=</span> <span class="number">1</span>;</span><br><span class="line"><span class="keyword">commit</span>;</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><strong>间隙锁（Gap Lock）</strong>:锁住两个值之间的空隙，前开后开区间，如6个值，有7个空隙，包括（-∞，num）和（num, +∞）<ul>
-<li><strong>跟间隙锁存在冲突关系的，是“往这个间隙中插入一个记录”这个操作</strong></li>
-<li>间隙锁死锁的例子<ul>
-<li>session A 执行 select … for update 语句，由于 id&#x3D;9 这一行并不存在，因此会加上间隙锁 (5,10);</li>
-<li>session B 执行 select … for update 语句，同样会加上间隙锁 (5,10)，间隙锁之间不会冲突，因此这个语句可以执行成功；</li>
-<li>session B 试图插入一行 (9,9,9)，被 session A 的间隙锁挡住了，只好进入等待；</li>
-<li>session A 试图插入一行 (9,9,9)，被 session B 的间隙锁挡住了。</li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-<p><img src="/2022/12/05/MySQL%E7%9F%A5%E8%AF%86%E6%80%BB%E7%BB%93/%E9%97%B4%E9%9A%99%E9%94%81%E6%AD%BB%E9%94%81.png" alt="image-20220906104804761"></p>
-<ul>
-<li><strong>Next-key Lock</strong>：Inno加锁的<strong>基本单位</strong>，<strong>为的就是解决幻读</strong>，行锁<code>b</code>和间隙锁<code>(a, b)</code>加在一起，就是一个<strong>Next-key Lock</strong>，是前开后闭区间<code>(a, b]</code></li>
-</ul>
-<h3 id="5-多版本并发控制MVCC"><a href="#5-多版本并发控制MVCC" class="headerlink" title="5. 多版本并发控制MVCC"></a>5. 多版本并发控制MVCC</h3><blockquote>
-<p>MVCC加上Next-key Lock就能够解决幻读的问题。单单MVCC只能解决可重复读，当前读的情况下，还是会出现幻读</p>
-</blockquote>
-<blockquote>
-<p>在MVCC中，非锁定读（普通select）是不用加锁的，但是锁定读(select … for update &#x2F; select … lock in share mode &#x2F; update &#x2F; insert &#x2F; delete)的时候会用锁</p>
-</blockquote>
-<blockquote>
-<p>InnoDB中，每条记录在更新的时候都会同时记录一条回滚操作，因此能得到上一个状态的值。（这个回滚日志<code>undolog</code>会在不需要的时候才删除，即当前所有事务中的最小版本号大于回滚日志的版本号）</p>
-</blockquote>
-<h4 id="标识ID"><a href="#标识ID" class="headerlink" title="标识ID"></a>标识ID</h4><ul>
-<li><strong>每个事务</strong>都有一个唯一的<strong>事务ID（transaction id）</strong>，每个事务开始前向InnoDB的事务系统申请，严格递增</li>
-<li><strong>每行数据</strong>都有多个版本<strong>row trx_id</strong>，每次事务更新数据的时候，都会生成一个新的数据版本，并把<strong>事务ID</strong>赋值给<strong>row trx_id</strong>，旧的数据版本能够通过回滚日志得到</li>
-</ul>
-<p><img src="/2022/12/05/MySQL%E7%9F%A5%E8%AF%86%E6%80%BB%E7%BB%93/MVCC.png" alt="image-20220905203039546"></p>
-<h4 id="详细过程"><a href="#详细过程" class="headerlink" title="详细过程"></a>详细过程</h4><blockquote>
-<p>核心是通过版本控制来获得一个一致性视图，但是当事务更新数据的时候，只能用当前读，如果当前记录的行锁被其他事务占用，就只能进入锁等待。</p>
-</blockquote>
-<ol>
-<li><strong>当前事务开始时</strong>，构造一个<strong>数组</strong>用于保存当前事务启动瞬间<strong>活跃</strong>的<strong>所有事务ID</strong>（即启动了，但是还没有提交）</li>
-<li>数组里面事务ID的<strong>最小值记为低水位</strong>，<strong>事务ID的最大值+1记为高水位</strong>，数组和高水位就组成了当前事务的一致性视图（read-view）</li>
-<li>对于<strong>一个数据记录</strong>的<strong>row trx_id</strong>来说，有以下几种可能<ul>
-<li><strong>row trx_id小于低水位</strong>，落在绿色部分，表示这个版本的数据是已经提交的，或者是当前事务自己生成的，所以数据<strong>可见</strong></li>
-<li><strong>row trx_id大于高水位</strong>，落在红色部分，表示这个版本的数据是由未来的事务生成的，<strong>不可见</strong></li>
-<li>如果落在黄色部分：<ul>
-<li><strong>row trx_id在数组中</strong>，表示这个版本是由未提交的事务生成的，<strong>不可见</strong></li>
-<li><strong>row trx_id不在数组中</strong>，表示这个版本的数据是由已提交的事务生成的，<strong>可见</strong>（因为低水位和高水位表示的只是一个区间，这个区间中有已经提交的事务和未提交的事务，数组中的是未提交的事务，而当前的事务ID大于高水位，<strong>row trx_id</strong>落在这个区间内已提交的事务，哪当然是可见的）</li>
-</ul>
-</li>
-</ul>
-</li>
-<li><strong>当前读</strong>：<strong>更新数据都是先读后写的</strong>，而这个读，只能<strong>读已经提交完成的最新版本</strong></li>
-<li>如果是更新&#x2F;删除&#x2F;插入这些锁定读的事务呢？<strong>两阶段锁协议</strong>，需要等到获得锁的事务结束了，释放锁，才能继续<strong>当前读</strong>，继续后面的操作</li>
-</ol>
-<p><img src="/2022/12/05/MySQL%E7%9F%A5%E8%AF%86%E6%80%BB%E7%BB%93/MVCC%E6%B0%B4%E4%BD%8D.png" alt="image-20220905225008836"></p>
-<h4 id="ABA问题"><a href="#ABA问题" class="headerlink" title="ABA问题"></a>ABA问题</h4><p>MVCC也会出现ABA问题，因为只有在锁定读的时候才会加锁，所以可能会出现ABA问题，一个简单的例子，事务A读取了记录R数值为1，之后事务B也读取这个记录R数值为1，之后事务AB都想要将记录R+1后更新，那么最后结果就会变成2，但是期望是3。ABA问题是编程问题，所以可以使用select … lock for update来锁住想要更新的表，这样只有获取到锁的事务才能进行操作。或者加一个旧值&#x2F;版本号进行判断，只有当旧值&#x2F;版本号一样的时候才更新（但是修改失败需要有重试机制）。</p>
-<h3 id="6-binlog、redolog"><a href="#6-binlog、redolog" class="headerlink" title="6. binlog、redolog"></a>6. binlog、redolog</h3><h4 id="binlog（归档日志）"><a href="#binlog（归档日志）" class="headerlink" title="binlog（归档日志）"></a>binlog（归档日志）</h4><blockquote>
-<p>binlog的主要作用是用于备份，以及主从同步</p>
-</blockquote>
-<blockquote>
-<p>binlog的写是追加写，所以不会覆盖以前的数据</p>
-</blockquote>
-<p>三种数据格式：</p>
-<ul>
-<li>statement – 记录执行的SQL语句，简洁，但是主库与从库执行同一条语句的结果可能不一样，如NOW()</li>
-<li>row – 记录真实数据的变化，可靠，主从库执行结果一样，但是占空间</li>
-<li>mixed – 前两种的混合，MySQL自己判断如果会引起主备不一致的时候，就用row格式，否则用statement</li>
-</ul>
-<h4 id="redo-log（重做日志）"><a href="#redo-log（重做日志）" class="headerlink" title="redo log（重做日志）"></a>redo log（重做日志）</h4><blockquote>
-<p>redolog主要的作用是用于崩溃恢复，固定大小，循环写，可以比如可以配置一组4个文件，每个文件大小1GB，从头开始写，写到末尾又回到开头循环写。</p>
-</blockquote>
-<ul>
-<li><p><strong>write pos</strong>：表示当前写记录的位置，一边写一边后移</p>
-</li>
-<li><p><strong>check point</strong>：check point之前的数据都是已经落盘（flush到磁盘）上的，write pos大于check point，write pos 与check point之间的数据表示在内存页上，但是还没落盘的数据</p>
-</li>
-</ul>
-<h4 id="缓冲结构"><a href="#缓冲结构" class="headerlink" title="缓冲结构"></a>缓冲结构</h4><blockquote>
-<p>崩溃分为数据库崩溃和操作系统崩溃，数据库崩溃只会影响MySQL中的缓存（丢失这一部分，已经调用write写入到操作系统缓存中的则是正常的），操作系统崩溃则是影响数据的落盘（无法恢复）</p>
-</blockquote>
-<ul>
-<li><p><strong>buffer pool</strong>：MySQL中用于缓存页的地方，有脏页以及干净页，脏页落盘需要flush，干净页不用</p>
-</li>
-<li><p><strong>change buffer</strong>：buffer pool内的一部分，<strong>主要用于记录页面数据的变化</strong>，如果一个<strong>数据页已经在内存</strong>中，则可以直接修改这个内存数据页然后变成脏页；但是如果一个<strong>数据页不在内存中，在磁盘中</strong>，则可以将更新操作写到change buffer中，这样能够避免将数据页从磁盘中读取到内存中，<strong>减少磁盘的随机读IO，适用于多写少读</strong>，当要读取这个数据页的数据时，再将从磁盘中读取的数据执行change buffer中的操作就能得到最新的数据。</p>
-</li>
-<li><p><strong>redolog buffer</strong>：可以认为也是buffer pool中的一部分，事务执行过程中更新数据的日志都得先保存起来，但是又不能在还没commit的时候写入到redo log文件中，所以先用redolog buffer来存redo日志。</p>
-</li>
-<li><p><strong>操作系统的缓存 os cache</strong>：调用操作系统的write函数并不会将数据直接写入磁盘，而是先写入系统的缓冲池中，系统自己判断何时将数据flush进磁盘，<strong>数据库崩溃不会影响到这部分的数据，操作系统崩溃才会影响</strong>。</p>
-</li>
-</ul>
-<h4 id="二阶段提交"><a href="#二阶段提交" class="headerlink" title="二阶段提交"></a>二阶段提交</h4><p>redo log是InnoDB引擎特有，用于提供崩溃恢复的功能，而二阶段提交涉及到<code>binlog(归档日志)</code>还有<code>redolog(重做日志)</code>，即server层与引擎层之间的交互。</p>
-<p><strong>两阶段提交的作用</strong>：保证MySQL数据库中的记录与磁盘中的记录一致</p>
-<p><strong>方法流程</strong>：</p>
-<ul>
-<li>执行器调用引擎的API接口(未写<code>binlog</code>)，写入一行数据</li>
-<li>InnoDB引擎把数据保存在内存中，同时记录<code>redolog</code>，此时<code>redolog </code>进入<code>prepare状态</code>，然后告诉执行器，执行完成可以随时提交</li>
-<li>执行器收到通知后记录<code>binlog</code>，然后调用InnoDB引擎接口说已经写完<code>binlog</code></li>
-<li>InnoDB写<code>redolog</code>为<code>commit状态</code></li>
-<li>更新完成</li>
-</ul>
-<p><strong>为什么要这样子？</strong></p>
-<ul>
-<li>假设<strong>先写redolog并设为commit状态，然后写binlog</strong>，那么写完<code>redolog</code>之后，机器挂了，<code>binlog</code>日志没有被写入。机器重启后，会通过<code>redolog</code>恢复数据，但是<code>binlog</code>没有记录这一条数据，那么后续机器根据<code>binlog</code><strong>备份</strong>或者<strong>主从同步</strong>的时候，就会丢失这一条数据。</li>
-<li>假设<strong>先写binlog，然后写redolog</strong>，那么当<code>binlog</code>写完的时候，机器异常重启了，但是由于没有这条<code>redolog</code>，所以机器无法恢复这一条记录，但是<code>binlog</code>里面多出这一条数据，哪备份或者主从同步的时候也会出现同样的问题。</li>
-<li><strong>二阶段提交如何保证一致性？</strong>假设极端的状态是<code>redolog</code>已经处于<strong>prepare状态</strong>，<code>binlog</code>也已经写完了，这个时候发生异常重启，就要依赖MySQL的处理机制<ul>
-<li>判断<code>redolog</code>是否完整(<strong>commit状态</strong>)，如果是完整的，就能立即提交</li>
-<li>如果<code>redolog</code>只是<code>prepare</code>状态，但<strong>不是commit状态</strong>，这个时候就判断<code>binlog</code>是否完整，如果完整就提交<code>redolog</code>，不完整就回滚事务</li>
-</ul>
-</li>
-</ul>
-<p><a href="https://mp.weixin.qq.com/s?__biz=Mzg2OTA0Njk0OA==&mid=2247485097&idx=1&sn=84c89da477b1338bdf3e9fcd65514ac1&chksm=cea24962f9d5c074d8d3ff1ab04ee8f0d6486e3d015cfd783503685986485c11738ccb542ba7&token=79317275&lang=zh_CN%23rd">一条SQL语句在MySQL中如何执行的</a></p>
-<h3 id="7-主从模式"><a href="#7-主从模式" class="headerlink" title="7. 主从模式"></a>7. 主从模式</h3><h4 id="详细流程"><a href="#详细流程" class="headerlink" title="详细流程"></a>详细流程</h4><ol>
-<li>在备库B上通过<strong>change master</strong>命令，设置主库A的IP、端口、用户名、密码，以及要从哪个位置开始请求binlog，这个位置包含文件名和日志偏移量</li>
-<li>在备库B上执行<strong>start slave</strong>命令，这个时候备库会启动两个线程，一个是<strong>io_thread</strong>，另一个是<strong>sql_thread</strong>。<strong>io_thread负责与主库A建立连接，获取binlog</strong></li>
-<li>主库A校验完备库B传来的参数之后，按照请求的位置读取binlog通过<strong>dump_thread</strong>线程发给备库B</li>
-<li>备库B拿到binlog之后，写到本地文件，称为<strong>中转日志（relay log）</strong></li>
-<li>备库B中的<strong>sql_thread读取中转日志，解析日志理的命令，并执行</strong></li>
-</ol>
-<p><img src="/2022/12/05/MySQL%E7%9F%A5%E8%AF%86%E6%80%BB%E7%BB%93/%E4%B8%BB%E4%BB%8E%E5%A4%8D%E5%88%B6%E6%B5%81%E7%A8%8B.png" alt="image-20220906144751652"></p>
-<h4 id="循环复制问题"><a href="#循环复制问题" class="headerlink" title="循环复制问题"></a>循环复制问题</h4><blockquote>
-<p>一般来说都是双Master结构，即节点A和节点B之间互为主从关系</p>
-</blockquote>
-<blockquote>
-<p>但是这样会产生一个问题，就是节点A更新了一条语句，并将binlog发给节点B，节点B更新之后又将binlog发给节点A执行</p>
-</blockquote>
-<p><strong>解决方法</strong></p>
-<p>设置server id</p>
-<ol>
-<li>规定两个库的server id必须不同，如果相同，则它们之间不能设定为主备关系</li>
-<li>一个备库收到binlog并且在重放过程中，要生成与原binlog的server id相同的新binlog</li>
-<li>备库收到主库发过来的binlog记录，先判断server id是不是跟自己的一样，一样表示这个日志是自己生成的，则直接丢弃；不一样表示不是自己生成的，重做这个日志</li>
-</ol>
-<p><img src="/2022/12/05/MySQL%E7%9F%A5%E8%AF%86%E6%80%BB%E7%BB%93/%E4%B8%BB%E4%BB%8E%E5%88%87%E6%8D%A2.png" alt="image-20220906145810695"></p>
-<h3 id="8-inner-join、left-join、right-join、full-join"><a href="#8-inner-join、left-join、right-join、full-join" class="headerlink" title="8. inner join、left join、right join、full join"></a>8. inner join、left join、right join、full join</h3><ul>
-<li><p><strong>inner join</strong>：等同于平时使用<code>，</code>连接两个表，内连接，交集</p>
-</li>
-<li><p><strong>left join</strong>：返回左表的全部数据</p>
-</li>
-<li><p><strong>right join</strong>：返回右表的全部数据</p>
-</li>
-<li><p><strong>full join</strong>：返回左右两个表的所有数据，并集</p>
-</li>
-</ul>
-<p><img src="/2022/12/05/MySQL%E7%9F%A5%E8%AF%86%E6%80%BB%E7%BB%93/join.png" alt="image-20220906162852592"></p>
-<h4 id="on和where的区别"><a href="#on和where的区别" class="headerlink" title="on和where的区别"></a>on和where的区别</h4><ul>
-<li><p><strong>on</strong>：在生成临时表时使用的条件，不管on中的条件，都会返回left join &#x2F; right join &#x2F; full join时，左边&#x2F;右边&#x2F;两边表中的记录</p>
-</li>
-<li><p><strong>where</strong>：临时表生成好后，对临时表进行过滤，所有条件不为真的记录都被过滤掉</p>
-</li>
-</ul>
-<p><a href="https://www.runoob.com/w3cnote/sql-different-on-and-where.html">SQL 中 on 条件与 where 条件的区别</a></p>
-<h3 id="9-小表驱动大表"><a href="#9-小表驱动大表" class="headerlink" title="9. 小表驱动大表"></a>9. 小表驱动大表</h3><blockquote>
-<p>select * from t1 straight_join t2 on (t1.a &#x3D; t2.a); 能够让MySQL使用固定的连接方式执行查询，t1是驱动表、t2是被驱动表</p>
-</blockquote>
-<blockquote>
-<p>小表是指两个表按照各自的条件过滤之后，参与join的各个字段的<strong>总数据量</strong>小的表</p>
-</blockquote>
-<p>驱动与被驱动：按照驱动表t1的数据到被驱动表t2中逐条查找数据，驱动表是外层循环，被驱动表是内层循环</p>
-<p>Index Nested-Loop Join：能够用上被驱动表的索引</p>
-<p>Simple Nested-Loop Join：不能用索引的情况下，就是两层循环</p>
-<p>Block Nested-Loop Join：先将驱动表数据放入join buffer中，再根据被驱动表与join buffer中的数据对比</p>
-]]></content>
-      <categories>
-        <category>MySQL</category>
-      </categories>
-      <tags>
-        <tag>MySQL</tag>
       </tags>
   </entry>
   <entry>
@@ -3386,88 +3072,34 @@
       </tags>
   </entry>
   <entry>
-    <title>WebRTC简介</title>
-    <url>/2023/08/03/WebRTC%E7%AE%80%E4%BB%8B/</url>
-    <content><![CDATA[<h3 id="1-WebRTC是什么？"><a href="#1-WebRTC是什么？" class="headerlink" title="1. WebRTC是什么？"></a>1. WebRTC是什么？</h3><blockquote>
-<p><strong>端对端的音视频通信协议</strong>，但是由于现实网络环境原比局域网复杂，因此需要中继服务器参与中间协商，还包括安全连接的建立。</p>
-<p>端对端音视频应用最直观的应用就是视频会议&#x2F;远程访问，不同于视频直播（一对多模式）。</p>
-</blockquote>
-<p>WebRTC 是 Web 实时通信(Real-Time Communication)的缩写，它既是 API 也是协议。</p>
-<p>WebRTC 协议是两个 WebRTC Agent 协商双向安全实时通信的一组规则。开发人员可以通过 WebRTC API 使用 WebRTC 协议。目前 WebRTC API 仅有 JavaScript 版本，但是可以在其他语言中找到其他实现了 WebRTC 协议的工具，如 Golang 的 <a href="https://github.com/pion/webrtc">Pion WebRTC</a>。</p>
-<p>WebRTC 协议由 IETF 工作组在 <a href="https://datatracker.ietf.org/wg/rtcweb/documents/">rtcweb</a> 中维护。WebRTC API 的 W3C 文档在 <a href="https://www.w3.org/TR/webrtc/">webrtc</a>。</p>
-<h3 id="2-WebRTC涉及到的概念"><a href="#2-WebRTC涉及到的概念" class="headerlink" title="2. WebRTC涉及到的概念"></a>2. WebRTC涉及到的概念</h3><blockquote>
-<p>WebRTC 是一系列协议的集合体，其中使用到的许多协议在 WebRTC 出现之前已经存在。</p>
-</blockquote>
-<p>完成 WevRTC 通信协议的建立需要经过四个步骤（依次执行）：</p>
-<ol>
-<li><p>信令（Signaling）</p>
-</li>
-<li><p>连接（Connecting）</p>
-</li>
-<li><p>安全加密（Securing）</p>
-</li>
-<li><p>通信（Communicating）</p>
-</li>
-</ol>
-<h4 id="2-1-信令"><a href="#2-1-信令" class="headerlink" title="2.1 信令"></a>2.1 信令</h4><blockquote>
-<p>当两个 WebRTC Agent （可以理解为客户端）启动时，无法知道自己需要跟谁通信，以及中间通信协议的内容。因此需要信令来引导两个 WebRTC Agent 协商通信。</p>
-</blockquote>
-<p>信令使用一种现有的协议 SDP(Session Description Protocol)。SDP 是一种纯文本协议，每个 SDP 消息均由键&#x2F;值对组成。</p>
-<p>两个 WebRTC Agent 交换的 SDP 所包含的一些详细信息：</p>
-<ul>
-<li>Agent 可供外部访问的（候选的）IP 和端口。</li>
-<li>Agent 希望发送多少路音频和视频流。</li>
-<li>Agent 支持哪些音频和视频编解码器。</li>
-<li>连接时需要用到的值（<code>uFrag</code>&#x2F;<code>uPwd</code>）。</li>
-<li>加密传输时需要用到的值（证书指纹）。</li>
+    <title>MySQL储存过程游标使用踩坑（NOT FOUND）</title>
+    <url>/2022/08/30/MySQL%E5%82%A8%E5%AD%98%E8%BF%87%E7%A8%8B%E6%B8%B8%E6%A0%87%E4%BD%BF%E7%94%A8%E8%B8%A9%E5%9D%91%EF%BC%88NOT-FOUND%EF%BC%89/</url>
+    <content><![CDATA[<h3 id="1-具体问题"><a href="#1-具体问题" class="headerlink" title="1. 具体问题"></a>1. 具体问题</h3><p>在使用游标的过程中，通常都会使用未找到（NOT FOUND或者SQLSTATE ‘02000’）的条件来标识游标的结束。</p>
+<p>即定义一个变量finished初始化为FALSE，并且定义一个事件处理程序处理NOT FOUND异常（FETCH时，游标已经达到末尾）将变量finished设置为TRUE，并通过检查变量finished来结束循环。</p>
+<h3 id="2-问题原因"><a href="#2-问题原因" class="headerlink" title="2. 问题原因"></a>2. 问题原因</h3><p>坑就在这个NOT FOUNT异常，作用范围是整个储存过程。当FETCH获取下一行数据为空时，会抛出NOT FOUND异常。但是！但是！当使用普通的SELECT语句时，查询为空也会抛出NOT FOUND异常，就会触发设定好的NOT FOUND异常处理程序，所以如果遍历游标的循环体内如果存在查询为空，会导致循环提前退出。</p>
+<h3 id="3-复现"><a href="#3-复现" class="headerlink" title="3. 复现"></a>3. 复现</h3><h4 id="3-1-相关的表"><a href="#3-1-相关的表" class="headerlink" title="3.1 相关的表"></a>3.1 相关的表</h4><ul>
+<li>inst（inst_id, tenant_id, user_id）</li>
+<li>data_resource(resource_id, inst_id)</li>
 </ul>
-<p><strong>需要注意的是，应用通常不使用 WebRTC 本身来交换信令。任何能够在两个客户端间通信的协议均能用来传递SDP信令（如HTTP&#x2F;WebSocket）</strong>。</p>
-<h4 id="2-2-连接"><a href="#2-2-连接" class="headerlink" title="2.2 连接"></a>2.2 连接</h4><blockquote>
-<p>经过信令协商之后，两个 WebRTC Agent知道足够的信息以尝试相互连接。但是因为两个 WebRTC Agent 身处不同的网络，中间可能经过了许多层的 NAT 转换，因此需要 ICE (Interactive Connectivity Establishment)来协助解决在 NAT 和防火墙环境下建立稳定的点对点连接。</p>
-</blockquote>
-<p>ICE 协议，无需中央服务器即可建立直接连接，解决 NAT 和防火墙造成的连接问题，使实时通信应用能够在多种网络环境下建立稳定的连接（这里的连接并不限定任何连接协议，如HTTP&#x2F;Sokcet&#x2F;RTP）。其中，核心便是<code>NAT 穿透</code> 和 <code>STUN/TURN 服务器</code>（中继服务器）。</p>
-<p>ICE 协议的流程包括：</p>
-<ol>
-<li><strong>候选地址收集：</strong> 在建立连接之前，ICE 会收集设备的各种网络地址，包括私有 IP 地址、公共 IP 地址以及通过 NAT 映射的地址等。这些地址称为候选地址。</li>
-<li><strong>候选地址排序：</strong> 收集到的候选地址将被排序，优先选择能够穿越 NAT 并且能够被远程设备访问到的地址。</li>
-<li><strong>连通性检测：</strong> ICE 使用 STUN(Session Traversal Utilities for NAT) 协议来检测设备之间的连通性。设备发送 STUN 请求以获取其在外部网络中的映射地址和端口，从而确定它是否可以被远程设备访问到。</li>
-<li><strong>候选地址交换：</strong> 通信设备交换各自的候选地址和 STUN 响应，从而使每个设备了解对方的可用地址。</li>
-<li><strong>选取最佳路径：</strong> 通过比较候选地址的可达性和优先级，ICE 确定了最佳的通信路径，可以穿越 NAT 并建立连接。</li>
-<li><strong>失败回退：</strong> 如果直接的点对点连接无法建立，ICE 可以采用 TURN(Traversal Using Relays around NAT)服务器作为中继，通过 TURN 服务器中转数据。</li>
-</ol>
-<h4 id="2-3-安全加密"><a href="#2-3-安全加密" class="headerlink" title="2.3 安全加密"></a>2.3 安全加密</h4><blockquote>
-<p>ICE 成功连接后，WebRTC 就会继续建立加密传输。加密传输用于音频，视频和数据。</p>
-</blockquote>
-<p>现在我们有了双向通信（基于 ICE），我们需要建立安全的通信。</p>
-<p>WebRTC 中会传输两种数据，一种是 DataChannel 中的消息 （可以理解为字符数据），一种是 RTP 中的音&#x2F;视频数据。</p>
-<p>所有需要两种协议来保证 WebRTC传输的数据安全：</p>
-<ul>
-<li><strong>DTLS(Datagram Transport Layer Security)</strong> ：基于 UDP 的 TLS 。与 HTTPS 不同，WebRTC 不使用中央授权来颁发证书。相反，WebRTC 只是判断通过 DTLS 交换的证书是否与通过信令共享的签名相符。然后，此 DTLS 连接可以被用于传输 DataChannel 消息。（基于UDP并不是说 DataChannel 传输消息使用 UDP，只是DTLS 协议使用 UDP 来完成加密认证的过程，真正传输 DataChannel 消息的是 SCTP）。</li>
-<li><strong>SRTP(Secure Real-time Transport Protocol)</strong> ：SRTP 来保护的 RTP 数据包安全，在 RTP 的基础上增加了加密和认证机制，以保护通信数据免受恶意攻击和窃听。WebRTC 从协商的 DTLS 会话中提取密钥，用来初始化 SRTP 会话。</li>
+<h4 id="3-2-错误示例"><a href="#3-2-错误示例" class="headerlink" title="3.2 错误示例"></a>3.2 错误示例</h4><p>这里在游标循环里面使用inst_id查询了关联表data_resource，但是当data_resource表中没有这条数据的时候就会出现NOT FOUND异常，将finished设置为TRUE，提前结束游标循环。如，本来是要显示inst_id为1、2、3这三行，但是当inst_id&#x3D;2时，data_resource表查询为空，就只显示inst_id为1这一行。</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">    DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">    DECLARE v_tenant_id BIGINT;</span><br><span class="line">    DECLARE v_user_id BIGINT;</span><br><span class="line">    DECLARE v_resource_id BIGINT;</span><br><span class="line">    -- 定义游标循环结束条件</span><br><span class="line">    DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">    -- 定义游标</span><br><span class="line">    DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">    -- 定义NOT FOUND结束处理程序</span><br><span class="line">    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">    </span><br><span class="line">    -- 开始使用游标</span><br><span class="line">    OPEN my_cursor;</span><br><span class="line">        foreach_inst: LOOP</span><br><span class="line">        FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 判断游标是否已经达到末尾</span><br><span class="line">            IF finished = TRUE THEN</span><br><span class="line">                LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">            END IF;</span><br><span class="line">            -- 显示当前行</span><br><span class="line">            SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 问题行！！！！</span><br><span class="line">            SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">            -- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">        -- 回到标签foreach_inst</span><br><span class="line">        END LOOP foreach_inst;</span><br><span class="line">    -- 关闭游标</span><br><span class="line">    CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="3-3-正确示例"><a href="#3-3-正确示例" class="headerlink" title="3.3 正确示例"></a>3.3 正确示例</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">-- 设置分隔符为$$</span><br><span class="line">DELIMITER $$</span><br><span class="line">CREATE PROCEDURE select_data_resource()</span><br><span class="line">BEGIN</span><br><span class="line">    DECLARE v_inst_id VARCHAR(128);</span><br><span class="line">    DECLARE v_tenant_id BIGINT;</span><br><span class="line">    DECLARE v_user_id BIGINT;</span><br><span class="line">    DECLARE v_resource_id BIGINT;</span><br><span class="line">    -- 定义游标循环结束条件</span><br><span class="line">    DECLARE finished INT DEFAULT FALSE;</span><br><span class="line">    -- 定义游标</span><br><span class="line">    DECLARE my_cursor CURSOR FOR (SELECT inst_id, tenant_id, user_id FROM inst);</span><br><span class="line">    -- 定义NOT FOUND结束处理程序</span><br><span class="line">    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;</span><br><span class="line">    </span><br><span class="line">    -- 开始使用游标</span><br><span class="line">    OPEN my_cursor;</span><br><span class="line">        foreach_inst: LOOP</span><br><span class="line">        FETCH my_cursor INTO v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 判断游标是否已经达到末尾</span><br><span class="line">            IF finished = TRUE THEN</span><br><span class="line">                LEAVE foreach_inst_id; -- 游标已经到达末尾，结束循环</span><br><span class="line">            END IF;</span><br><span class="line">            -- 显示当前行</span><br><span class="line">            SELECT v_inst_id, v_tenant_id, v_user_id;</span><br><span class="line">            -- 问题行！！！！</span><br><span class="line">            -- SELECT resource_id INTO v_resource_id FROM data_resource WHERE inst_id = v_inst_id;</span><br><span class="line">            SET v_resource_id = (SELECT resource_id FROM data_resource WHERE inst_id = v_inst_id);</span><br><span class="line">            -- 后续使用变量v_resource_id进行其他操作</span><br><span class="line">        -- 回到标签foreach_inst</span><br><span class="line">        END LOOP foreach_inst;</span><br><span class="line">    -- 关闭游标</span><br><span class="line">    CLOSE my_cursor;</span><br><span class="line">END $$</span><br><span class="line">-- 重新设置分隔符为;</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">CALL select_data_resource();</span><br><span class="line">DROP PROCEDURE select_data_resource;</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="4-解决办法"><a href="#4-解决办法" class="headerlink" title="4. 解决办法"></a>4. 解决办法</h3><ul>
+<li>保证循环中的查询不会出现 NOT FOUND 异常</li>
+<li>使用<code>SET variable = (SELECT cloumn FROM table);</code> 来设置变量，替代<code>SELECT cloumn INTO variable FROM table;</code> 的方式</li>
 </ul>
-<h4 id="2-4-通信"><a href="#2-4-通信" class="headerlink" title="2.4 通信"></a>2.4 通信</h4><blockquote>
-<p>在前面的准备工作都做完之后，我们得到了两个具有安全的双向通信功能的 WebRTC Agent。</p>
-</blockquote>
-<p>WebRTC 使用两个协议来进行通信，分别是：</p>
-<ul>
-<li><strong>RTP(Real-time Transport Protocol)</strong> ：使用 RTP 来交换用 SRTP 加密过的媒体数据。</li>
-<li><strong>SCTP(Stream Control Transmission Protocol)</strong> ：使用 SCTP 发送和接收那些用 DTLS 加密过的 DataChannel 消息，SCTP 与 TCP、UDP 一样是传输层协议。</li>
-</ul>
-<h3 id="3-WebRTC-时序图"><a href="#3-WebRTC-时序图" class="headerlink" title="3. WebRTC 时序图"></a>3. WebRTC 时序图</h3><blockquote>
-<p>时序图中的流程部分与 WebRTC API 的调用流程相关。</p>
-</blockquote>
-<blockquote>
-<p>在开发中，我们其实不特别关注 API 的调用流程，而是关注音&#x2F;视频数据捕获，SDP信令服务器开发</p>
-</blockquote>
-<hr>
-<p>参考连接：</p>
-<p><a href="https://webrtcforthecurious.com/zh/">WebRTC For The Curious</a></p>
 ]]></content>
       <categories>
-        <category>WebRTC</category>
+        <category>日常踩坑</category>
       </categories>
       <tags>
-        <tag>WebRTC</tag>
+        <tag>MySQL</tag>
       </tags>
   </entry>
   <entry>
@@ -3624,45 +3256,107 @@
       </tags>
   </entry>
   <entry>
-    <title>python模块加载顺序</title>
-    <url>/2022/08/17/python%E6%A8%A1%E5%9D%97%E5%8A%A0%E8%BD%BD%E9%A1%BA%E5%BA%8F/</url>
-    <content><![CDATA[<blockquote>
-<p>结论：工程自定义包 -&gt; 工程py文件 -&gt; 系统路径 </p>
-<p>所以如果在工程中自己创建了跟系统&#x2F;第三方模块重名的模块时，则无法加载系统&#x2F;第三方模块</p>
+    <title>WebRTC简介</title>
+    <url>/2023/08/03/WebRTC%E7%AE%80%E4%BB%8B/</url>
+    <content><![CDATA[<h3 id="1-WebRTC是什么？"><a href="#1-WebRTC是什么？" class="headerlink" title="1. WebRTC是什么？"></a>1. WebRTC是什么？</h3><blockquote>
+<p><strong>端对端的音视频通信协议</strong>，但是由于现实网络环境原比局域网复杂，因此需要中继服务器参与中间协商，还包括安全连接的建立。</p>
+<p>端对端音视频应用最直观的应用就是视频会议&#x2F;远程访问，不同于视频直播（一对多模式）。</p>
 </blockquote>
-<p>python出于性能考虑，每个模块在每个解释器会话中只导入一遍，所以如果程序运行过程中，你修改了自定义模块，那么需要重启解释器（即重启程序）或者使用<code>reload(moduleName)</code>重新加载模块（不用重启）</p>
-<h3 id="1-查看模块加载路径"><a href="#1-查看模块加载路径" class="headerlink" title="1. 查看模块加载路径"></a>1. 查看模块加载路径</h3><blockquote>
-<p>python解析器会从脚本执行目录、所有已安装内置模块和第三方模块中寻找导入的模块，按照sys.path中的路径顺序进行查找</p>
+<p>WebRTC 是 Web 实时通信(Real-Time Communication)的缩写，它既是 API 也是协议。</p>
+<p>WebRTC 协议是两个 WebRTC Agent 协商双向安全实时通信的一组规则。开发人员可以通过 WebRTC API 使用 WebRTC 协议。目前 WebRTC API 仅有 JavaScript 版本，但是可以在其他语言中找到其他实现了 WebRTC 协议的工具，如 Golang 的 <a href="https://github.com/pion/webrtc">Pion WebRTC</a>。</p>
+<p>WebRTC 协议由 IETF 工作组在 <a href="https://datatracker.ietf.org/wg/rtcweb/documents/">rtcweb</a> 中维护。WebRTC API 的 W3C 文档在 <a href="https://www.w3.org/TR/webrtc/">webrtc</a>。</p>
+<h3 id="2-WebRTC涉及到的概念"><a href="#2-WebRTC涉及到的概念" class="headerlink" title="2. WebRTC涉及到的概念"></a>2. WebRTC涉及到的概念</h3><blockquote>
+<p>WebRTC 是一系列协议的集合体，其中使用到的许多协议在 WebRTC 出现之前已经存在。</p>
 </blockquote>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 查看sys.path</span></span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">import</span> sys</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>sys.path</span><br><span class="line">[<span class="string">&#x27;&#x27;</span>, <span class="string">&#x27;/usr/lib64/python27.zip&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/plat-linux2&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-tk&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-old&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-dynload&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/site-packages&#x27;</span>, <span class="string">&#x27;/usr/lib/python2.7/site-packages&#x27;</span>]</span><br><span class="line"><span class="comment"># 这里的列表中的第一个&#x27;&#x27;代表着当前目录，如果是使用文件执行，则是显示的脚本所在目录</span></span><br><span class="line"><span class="comment"># 可以通过sys.path.append(&#x27;/Users/michael/my_py_scripts&#x27;)临时添加搜索目录</span></span><br><span class="line"><span class="comment"># 或将目录添加到shell环境变量PYTHONPATH中</span></span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="2-自定义模块加载"><a href="#2-自定义模块加载" class="headerlink" title="2. 自定义模块加载"></a>2. 自定义模块加载</h3><ol>
-<li>导入一个叫<code>spam</code>的模块时，解释器先在当前目录中搜索名为<code>spam.py</code>的文件，import语句导入<code>spam.py</code>文件时，顺序执行其中的语句</li>
+<p>完成 WevRTC 通信协议的建立需要经过四个步骤（依次执行）：</p>
+<ol>
+<li><p>信令（Signaling）</p>
+</li>
+<li><p>连接（Connecting）</p>
+</li>
+<li><p>安全加密（Securing）</p>
+</li>
+<li><p>通信（Communicating）</p>
+</li>
 </ol>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">目录结构</span><br><span class="line">projects/</span><br><span class="line">    test.py   # 内容 import spam</span><br><span class="line">    spam.py   # 内容 print(&quot;this is spam.py&quot;)</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">#</span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam.py</span><br></pre></td></tr></table></figure>
-
-<ol start="2">
-<li><strong>目录下存在<code>spam</code>包时，则优先调用<code>spam</code>包，不加载<code>spam.py</code>。加载包内文件时，先执行<code>__init__.py</code>再加载包内文件内容</strong></li>
+<h4 id="2-1-信令"><a href="#2-1-信令" class="headerlink" title="2.1 信令"></a>2.1 信令</h4><blockquote>
+<p>当两个 WebRTC Agent （可以理解为客户端）启动时，无法知道自己需要跟谁通信，以及中间通信协议的内容。因此需要信令来引导两个 WebRTC Agent 协商通信。</p>
+</blockquote>
+<p>信令使用一种现有的协议 SDP(Session Description Protocol)。SDP 是一种纯文本协议，每个 SDP 消息均由键&#x2F;值对组成。</p>
+<p>两个 WebRTC Agent 交换的 SDP 所包含的一些详细信息：</p>
+<ul>
+<li>Agent 可供外部访问的（候选的）IP 和端口。</li>
+<li>Agent 希望发送多少路音频和视频流。</li>
+<li>Agent 支持哪些音频和视频编解码器。</li>
+<li>连接时需要用到的值（<code>uFrag</code>&#x2F;<code>uPwd</code>）。</li>
+<li>加密传输时需要用到的值（证书指纹）。</li>
+</ul>
+<p><strong>需要注意的是，应用通常不使用 WebRTC 本身来交换信令。任何能够在两个客户端间通信的协议均能用来传递SDP信令（如HTTP&#x2F;WebSocket）</strong>。</p>
+<h4 id="2-2-连接"><a href="#2-2-连接" class="headerlink" title="2.2 连接"></a>2.2 连接</h4><blockquote>
+<p>经过信令协商之后，两个 WebRTC Agent知道足够的信息以尝试相互连接。但是因为两个 WebRTC Agent 身处不同的网络，中间可能经过了许多层的 NAT 转换，因此需要 ICE (Interactive Connectivity Establishment)来协助解决在 NAT 和防火墙环境下建立稳定的点对点连接。</p>
+</blockquote>
+<p>ICE 协议，无需中央服务器即可建立直接连接，解决 NAT 和防火墙造成的连接问题，使实时通信应用能够在多种网络环境下建立稳定的连接（这里的连接并不限定任何连接协议，如HTTP&#x2F;Sokcet&#x2F;RTP）。其中，核心便是<code>NAT 穿透</code> 和 <code>STUN/TURN 服务器</code>（中继服务器）。</p>
+<p>ICE 协议的流程包括：</p>
+<ol>
+<li><strong>候选地址收集：</strong> 在建立连接之前，ICE 会收集设备的各种网络地址，包括私有 IP 地址、公共 IP 地址以及通过 NAT 映射的地址等。这些地址称为候选地址。</li>
+<li><strong>候选地址排序：</strong> 收集到的候选地址将被排序，优先选择能够穿越 NAT 并且能够被远程设备访问到的地址。</li>
+<li><strong>连通性检测：</strong> ICE 使用 STUN(Session Traversal Utilities for NAT) 协议来检测设备之间的连通性。设备发送 STUN 请求以获取其在外部网络中的映射地址和端口，从而确定它是否可以被远程设备访问到。</li>
+<li><strong>候选地址交换：</strong> 通信设备交换各自的候选地址和 STUN 响应，从而使每个设备了解对方的可用地址。</li>
+<li><strong>选取最佳路径：</strong> 通过比较候选地址的可达性和优先级，ICE 确定了最佳的通信路径，可以穿越 NAT 并建立连接。</li>
+<li><strong>失败回退：</strong> 如果直接的点对点连接无法建立，ICE 可以采用 TURN(Traversal Using Relays around NAT)服务器作为中继，通过 TURN 服务器中转数据。</li>
 </ol>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">目录结构</span><br><span class="line">projects/</span><br><span class="line">    test.py   # 内容 import spam</span><br><span class="line">    spam.py   # 内容 print(&quot;this is spam.py&quot;)</span><br><span class="line">    spam/ </span><br><span class="line">        __init__.py  # 内容 print(&quot;this is spam/__init__.py&quot;)</span><br><span class="line">        sub.py        # 内容 print(&quot;this is spam/sub.py&quot;)</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam/__init__.py</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">修改test.py</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">echo</span> <span class="string">&quot;import spam.sub&quot;</span> &gt; test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam/__init__.py</span><br><span class="line">this is spam/sub.py</span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="3-查看第三方模块的所在路径"><a href="#3-查看第三方模块的所在路径" class="headerlink" title="3. 查看第三方模块的所在路径"></a>3. 查看第三方模块的所在路径</h3><p>哪如果想知道导入的第三方模块具体文件在哪里咋办呢？</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">import</span> imp</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>imp.find_module(<span class="string">&quot;paramiko&quot;</span>)</span><br><span class="line">(<span class="literal">None</span>, <span class="string">&#x27;/usr/local/lib/python3.6/site-packages/paramiko&#x27;</span>, (<span class="string">&#x27;&#x27;</span>, <span class="string">&#x27;&#x27;</span>, <span class="number">5</span>))</span><br></pre></td></tr></table></figure>
-
+<h4 id="2-3-安全加密"><a href="#2-3-安全加密" class="headerlink" title="2.3 安全加密"></a>2.3 安全加密</h4><blockquote>
+<p>ICE 成功连接后，WebRTC 就会继续建立加密传输。加密传输用于音频，视频和数据。</p>
+</blockquote>
+<p>现在我们有了双向通信（基于 ICE），我们需要建立安全的通信。</p>
+<p>WebRTC 中会传输两种数据，一种是 DataChannel 中的消息 （可以理解为字符数据），一种是 RTP 中的音&#x2F;视频数据。</p>
+<p>所有需要两种协议来保证 WebRTC传输的数据安全：</p>
+<ul>
+<li><strong>DTLS(Datagram Transport Layer Security)</strong> ：基于 UDP 的 TLS 。与 HTTPS 不同，WebRTC 不使用中央授权来颁发证书。相反，WebRTC 只是判断通过 DTLS 交换的证书是否与通过信令共享的签名相符。然后，此 DTLS 连接可以被用于传输 DataChannel 消息。（基于UDP并不是说 DataChannel 传输消息使用 UDP，只是DTLS 协议使用 UDP 来完成加密认证的过程，真正传输 DataChannel 消息的是 SCTP）。</li>
+<li><strong>SRTP(Secure Real-time Transport Protocol)</strong> ：SRTP 来保护的 RTP 数据包安全，在 RTP 的基础上增加了加密和认证机制，以保护通信数据免受恶意攻击和窃听。WebRTC 从协商的 DTLS 会话中提取密钥，用来初始化 SRTP 会话。</li>
+</ul>
+<h4 id="2-4-通信"><a href="#2-4-通信" class="headerlink" title="2.4 通信"></a>2.4 通信</h4><blockquote>
+<p>在前面的准备工作都做完之后，我们得到了两个具有安全的双向通信功能的 WebRTC Agent。</p>
+</blockquote>
+<p>WebRTC 使用两个协议来进行通信，分别是：</p>
+<ul>
+<li><strong>RTP(Real-time Transport Protocol)</strong> ：使用 RTP 来交换用 SRTP 加密过的媒体数据。</li>
+<li><strong>SCTP(Stream Control Transmission Protocol)</strong> ：使用 SCTP 发送和接收那些用 DTLS 加密过的 DataChannel 消息，SCTP 与 TCP、UDP 一样是传输层协议。</li>
+</ul>
+<h3 id="3-WebRTC-时序图"><a href="#3-WebRTC-时序图" class="headerlink" title="3. WebRTC 时序图"></a>3. WebRTC 时序图</h3><blockquote>
+<p>在开发中，我们主要关注的客户端上音&#x2F;视频数据捕获以及 SDP 信令服务器的开发。</p>
+</blockquote>
+<blockquote>
+<p>时序图以一对一视频聊天室为例子，分为 WebRTC Agent、Coturn Server、Signal Server。</p>
+<ul>
+<li>WebRTC Agent 是WebRTC 客户端。</li>
+<li>Coturn Server 完整的实现了 STUN&#x2F;TURN&#x2F;ICE 协议，支持 P2P 穿透防火墙。</li>
+<li>Signal Server是我们需要开发的信令服务器。</li>
+</ul>
+<p>时序图上，粉色部分为视频聊天室中触发的事件，棕色部分为事件的处理方法。WebRTC API 调用流程中最重要的是 new RTCPeerConnection，创建了一个WebRTC连接对象，其余的都是调用该对象上的方法。</p>
+</blockquote>
+<p><img src="/2023/08/03/WebRTC%E7%AE%80%E4%BB%8B/WebRTC%E6%97%B6%E5%BA%8F%E5%9B%BE.png" alt="WebRTC时序图"></p>
+<ul>
+<li><code>new RTCPeerConnection</code>：最顶层的 “WebRTC 会话 “。它包含 WebRTC 中涉及的所有协议。调用后，所有子系统都会被创建，但是此时什么都还没有发生。</li>
+<li><code>addTrack</code>：创建一个新的 RTP 流。会为这个 RTP 流生成一个随机的 SSRC（Synchronization Source&#x2F; 同步源）。在后续 <code>createOffer</code> 生成会话描述中，这个 RTP 流会被放入一个 media section。每次调用 <code>addTrack</code> 都会创建一个新的 SSRC 和一个对应的 media section。在建立 SRTP 会话后，这些媒体数据包将被 SRTP 加密，然后立即通过 ICE 开始发送。</li>
+<li><code>createDataChannel</code>：当没有 SCTP 关联 (SCTP Association) 存在时，<code>createDataChannel</code> 将创建一个新的 SCTP 流。<strong>默认情况下，SCTP 是不启用的，只有在一方请求数据通道时才启动。</strong>在 DTLS 会话建立之后，SCTP 关联将立即通过 ICE 发送数据包，并使用 DTLS 加密。</li>
+<li><code>createOffer</code>：生成会话描述，里面是需要与远端 Peer 分享的本地信息。调用 <code>createOffer</code> 的行为对于本地 Peer 没有任何改变。</li>
+<li><code>setLocalDescription</code>：提交所有请求的更改。 <code>addTrack</code> <code>createDataChannel</code> 和其他类似的调用都是临时的 (调用 <code>setLocalDescription</code> 后生效)。 调用 <code>setLocalDescription</code> 时，使用由 <code>createOffer</code> 生成的值。通常，在此调用之后，你会将 offer 发送给远端 Peer，他们将调用 <code>setRemoteDescription</code>，将此 offer 设入。</li>
+<li><code>setRemoteDescription</code>：收到远端 Peer 发来的 offer 之后，我们通过 <code>setRemoteDescription</code> 通知本地 Agent。这就是使用 JavaScript API 传递 “信令” 的方式。双方都调用过 <code>setRemoteDescription</code> 后，WebRTC Agent 现在拥有足够的信息来开始进行点对点（P2P）通信。</li>
+<li><code>addIceCandidate</code>： 允许 WebRTC Agent 随时添加更多的远程 ICE 候选对象。该 API 将 ICE 候选对象发送到 ICE 子系统，并且对更大的 WebRTC 连接没有其他影响。</li>
+<li><code>ontrack</code>： 是收到远端 Peer 的 RTP 数据包时触发的回调。传入的 RTP 数据包的格式应该已在传递给 <code>setRemoteDescription</code> 的会话描述中声明。WebRTC 使用 SSRC 并查找关联的 <code>MediaStream</code> 和 <code>MediaStreamTrack</code>，并使用 <code>MediaStream</code> 和 <code>MediaStreamTrack</code> 中的详细信息来触发此回调。</li>
+<li><code>oniceconnectionstatechange</code>：是 ICE Agent 的状态变化时触发的回调。当网络连接或断开时，你将得到此通知。</li>
+<li><code>onconnectionstatechange</code>： 是 ICE Agent 和 DTLS Agent 状态的组合。当 ICE 和 DTLS 都成功完成时，你将得到此通知。</li>
+</ul>
+<hr>
+<p>参考连接：</p>
+<p><a href="https://webrtcforthecurious.com/zh/">WebRTC For The Curious</a></p>
 ]]></content>
       <categories>
-        <category>Python</category>
+        <category>WebRTC</category>
       </categories>
       <tags>
-        <tag>Python</tag>
+        <tag>WebRTC</tag>
       </tags>
   </entry>
   <entry>
@@ -3715,6 +3409,331 @@
 <h4 id="4-2-安装模块"><a href="#4-2-安装模块" class="headerlink" title="4.2 安装模块"></a>4.2 安装模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">easy_install module</span><br><span class="line">easy_install module==version   # 安装指定版本</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">指定镜像源安装</span></span><br><span class="line">esay_install -i `镜像源` module </span><br></pre></td></tr></table></figure>
 
 <h4 id="4-3-卸载模块"><a href="#4-3-卸载模块" class="headerlink" title="4.3 卸载模块"></a>4.3 卸载模块</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">easy_install -m module</span><br></pre></td></tr></table></figure>
+
+]]></content>
+      <categories>
+        <category>Python</category>
+      </categories>
+      <tags>
+        <tag>Python</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>MySQL知识总结</title>
+    <url>/2022/12/05/MySQL%E7%9F%A5%E8%AF%86%E6%80%BB%E7%BB%93/</url>
+    <content><![CDATA[<h3 id="1-MyISAM和InnoDB的区别"><a href="#1-MyISAM和InnoDB的区别" class="headerlink" title="1. MyISAM和InnoDB的区别"></a>1. MyISAM和InnoDB的区别</h3><ul>
+<li><p>MyISAM</p>
+<ul>
+<li>不支持事务、崩溃恢复</li>
+<li>不支持行锁，只支持表锁</li>
+<li>不支持外键</li>
+<li>主键索引中叶子节点储存的不是数据记录，而是记录的内存地址，因此MyISAM的数据文件分为索引文件和数据文件</li>
+</ul>
+</li>
+<li><p>InnoDB</p>
+<ul>
+<li>支持事务，崩溃恢复，有redo log</li>
+<li>支持表锁、行级锁，通过MVCC和Next-key Lock在可重复读的隔离级别下解决幻读的问题</li>
+<li>支持外键</li>
+<li>InnoDB的主键索引是聚簇索引，所以数据文件只有一个</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-索引"><a href="#2-索引" class="headerlink" title="2. 索引"></a>2. 索引</h3><blockquote>
+<p>以 InnoDB 的一个整数字段索引为例，N叉B+树的N 差不多是 1200。这棵树高是 4 的时候，就可以存 1200 的 3 次方个值，这已经 17 亿了。考虑到树根的数据块总是在内存中的，一个 10 亿行的表上一个整数字段的索引，查找一个值最多只需要访问 3 次磁盘。其实，树的第二层也有很大概率在内存中，那么访问磁盘的平均次数就更少了。</p>
+</blockquote>
+<h4 id="索引类型（分类角度）"><a href="#索引类型（分类角度）" class="headerlink" title="索引类型（分类角度）"></a>索引类型（分类角度）</h4><ul>
+<li><p><strong>主键索引</strong>：一种<strong>特殊的唯一索引</strong>，一个表只能有一个主键，<strong>不允许有空值</strong>，主键索引的记录在物理存储上的方式跟数据库引擎的实现有关，MyISAM中主键索引B+树的叶子节点储存的是记录的物理地址（所以数据库的数据文件分为索引文件和数据文件），而InnoDB中主键索引B+树的叶子节点储存了记录的所有字段值。</p>
+</li>
+<li><p><strong>普通索引</strong>：就是普通的索引。</p>
+</li>
+<li><p><strong>唯一索引</strong>：字段唯一，能够<strong>允许NULL值</strong>，就是只要是NULL就认为是不一样的，在InnoDB中NULL值储存在B+树的最左边。</p>
+</li>
+<li><p><strong>前缀索引</strong>：指对字符类型字段的前几个字符或对二进制类型字段的前几个bytes建立的索引，而不是在整个字段上建索引。前缀索引可以建立在类型为char、varchar、binary、varbinary的列上，可以大大减少索引占用的存储空间，也能提升索引的查询效率。</p>
+</li>
+<li><p><strong>全文索引</strong>：与搜索引擎相关，都是需要分词，然后根据关键字中的词频和重要性进行排序。</p>
+</li>
+<li><p><strong>联合索引</strong>：由多个字段组合形成的索引。</p>
+</li>
+</ul>
+<h4 id="聚簇索引与非聚簇索引（物理储存角度）"><a href="#聚簇索引与非聚簇索引（物理储存角度）" class="headerlink" title="聚簇索引与非聚簇索引（物理储存角度）"></a>聚簇索引与非聚簇索引（物理储存角度）</h4><ul>
+<li><p><strong>聚簇索引</strong>：记录的物理储存顺序与列值（一般是主键的一列）的逻辑顺序相同，一个表中只有一个聚簇索引（因为聚簇索引的记录在物理储存上是有序的，所以当按照主键遍历的时候，相邻的主键都在同一块内存页中，能够减少缺页中断，提高查询效率）。</p>
+</li>
+<li><p><strong>非聚簇索引</strong>（二级索引、辅助索引）：与聚簇索引相反，如果记录的物理储存顺序与列值的逻辑顺序不一样，那么就是非聚簇索引，一个表中可以有多个非聚簇索引。</p>
+</li>
+</ul>
+<h4 id="B-树索引和哈希索引（数据结构角度）"><a href="#B-树索引和哈希索引（数据结构角度）" class="headerlink" title="B+树索引和哈希索引（数据结构角度）"></a>B+树索引和哈希索引（数据结构角度）</h4><ul>
+<li><p><strong>B+树索引</strong>：B+树是多叉平衡树，所以能够快速搜索到记录的位置，B+树的特点是非叶子节点不储存数据，叶子节点储存数据，最后所有叶子节点组成一条有序的双向链表，<strong>因为非叶子节点不储存数据，所以单个非叶子节点能够储存大量的索引数据，而由于这些索引数据是经常被访问的，所以能够常驻在内存中，减少缺页中断（或SWAP）带来的性能消耗</strong>。</p>
+</li>
+<li><p><strong>B树索引</strong>：B树叶子节点也储存数据，而且所有叶子节点不会组成有序链表。</p>
+</li>
+<li><p><strong>哈希索引</strong>：经过哈希函数能够快速找到记录的位置，不需要进行搜索（哈希冲突解决的办法）</p>
+</li>
+</ul>
+<h4 id="自适应哈希索引"><a href="#自适应哈希索引" class="headerlink" title="自适应哈希索引"></a>自适应哈希索引</h4><blockquote>
+<p>InnoDB引擎支持自适应哈希索引，是数据库自动优化，只能选择开启或者关闭。</p>
+</blockquote>
+<p>因为当使用辅助索引进行查找的时候，如果并不是覆盖索引，就需要<strong>回表</strong>到主键索引中找到记录的所有数据，如果这种查询的次数变多，那么InnoDB就会自动创建自适应哈希索引，<strong>提高在通过辅助索引查找到主键Id的时候，再回表的查询速度</strong>。（即通过辅助索引查找到主键Id，然后通过主键Id的哈希索引直接找到记录的位置）。</p>
+<p>根据一些资料的统计，读取和写入速度可以提高2倍，辅助索引的连接操作性能可以提高5倍。</p>
+<p><a href="https://juejin.cn/post/6844903888080863245">自适应哈希索引(Adaptive Hash Index, AHI)</a></p>
+<h4 id="主键索引就是聚簇索引吗？"><a href="#主键索引就是聚簇索引吗？" class="headerlink" title="主键索引就是聚簇索引吗？"></a>主键索引就是聚簇索引吗？</h4><p><strong>不是</strong>！！！在InnoDB中主键的确是按聚簇索引的方式组织的，但是在MyISAM里面主键<strong>不是</strong>聚簇索引，sql server中还可以显示的指定聚簇索引。</p>
+<p>InnoDB中如果没有定义主键，Innodb会选择非空的唯一索引代替。如果没有这样的索引，Innodb会隐式的定义一个主键来作为聚簇索引。</p>
+<p><a href="https://www.cnblogs.com/lice-blog/p/11569443.html">主键索引就是聚集索引吗？</a></p>
+<h4 id="什么是联合索引、覆盖索引、索引最左匹配原则"><a href="#什么是联合索引、覆盖索引、索引最左匹配原则" class="headerlink" title="什么是联合索引、覆盖索引、索引最左匹配原则"></a>什么是联合索引、覆盖索引、索引最左匹配原则</h4><ul>
+<li><p><strong>联合索引</strong>：由多个字段组合形成的索引</p>
+</li>
+<li><p><strong>覆盖索引</strong>：查询的字段会被索引覆盖到，就<strong>不需要回表</strong>根据主键Id查询其他字段，<strong>单个字段的索引</strong>和<strong>联合索引</strong>都能实现覆盖索引的功能。所以说覆盖索引并不是一种真正的索引，是查询的时候用到的索引覆盖到了所有需要查询的字段。</p>
+</li>
+<li><p><strong>索引最左匹配原则</strong>：对于一个联合索引（a, b, c, d），如果查询的时候指定了查询条件<code>a = 1 AND b = 2 AND c &gt; 4 AND d &lt; 5</code>，因为索引整体上是按<code>a,b,c,d</code>来排序的（即先按a排序，a相等的时候按b排序，以此类推），所以<strong>当a和b指定了确切的值的时候，记录在c上是有序的，但是在d上就不确认了</strong>。当联合索引遇到范围查询（&gt;，&lt;，between，like）最左匹配就不能进一步匹配了。（当然MySQL会优化查询的顺序比如，<code>d &lt; 5 AND b = 2 AND c &gt; 4 AND a = 1</code> 会优化为<code>a = 1 AND b = 2 AND c &gt; 4 AND d &lt; 5</code>）</p>
+</li>
+</ul>
+<h4 id="说一下索引下推"><a href="#说一下索引下推" class="headerlink" title="说一下索引下推"></a>说一下索引下推</h4><blockquote>
+<p>索引下推可以在索引遍历过程中（引擎层），对索引中包含的字段先做判断，直接过滤掉不满足条件的记录，减少回表次数。</p>
+</blockquote>
+<p>对于一个联合索引<strong>（name, age）</strong>和一个SQL语句</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">select * from tuser where name like &#x27;张%&#x27; and age = 10 and ismale = 1;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>如果没有索引下推，因为最左匹配原则，所以只会用到<code>name</code>的索引，所以在引擎层会找到所有<code>name like &#39;张%&#39;</code>的主键并返回给server层，然后逐个回表判断</li>
+<li>如果有索引下推，即使有最左匹配原则，也会将索引能用到的<code>age = 10</code>放到引擎层进行判断，引擎层根据索引判断，只返回<code>name like &#39;张%&#39; and age = 10</code>的主键，这样过滤了不符合的部分数据，就能减少回表的次数</li>
+</ul>
+<h3 id="3-事务"><a href="#3-事务" class="headerlink" title="3. 事务"></a>3. 事务</h3><h4 id="事务的四大特性（ACID）"><a href="#事务的四大特性（ACID）" class="headerlink" title="事务的四大特性（ACID）"></a>事务的四大特性（ACID）</h4><ol>
+<li>原子性：一个事务是最小执行单位，事务中的动作要么都做，要么都不做</li>
+<li>一致性：执行事务之后，数据保持一致，多个事务对同一个数据读取的结果是相同的</li>
+<li>隔离性：并发访问数据库的时候，各个事务之间不会相互影响</li>
+<li>持久性：一个事务被提交之后，对数据库的修改是持久的，即使数据库发生故障也不会有影响</li>
+</ol>
+<h4 id="可能出现的问题"><a href="#可能出现的问题" class="headerlink" title="可能出现的问题"></a>可能出现的问题</h4><ol>
+<li><strong>脏读</strong>：事务A能够读到事务B还没提交的数据</li>
+<li><strong>不可重复读</strong>：对于读取一行数据，一个事务中两次读到的数据不一样</li>
+<li><strong>幻读</strong>：对于读取多行数据，一个事务中第二次读到的行数比第一次读到的行数要多</li>
+<li><strong>丢失修改</strong>：ABA问题，事务A读取记录R为20，将R-1&#x3D;19后写入数据库，事务B也执行一样的操作，但是最后数据库中的记录是R&#x3D;19，事务A的操作被事务B覆盖（这种是程序逻辑本身的问题，所以需要对需要修改的数据加锁&#x2F;版本号&#x2F;旧值比较）</li>
+</ol>
+<h4 id="隔离等级"><a href="#隔离等级" class="headerlink" title="隔离等级"></a>隔离等级</h4><ol>
+<li><p><strong>读未提交</strong>：一个事务还没提交，其变更就能被其他事务看到</p>
+</li>
+<li><p><strong>读已提交</strong>：一个事务提交之后，其变更才能被其他事务看到，能够解决脏读的问题</p>
+</li>
+<li><p><strong>可重复读</strong>：一个事务执行过程中，对同一字段的多次读取结果是一样的，除非数据是被自己事务本身修改，能够解决不可重复读的问题，但是幻读仍然有可能发生<strong>（InnoDB通过MVCC和Next-key Lock在可重复读的隔离级别下解决了幻读的问题）</strong></p>
+</li>
+<li><p><strong>串行化</strong>：所有事务都是串行执行的，完全服从ACID的隔离级别，能解决所有问题</p>
+</li>
+</ol>
+<h3 id="4-锁-、间隙锁、Next-Key-Lock"><a href="#4-锁-、间隙锁、Next-Key-Lock" class="headerlink" title="4. 锁 、间隙锁、Next-Key Lock"></a>4. 锁 、间隙锁、Next-Key Lock</h3><ul>
+<li><p><strong>全局锁</strong>：对整个数据库加锁（Flush tables with read lock），典型应用场景是做全库逻辑备份（如果使用InnoDB，则使用mysqldump备份数据库的时候，有MVCC的支持，就不用加全局锁了）</p>
+</li>
+<li><p><strong>表级锁</strong>：又分为<strong>表锁</strong>和<strong>元数据锁（metadata lock， MDL）</strong></p>
+<ul>
+<li>元数据锁：锁住表结构，在访问一个表的时候会被自动加上，事务中的MDL锁会在语句执行开始时申请，但是语句结束后并不会马上释放，而是等到整个事务提交后才会释放</li>
+</ul>
+</li>
+<li><p><strong>行锁</strong>：锁住一行，在InnoDB的事务中，行锁是在语句执行的时候加上，但是要等到事务结束才会释放（<strong>两阶段锁协议</strong>）</p>
+<ul>
+<li>行锁可能出现死锁的一种情况，事务A执行了第一条语句，事务B执行了第一条语句，两个事务分别获得了不同的行锁</li>
+<li>解决行锁死锁的方法， <strong>1. 等待超时（innodb_lock_wait_timeout）</strong>，<strong>2. 发起死锁检测，发现死锁后，主动回滚死锁链条中的某一个事务（innodb_deadlock_detect &#x3D; on）</strong></li>
+</ul>
+</li>
+</ul>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="comment">-- 事务A</span></span><br><span class="line"><span class="keyword">start</span> transaction;</span><br><span class="line"><span class="keyword">update</span> t <span class="keyword">set</span> k <span class="operator">=</span> k <span class="operator">+</span> <span class="number">1</span> <span class="keyword">where</span> id <span class="operator">=</span> <span class="number">1</span>;</span><br><span class="line"><span class="keyword">update</span> t <span class="keyword">set</span> k <span class="operator">=</span> k <span class="operator">+</span> <span class="number">1</span> <span class="keyword">where</span> id <span class="operator">=</span> <span class="number">2</span>;</span><br><span class="line"><span class="keyword">commit</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">-- 事务B</span></span><br><span class="line"><span class="keyword">start</span> transaction;</span><br><span class="line"><span class="keyword">update</span> t <span class="keyword">set</span> k <span class="operator">=</span> k <span class="operator">+</span> <span class="number">1</span> <span class="keyword">where</span> id <span class="operator">=</span> <span class="number">2</span>;</span><br><span class="line"><span class="keyword">update</span> t <span class="keyword">set</span> k <span class="operator">=</span> k <span class="operator">+</span> <span class="number">1</span> <span class="keyword">where</span> id <span class="operator">=</span> <span class="number">1</span>;</span><br><span class="line"><span class="keyword">commit</span>;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>间隙锁（Gap Lock）</strong>:锁住两个值之间的空隙，前开后开区间，如6个值，有7个空隙，包括（-∞，num）和（num, +∞）<ul>
+<li><strong>跟间隙锁存在冲突关系的，是“往这个间隙中插入一个记录”这个操作</strong></li>
+<li>间隙锁死锁的例子<ul>
+<li>session A 执行 select … for update 语句，由于 id&#x3D;9 这一行并不存在，因此会加上间隙锁 (5,10);</li>
+<li>session B 执行 select … for update 语句，同样会加上间隙锁 (5,10)，间隙锁之间不会冲突，因此这个语句可以执行成功；</li>
+<li>session B 试图插入一行 (9,9,9)，被 session A 的间隙锁挡住了，只好进入等待；</li>
+<li>session A 试图插入一行 (9,9,9)，被 session B 的间隙锁挡住了。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><img src="/2022/12/05/MySQL%E7%9F%A5%E8%AF%86%E6%80%BB%E7%BB%93/%E9%97%B4%E9%9A%99%E9%94%81%E6%AD%BB%E9%94%81.png" alt="image-20220906104804761"></p>
+<ul>
+<li><strong>Next-key Lock</strong>：Inno加锁的<strong>基本单位</strong>，<strong>为的就是解决幻读</strong>，行锁<code>b</code>和间隙锁<code>(a, b)</code>加在一起，就是一个<strong>Next-key Lock</strong>，是前开后闭区间<code>(a, b]</code></li>
+</ul>
+<h3 id="5-多版本并发控制MVCC"><a href="#5-多版本并发控制MVCC" class="headerlink" title="5. 多版本并发控制MVCC"></a>5. 多版本并发控制MVCC</h3><blockquote>
+<p>MVCC加上Next-key Lock就能够解决幻读的问题。单单MVCC只能解决可重复读，当前读的情况下，还是会出现幻读</p>
+</blockquote>
+<blockquote>
+<p>在MVCC中，非锁定读（普通select）是不用加锁的，但是锁定读(select … for update &#x2F; select … lock in share mode &#x2F; update &#x2F; insert &#x2F; delete)的时候会用锁</p>
+</blockquote>
+<blockquote>
+<p>InnoDB中，每条记录在更新的时候都会同时记录一条回滚操作，因此能得到上一个状态的值。（这个回滚日志<code>undolog</code>会在不需要的时候才删除，即当前所有事务中的最小版本号大于回滚日志的版本号）</p>
+</blockquote>
+<h4 id="标识ID"><a href="#标识ID" class="headerlink" title="标识ID"></a>标识ID</h4><ul>
+<li><strong>每个事务</strong>都有一个唯一的<strong>事务ID（transaction id）</strong>，每个事务开始前向InnoDB的事务系统申请，严格递增</li>
+<li><strong>每行数据</strong>都有多个版本<strong>row trx_id</strong>，每次事务更新数据的时候，都会生成一个新的数据版本，并把<strong>事务ID</strong>赋值给<strong>row trx_id</strong>，旧的数据版本能够通过回滚日志得到</li>
+</ul>
+<p><img src="/2022/12/05/MySQL%E7%9F%A5%E8%AF%86%E6%80%BB%E7%BB%93/MVCC.png" alt="image-20220905203039546"></p>
+<h4 id="详细过程"><a href="#详细过程" class="headerlink" title="详细过程"></a>详细过程</h4><blockquote>
+<p>核心是通过版本控制来获得一个一致性视图，但是当事务更新数据的时候，只能用当前读，如果当前记录的行锁被其他事务占用，就只能进入锁等待。</p>
+</blockquote>
+<ol>
+<li><strong>当前事务开始时</strong>，构造一个<strong>数组</strong>用于保存当前事务启动瞬间<strong>活跃</strong>的<strong>所有事务ID</strong>（即启动了，但是还没有提交）</li>
+<li>数组里面事务ID的<strong>最小值记为低水位</strong>，<strong>事务ID的最大值+1记为高水位</strong>，数组和高水位就组成了当前事务的一致性视图（read-view）</li>
+<li>对于<strong>一个数据记录</strong>的<strong>row trx_id</strong>来说，有以下几种可能<ul>
+<li><strong>row trx_id小于低水位</strong>，落在绿色部分，表示这个版本的数据是已经提交的，或者是当前事务自己生成的，所以数据<strong>可见</strong></li>
+<li><strong>row trx_id大于高水位</strong>，落在红色部分，表示这个版本的数据是由未来的事务生成的，<strong>不可见</strong></li>
+<li>如果落在黄色部分：<ul>
+<li><strong>row trx_id在数组中</strong>，表示这个版本是由未提交的事务生成的，<strong>不可见</strong></li>
+<li><strong>row trx_id不在数组中</strong>，表示这个版本的数据是由已提交的事务生成的，<strong>可见</strong>（因为低水位和高水位表示的只是一个区间，这个区间中有已经提交的事务和未提交的事务，数组中的是未提交的事务，而当前的事务ID大于高水位，<strong>row trx_id</strong>落在这个区间内已提交的事务，哪当然是可见的）</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>当前读</strong>：<strong>更新数据都是先读后写的</strong>，而这个读，只能<strong>读已经提交完成的最新版本</strong></li>
+<li>如果是更新&#x2F;删除&#x2F;插入这些锁定读的事务呢？<strong>两阶段锁协议</strong>，需要等到获得锁的事务结束了，释放锁，才能继续<strong>当前读</strong>，继续后面的操作</li>
+</ol>
+<p><img src="/2022/12/05/MySQL%E7%9F%A5%E8%AF%86%E6%80%BB%E7%BB%93/MVCC%E6%B0%B4%E4%BD%8D.png" alt="image-20220905225008836"></p>
+<h4 id="ABA问题"><a href="#ABA问题" class="headerlink" title="ABA问题"></a>ABA问题</h4><p>MVCC也会出现ABA问题，因为只有在锁定读的时候才会加锁，所以可能会出现ABA问题，一个简单的例子，事务A读取了记录R数值为1，之后事务B也读取这个记录R数值为1，之后事务AB都想要将记录R+1后更新，那么最后结果就会变成2，但是期望是3。ABA问题是编程问题，所以可以使用select … lock for update来锁住想要更新的表，这样只有获取到锁的事务才能进行操作。或者加一个旧值&#x2F;版本号进行判断，只有当旧值&#x2F;版本号一样的时候才更新（但是修改失败需要有重试机制）。</p>
+<h3 id="6-binlog、redolog"><a href="#6-binlog、redolog" class="headerlink" title="6. binlog、redolog"></a>6. binlog、redolog</h3><h4 id="binlog（归档日志）"><a href="#binlog（归档日志）" class="headerlink" title="binlog（归档日志）"></a>binlog（归档日志）</h4><blockquote>
+<p>binlog的主要作用是用于备份，以及主从同步</p>
+</blockquote>
+<blockquote>
+<p>binlog的写是追加写，所以不会覆盖以前的数据</p>
+</blockquote>
+<p>三种数据格式：</p>
+<ul>
+<li>statement – 记录执行的SQL语句，简洁，但是主库与从库执行同一条语句的结果可能不一样，如NOW()</li>
+<li>row – 记录真实数据的变化，可靠，主从库执行结果一样，但是占空间</li>
+<li>mixed – 前两种的混合，MySQL自己判断如果会引起主备不一致的时候，就用row格式，否则用statement</li>
+</ul>
+<h4 id="redo-log（重做日志）"><a href="#redo-log（重做日志）" class="headerlink" title="redo log（重做日志）"></a>redo log（重做日志）</h4><blockquote>
+<p>redolog主要的作用是用于崩溃恢复，固定大小，循环写，可以比如可以配置一组4个文件，每个文件大小1GB，从头开始写，写到末尾又回到开头循环写。</p>
+</blockquote>
+<ul>
+<li><p><strong>write pos</strong>：表示当前写记录的位置，一边写一边后移</p>
+</li>
+<li><p><strong>check point</strong>：check point之前的数据都是已经落盘（flush到磁盘）上的，write pos大于check point，write pos 与check point之间的数据表示在内存页上，但是还没落盘的数据</p>
+</li>
+</ul>
+<h4 id="缓冲结构"><a href="#缓冲结构" class="headerlink" title="缓冲结构"></a>缓冲结构</h4><blockquote>
+<p>崩溃分为数据库崩溃和操作系统崩溃，数据库崩溃只会影响MySQL中的缓存（丢失这一部分，已经调用write写入到操作系统缓存中的则是正常的），操作系统崩溃则是影响数据的落盘（无法恢复）</p>
+</blockquote>
+<ul>
+<li><p><strong>buffer pool</strong>：MySQL中用于缓存页的地方，有脏页以及干净页，脏页落盘需要flush，干净页不用</p>
+</li>
+<li><p><strong>change buffer</strong>：buffer pool内的一部分，<strong>主要用于记录页面数据的变化</strong>，如果一个<strong>数据页已经在内存</strong>中，则可以直接修改这个内存数据页然后变成脏页；但是如果一个<strong>数据页不在内存中，在磁盘中</strong>，则可以将更新操作写到change buffer中，这样能够避免将数据页从磁盘中读取到内存中，<strong>减少磁盘的随机读IO，适用于多写少读</strong>，当要读取这个数据页的数据时，再将从磁盘中读取的数据执行change buffer中的操作就能得到最新的数据。</p>
+</li>
+<li><p><strong>redolog buffer</strong>：可以认为也是buffer pool中的一部分，事务执行过程中更新数据的日志都得先保存起来，但是又不能在还没commit的时候写入到redo log文件中，所以先用redolog buffer来存redo日志。</p>
+</li>
+<li><p><strong>操作系统的缓存 os cache</strong>：调用操作系统的write函数并不会将数据直接写入磁盘，而是先写入系统的缓冲池中，系统自己判断何时将数据flush进磁盘，<strong>数据库崩溃不会影响到这部分的数据，操作系统崩溃才会影响</strong>。</p>
+</li>
+</ul>
+<h4 id="二阶段提交"><a href="#二阶段提交" class="headerlink" title="二阶段提交"></a>二阶段提交</h4><p>redo log是InnoDB引擎特有，用于提供崩溃恢复的功能，而二阶段提交涉及到<code>binlog(归档日志)</code>还有<code>redolog(重做日志)</code>，即server层与引擎层之间的交互。</p>
+<p><strong>两阶段提交的作用</strong>：保证MySQL数据库中的记录与磁盘中的记录一致</p>
+<p><strong>方法流程</strong>：</p>
+<ul>
+<li>执行器调用引擎的API接口(未写<code>binlog</code>)，写入一行数据</li>
+<li>InnoDB引擎把数据保存在内存中，同时记录<code>redolog</code>，此时<code>redolog </code>进入<code>prepare状态</code>，然后告诉执行器，执行完成可以随时提交</li>
+<li>执行器收到通知后记录<code>binlog</code>，然后调用InnoDB引擎接口说已经写完<code>binlog</code></li>
+<li>InnoDB写<code>redolog</code>为<code>commit状态</code></li>
+<li>更新完成</li>
+</ul>
+<p><strong>为什么要这样子？</strong></p>
+<ul>
+<li>假设<strong>先写redolog并设为commit状态，然后写binlog</strong>，那么写完<code>redolog</code>之后，机器挂了，<code>binlog</code>日志没有被写入。机器重启后，会通过<code>redolog</code>恢复数据，但是<code>binlog</code>没有记录这一条数据，那么后续机器根据<code>binlog</code><strong>备份</strong>或者<strong>主从同步</strong>的时候，就会丢失这一条数据。</li>
+<li>假设<strong>先写binlog，然后写redolog</strong>，那么当<code>binlog</code>写完的时候，机器异常重启了，但是由于没有这条<code>redolog</code>，所以机器无法恢复这一条记录，但是<code>binlog</code>里面多出这一条数据，哪备份或者主从同步的时候也会出现同样的问题。</li>
+<li><strong>二阶段提交如何保证一致性？</strong>假设极端的状态是<code>redolog</code>已经处于<strong>prepare状态</strong>，<code>binlog</code>也已经写完了，这个时候发生异常重启，就要依赖MySQL的处理机制<ul>
+<li>判断<code>redolog</code>是否完整(<strong>commit状态</strong>)，如果是完整的，就能立即提交</li>
+<li>如果<code>redolog</code>只是<code>prepare</code>状态，但<strong>不是commit状态</strong>，这个时候就判断<code>binlog</code>是否完整，如果完整就提交<code>redolog</code>，不完整就回滚事务</li>
+</ul>
+</li>
+</ul>
+<p><a href="https://mp.weixin.qq.com/s?__biz=Mzg2OTA0Njk0OA==&mid=2247485097&idx=1&sn=84c89da477b1338bdf3e9fcd65514ac1&chksm=cea24962f9d5c074d8d3ff1ab04ee8f0d6486e3d015cfd783503685986485c11738ccb542ba7&token=79317275&lang=zh_CN%23rd">一条SQL语句在MySQL中如何执行的</a></p>
+<h3 id="7-主从模式"><a href="#7-主从模式" class="headerlink" title="7. 主从模式"></a>7. 主从模式</h3><h4 id="详细流程"><a href="#详细流程" class="headerlink" title="详细流程"></a>详细流程</h4><ol>
+<li>在备库B上通过<strong>change master</strong>命令，设置主库A的IP、端口、用户名、密码，以及要从哪个位置开始请求binlog，这个位置包含文件名和日志偏移量</li>
+<li>在备库B上执行<strong>start slave</strong>命令，这个时候备库会启动两个线程，一个是<strong>io_thread</strong>，另一个是<strong>sql_thread</strong>。<strong>io_thread负责与主库A建立连接，获取binlog</strong></li>
+<li>主库A校验完备库B传来的参数之后，按照请求的位置读取binlog通过<strong>dump_thread</strong>线程发给备库B</li>
+<li>备库B拿到binlog之后，写到本地文件，称为<strong>中转日志（relay log）</strong></li>
+<li>备库B中的<strong>sql_thread读取中转日志，解析日志理的命令，并执行</strong></li>
+</ol>
+<p><img src="/2022/12/05/MySQL%E7%9F%A5%E8%AF%86%E6%80%BB%E7%BB%93/%E4%B8%BB%E4%BB%8E%E5%A4%8D%E5%88%B6%E6%B5%81%E7%A8%8B.png" alt="image-20220906144751652"></p>
+<h4 id="循环复制问题"><a href="#循环复制问题" class="headerlink" title="循环复制问题"></a>循环复制问题</h4><blockquote>
+<p>一般来说都是双Master结构，即节点A和节点B之间互为主从关系</p>
+</blockquote>
+<blockquote>
+<p>但是这样会产生一个问题，就是节点A更新了一条语句，并将binlog发给节点B，节点B更新之后又将binlog发给节点A执行</p>
+</blockquote>
+<p><strong>解决方法</strong></p>
+<p>设置server id</p>
+<ol>
+<li>规定两个库的server id必须不同，如果相同，则它们之间不能设定为主备关系</li>
+<li>一个备库收到binlog并且在重放过程中，要生成与原binlog的server id相同的新binlog</li>
+<li>备库收到主库发过来的binlog记录，先判断server id是不是跟自己的一样，一样表示这个日志是自己生成的，则直接丢弃；不一样表示不是自己生成的，重做这个日志</li>
+</ol>
+<p><img src="/2022/12/05/MySQL%E7%9F%A5%E8%AF%86%E6%80%BB%E7%BB%93/%E4%B8%BB%E4%BB%8E%E5%88%87%E6%8D%A2.png" alt="image-20220906145810695"></p>
+<h3 id="8-inner-join、left-join、right-join、full-join"><a href="#8-inner-join、left-join、right-join、full-join" class="headerlink" title="8. inner join、left join、right join、full join"></a>8. inner join、left join、right join、full join</h3><ul>
+<li><p><strong>inner join</strong>：等同于平时使用<code>，</code>连接两个表，内连接，交集</p>
+</li>
+<li><p><strong>left join</strong>：返回左表的全部数据</p>
+</li>
+<li><p><strong>right join</strong>：返回右表的全部数据</p>
+</li>
+<li><p><strong>full join</strong>：返回左右两个表的所有数据，并集</p>
+</li>
+</ul>
+<p><img src="/2022/12/05/MySQL%E7%9F%A5%E8%AF%86%E6%80%BB%E7%BB%93/join.png" alt="image-20220906162852592"></p>
+<h4 id="on和where的区别"><a href="#on和where的区别" class="headerlink" title="on和where的区别"></a>on和where的区别</h4><ul>
+<li><p><strong>on</strong>：在生成临时表时使用的条件，不管on中的条件，都会返回left join &#x2F; right join &#x2F; full join时，左边&#x2F;右边&#x2F;两边表中的记录</p>
+</li>
+<li><p><strong>where</strong>：临时表生成好后，对临时表进行过滤，所有条件不为真的记录都被过滤掉</p>
+</li>
+</ul>
+<p><a href="https://www.runoob.com/w3cnote/sql-different-on-and-where.html">SQL 中 on 条件与 where 条件的区别</a></p>
+<h3 id="9-小表驱动大表"><a href="#9-小表驱动大表" class="headerlink" title="9. 小表驱动大表"></a>9. 小表驱动大表</h3><blockquote>
+<p>select * from t1 straight_join t2 on (t1.a &#x3D; t2.a); 能够让MySQL使用固定的连接方式执行查询，t1是驱动表、t2是被驱动表</p>
+</blockquote>
+<blockquote>
+<p>小表是指两个表按照各自的条件过滤之后，参与join的各个字段的<strong>总数据量</strong>小的表</p>
+</blockquote>
+<p>驱动与被驱动：按照驱动表t1的数据到被驱动表t2中逐条查找数据，驱动表是外层循环，被驱动表是内层循环</p>
+<p>Index Nested-Loop Join：能够用上被驱动表的索引</p>
+<p>Simple Nested-Loop Join：不能用索引的情况下，就是两层循环</p>
+<p>Block Nested-Loop Join：先将驱动表数据放入join buffer中，再根据被驱动表与join buffer中的数据对比</p>
+]]></content>
+      <categories>
+        <category>MySQL</category>
+      </categories>
+      <tags>
+        <tag>MySQL</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>python模块加载顺序</title>
+    <url>/2022/08/17/python%E6%A8%A1%E5%9D%97%E5%8A%A0%E8%BD%BD%E9%A1%BA%E5%BA%8F/</url>
+    <content><![CDATA[<blockquote>
+<p>结论：工程自定义包 -&gt; 工程py文件 -&gt; 系统路径 </p>
+<p>所以如果在工程中自己创建了跟系统&#x2F;第三方模块重名的模块时，则无法加载系统&#x2F;第三方模块</p>
+</blockquote>
+<p>python出于性能考虑，每个模块在每个解释器会话中只导入一遍，所以如果程序运行过程中，你修改了自定义模块，那么需要重启解释器（即重启程序）或者使用<code>reload(moduleName)</code>重新加载模块（不用重启）</p>
+<h3 id="1-查看模块加载路径"><a href="#1-查看模块加载路径" class="headerlink" title="1. 查看模块加载路径"></a>1. 查看模块加载路径</h3><blockquote>
+<p>python解析器会从脚本执行目录、所有已安装内置模块和第三方模块中寻找导入的模块，按照sys.path中的路径顺序进行查找</p>
+</blockquote>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 查看sys.path</span></span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">import</span> sys</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>sys.path</span><br><span class="line">[<span class="string">&#x27;&#x27;</span>, <span class="string">&#x27;/usr/lib64/python27.zip&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/plat-linux2&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-tk&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-old&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/lib-dynload&#x27;</span>, <span class="string">&#x27;/usr/lib64/python2.7/site-packages&#x27;</span>, <span class="string">&#x27;/usr/lib/python2.7/site-packages&#x27;</span>]</span><br><span class="line"><span class="comment"># 这里的列表中的第一个&#x27;&#x27;代表着当前目录，如果是使用文件执行，则是显示的脚本所在目录</span></span><br><span class="line"><span class="comment"># 可以通过sys.path.append(&#x27;/Users/michael/my_py_scripts&#x27;)临时添加搜索目录</span></span><br><span class="line"><span class="comment"># 或将目录添加到shell环境变量PYTHONPATH中</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="2-自定义模块加载"><a href="#2-自定义模块加载" class="headerlink" title="2. 自定义模块加载"></a>2. 自定义模块加载</h3><ol>
+<li>导入一个叫<code>spam</code>的模块时，解释器先在当前目录中搜索名为<code>spam.py</code>的文件，import语句导入<code>spam.py</code>文件时，顺序执行其中的语句</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">目录结构</span><br><span class="line">projects/</span><br><span class="line">    test.py   # 内容 import spam</span><br><span class="line">    spam.py   # 内容 print(&quot;this is spam.py&quot;)</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">#</span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam.py</span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li><strong>目录下存在<code>spam</code>包时，则优先调用<code>spam</code>包，不加载<code>spam.py</code>。加载包内文件时，先执行<code>__init__.py</code>再加载包内文件内容</strong></li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">目录结构</span><br><span class="line">projects/</span><br><span class="line">    test.py   # 内容 import spam</span><br><span class="line">    spam.py   # 内容 print(&quot;this is spam.py&quot;)</span><br><span class="line">    spam/ </span><br><span class="line">        __init__.py  # 内容 print(&quot;this is spam/__init__.py&quot;)</span><br><span class="line">        sub.py        # 内容 print(&quot;this is spam/sub.py&quot;)</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam/__init__.py</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">修改test.py</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">echo</span> <span class="string">&quot;import spam.sub&quot;</span> &gt; test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">执行</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python test.py</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">结果</span></span><br><span class="line">this is spam/__init__.py</span><br><span class="line">this is spam/sub.py</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="3-查看第三方模块的所在路径"><a href="#3-查看第三方模块的所在路径" class="headerlink" title="3. 查看第三方模块的所在路径"></a>3. 查看第三方模块的所在路径</h3><p>哪如果想知道导入的第三方模块具体文件在哪里咋办呢？</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">import</span> imp</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>imp.find_module(<span class="string">&quot;paramiko&quot;</span>)</span><br><span class="line">(<span class="literal">None</span>, <span class="string">&#x27;/usr/local/lib/python3.6/site-packages/paramiko&#x27;</span>, (<span class="string">&#x27;&#x27;</span>, <span class="string">&#x27;&#x27;</span>, <span class="number">5</span>))</span><br></pre></td></tr></table></figure>
 
 ]]></content>
       <categories>
@@ -3834,32 +3853,6 @@
       </tags>
   </entry>
   <entry>
-    <title>关于一些好看的写作规范</title>
-    <url>/2022/11/02/%E5%85%B3%E4%BA%8E%E4%B8%80%E4%BA%9B%E5%A5%BD%E7%9C%8B%E7%9A%84%E5%86%99%E4%BD%9C%E8%A7%84%E8%8C%83/</url>
-    <content><![CDATA[<p>主要是统一一下自己的写作规范，尽可能好看一点</p>
-<ul>
-<li><p>尽可能使用markdown的标准语法，不要引入太多html或者是其他插件的语法</p>
-</li>
-<li><p>关于文章目录，所有最高层级的标题使用markdown的三级标题</p>
-</li>
-<li><p>关于不同标题层级之间的换行，在不同层级之间要空出一行，如果不空的话，文章看起来密密麻麻，父层级和第一个子层级之间可以不空出一行，但是子层级和子层级之间需要空出一行</p>
-</li>
-<li><p>句子中的英文，有的时候句子里面会写英文的单词，如果是：这是一个Test句子。中文与英文之间没有间隔，看起来就会很密，字一多起来，看起来头疼。所以在英文前后加上一个空格，如：这是一个 Test 句子（当然，页面渲染结果可以使用 hexo-pangu 这个插件来自动处理）。另外，这些英文尽可能首字母大小，看起来会舒服很多，但是也不一定全大写，自己看情况。</p>
-</li>
-<li><p>对于文本中的代码，不用说也知道，用&#96;&#96;&#96;引入代码块，再把代码黏贴进去，尽可能标注上代码类型，Java、Python 或 Shell 等。代码和文本不进行区分简直是反人类，这种博客看都不想看。</p>
-</li>
-<li><p>关于博客中最后的引用连接，最好写上标题名字，然后用超链接的方式，如<a href="https://learn.lianglianglee.com/%E4%B8%93%E6%A0%8F/Kafka%E6%A0%B8%E5%BF%83%E6%8A%80%E6%9C%AF%E4%B8%8E%E5%AE%9E%E6%88%98/18%20%20Kafka%E4%B8%AD%E4%BD%8D%E7%A7%BB%E6%8F%90%E4%BA%A4%E9%82%A3%E4%BA%9B%E4%BA%8B%E5%84%BF.md">Kafka中位移提交那些事儿</a>，如果连接失效了，就没办法了，所以自己最好在印象笔记里面存一份。</p>
-</li>
-</ul>
-]]></content>
-      <categories>
-        <category>日常踩坑</category>
-      </categories>
-      <tags>
-        <tag>日常</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>一致性哈希的由来</title>
     <url>/2023/02/17/%E4%B8%80%E8%87%B4%E6%80%A7%E5%93%88%E5%B8%8C%E7%9A%84%E7%94%B1%E6%9D%A5/</url>
     <content><![CDATA[<h3 id="1-负载均衡"><a href="#1-负载均衡" class="headerlink" title="1. 负载均衡"></a>1. 负载均衡</h3><p>大多数网站背后不只有一台服务器提供服务，都由多台服务器构成集群来向外提供服务。分配客户端的请求到那一台服务器进行处理，就是负载均衡解决的问题。</p>
@@ -3968,6 +3961,32 @@
       </categories>
       <tags>
         <tag>分布式</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>关于一些好看的写作规范</title>
+    <url>/2022/11/02/%E5%85%B3%E4%BA%8E%E4%B8%80%E4%BA%9B%E5%A5%BD%E7%9C%8B%E7%9A%84%E5%86%99%E4%BD%9C%E8%A7%84%E8%8C%83/</url>
+    <content><![CDATA[<p>主要是统一一下自己的写作规范，尽可能好看一点</p>
+<ul>
+<li><p>尽可能使用markdown的标准语法，不要引入太多html或者是其他插件的语法</p>
+</li>
+<li><p>关于文章目录，所有最高层级的标题使用markdown的三级标题</p>
+</li>
+<li><p>关于不同标题层级之间的换行，在不同层级之间要空出一行，如果不空的话，文章看起来密密麻麻，父层级和第一个子层级之间可以不空出一行，但是子层级和子层级之间需要空出一行</p>
+</li>
+<li><p>句子中的英文，有的时候句子里面会写英文的单词，如果是：这是一个Test句子。中文与英文之间没有间隔，看起来就会很密，字一多起来，看起来头疼。所以在英文前后加上一个空格，如：这是一个 Test 句子（当然，页面渲染结果可以使用 hexo-pangu 这个插件来自动处理）。另外，这些英文尽可能首字母大小，看起来会舒服很多，但是也不一定全大写，自己看情况。</p>
+</li>
+<li><p>对于文本中的代码，不用说也知道，用&#96;&#96;&#96;引入代码块，再把代码黏贴进去，尽可能标注上代码类型，Java、Python 或 Shell 等。代码和文本不进行区分简直是反人类，这种博客看都不想看。</p>
+</li>
+<li><p>关于博客中最后的引用连接，最好写上标题名字，然后用超链接的方式，如<a href="https://learn.lianglianglee.com/%E4%B8%93%E6%A0%8F/Kafka%E6%A0%B8%E5%BF%83%E6%8A%80%E6%9C%AF%E4%B8%8E%E5%AE%9E%E6%88%98/18%20%20Kafka%E4%B8%AD%E4%BD%8D%E7%A7%BB%E6%8F%90%E4%BA%A4%E9%82%A3%E4%BA%9B%E4%BA%8B%E5%84%BF.md">Kafka中位移提交那些事儿</a>，如果连接失效了，就没办法了，所以自己最好在印象笔记里面存一份。</p>
+</li>
+</ul>
+]]></content>
+      <categories>
+        <category>日常踩坑</category>
+      </categories>
+      <tags>
+        <tag>日常</tag>
       </tags>
   </entry>
   <entry>
@@ -4111,6 +4130,242 @@
       </categories>
       <tags>
         <tag>Git</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>网络抓包工具使用</title>
+    <url>/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/</url>
+    <content><![CDATA[<h2 id="1-网络抓包原理"><a href="#1-网络抓包原理" class="headerlink" title="1. 网络抓包原理"></a>1. 网络抓包原理</h2><blockquote>
+<p>抓包实际上是分析网络协议的一种过程，只要网络数据流经过我们的节点，就能够对数据流进行抓包。</p>
+</blockquote>
+<h3 id="1-1-网卡或代理抓包"><a href="#1-1-网卡或代理抓包" class="headerlink" title="1.1 网卡或代理抓包"></a>1.1 网卡或代理抓包</h3><p>目前的抓包软件总体上可以分成两类：</p>
+<ul>
+<li>一种是设置代理抓取 http 包，比如Charles、mitmproxy这些软件。</li>
+<li>另一种是直接抓取经过本机网络的所有协议包，其中最出名的就是 wireshark 以及 Linux 自带的抓包软件命令 tcpdump。</li>
+</ul>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/15202375411791.jpg" alt="img"></p>
+<h3 id="1-2-http-与-https"><a href="#1-2-http-与-https" class="headerlink" title="1.2 http 与 https"></a>1.2 http 与 https</h3><p>http 与 https 最大的区别是 http 的数据包是不加密的， https 的数据包是加密的。因此对于 wireshark 这种在数据链路层进行抓包的工具，所获取到的 https 数据包是加密的，因此无法分析包的内容。而 Charles 等只要安装 Charles 的证书，就能够解密 https 数据包的内容。</p>
+<h2 id="2-tcpdump-使用"><a href="#2-tcpdump-使用" class="headerlink" title="2. tcpdump 使用"></a>2. tcpdump 使用</h2><blockquote>
+<p>tcpdump可以把抓取到的数据包导出为 wireshark 格式的文件。</p>
+</blockquote>
+<blockquote>
+<p>不重复造轮子，详情请看<a href="https://www.cnblogs.com/wongbingming/p/13212306.html">tcpdump使用指南</a>，或者参考 man 文档。</p>
+</blockquote>
+<h3 id="2-1-命令格式"><a href="#2-1-命令格式" class="headerlink" title="2.1 命令格式"></a>2.1 命令格式</h3><p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/20200628111325.png" alt="img"></p>
+<ul>
+<li><p><strong>option 可选参数</strong>：常用的有<code>-i 指定网卡名字</code>、<code>-w 保存抓包数据到文件</code>、<code>-r 从文件中读取抓包数据</code>、<code>-v\-vv\-vvv 输出更详细的内容</code>、<code>-n\-nn\-N 不解析域名\端口</code>。</p>
+</li>
+<li><p><strong>proto 类过滤器</strong>：根据协议进行过滤，可识别的关键词有： <code>tcp、udp、icmp、ip、ip6、arp、rarp、ether、wlan、fddi、tr、decnet</code>。</p>
+</li>
+<li><p><strong>direction 类过滤器</strong>：根据数据流向进行过滤，可识别的关键字有：<code>src、dst</code>，同时你可以使用逻辑运算符进行组合，比如 <code>src or dst</code>。</p>
+</li>
+<li><p><strong>type 类过滤器</strong>：可识别的关键词有：<code>host、net、port、portrange</code>，这些词后边需要再接参数。</p>
+</li>
+</ul>
+<h3 id="2-2-输出内容格式"><a href="#2-2-输出内容格式" class="headerlink" title="2.2 输出内容格式"></a>2.2 输出内容格式</h3><blockquote>
+<p>加入不同的可选参数，可能会使得输出的内容格式会有区别，但是能够触类旁通。</p>
+</blockquote>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo tcpdump -nn src host 172.25.122.140</span></span><br><span class="line">tcpdump: verbose output suppressed, use -v or -vv for full protocol decode</span><br><span class="line">listening on eth0, link-type EN10MB (Ethernet), capture size 262144 bytes</span><br><span class="line">11:21:04.200134 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [S], seq 3457030617, win 64240, options [mss 1460,sackOK,TS val 148049843 ecr 0,nop,wscale 7], length 0</span><br><span class="line">11:21:04.206621 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [.], ack 3549651488, win 502, length 0</span><br><span class="line">11:21:04.212251 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [P.], seq 0:517, ack 1, win 502, length 517</span><br></pre></td></tr></table></figure>
+
+<p>以最后一条数据为例：</p>
+<ol>
+<li><strong>第一列，时分秒毫秒</strong> ：11:21:04.212251</li>
+<li><strong>第二列，网络协议</strong> ：IP</li>
+<li><strong>第三列，发送方 IP + 端口</strong>：IP - 172.25.122.140 | 端口 - 40236</li>
+<li><strong>第四列，数据流向 &gt;</strong> ：从 172.25.122.140.40236 流向 14.215.177.39.443</li>
+<li><strong>第五列，接收方 IP + 端口</strong>：IP - 14.215.177.39 | 端口 - 443</li>
+<li><strong>第六列，冒号</strong><code>：</code></li>
+<li><strong>第七列， 数据包内容</strong>：包括 Flags 标识符，seq 号，ack 号，win 窗口，数据长度 length</li>
+</ol>
+<p><strong>Flags 标识符</strong>：</p>
+<ul>
+<li><code>[S]</code> : SYN（开始连接）</li>
+<li><code>[P]</code> : PSH（推送数据）</li>
+<li><code>[F]</code> : FIN （结束连接）</li>
+<li><code>[R]</code> : RST（重置连接）</li>
+<li><code>[.]</code> : 没有 Flag （意思是除上面四种类型外的其他情况，有可能是 ACK 也有可能是 URG）</li>
+</ul>
+<h2 id="3-Wireshark-使用"><a href="#3-Wireshark-使用" class="headerlink" title="3. Wireshark 使用"></a>3. Wireshark 使用</h2><blockquote>
+<p>Wireshark 使用中最难的，其实就是过滤器的使用，如何从海量请求数据包过滤出自己需要分析的内容。</p>
+</blockquote>
+<blockquote>
+<p>Wireshark 包括两种过滤器：</p>
+<ul>
+<li><p>捕获过滤器：抓包的过滤规则，只抓取特定条件的数据包</p>
+</li>
+<li><p>显示过滤器：对抓取到的数据再次过滤，只显示符合特定规则数据包</p>
+</li>
+</ul>
+</blockquote>
+<h3 id="3-1-抓包示例"><a href="#3-1-抓包示例" class="headerlink" title="3.1 抓包示例"></a>3.1 抓包示例</h3><blockquote>
+<p>使用 Wireshark 抓取 ping <a href="http://www.baidu.com/">www.baidu.com</a> 的数据包</p>
+</blockquote>
+<ol>
+<li>打开 Wireshark 主界面。</li>
+</ol>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104161119826.png" alt="image-20230104161119826"></p>
+<ol start="2">
+<li>选择菜单栏上<code>捕获-&gt;选项-&gt;选择网卡-&gt;开始</code>，或者直接在主界面中选择需要抓包的网卡就能够开始抓包（网卡通常只会处理发送给它自身地址的流量，如果想要捕获所有经过网卡的流量就需要开启混杂模式）。</li>
+</ol>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104162023100.png" alt="image-20230104162023100"></p>
+<ol start="3">
+<li>启动之后，Wireshark 就处于抓包状态了。</li>
+</ol>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104162352660.png" alt="image-20230104162352660"></p>
+<ol start="4">
+<li>在 cmd 窗口执行<code>ping www.baidu.com</code>命令。</li>
+</ol>
+<img src="image-20230104162742232.png" alt="image-20230104162742232" style="zoom:60%;" />
+
+<ol start="5">
+<li>操作完成之后，就能在 Wireshark 中看到抓取的数据包了。为了避免其他不相关的数据包影响分析，可以在过滤栏设置显示过滤条件。<code>ip.addr == 14.215.177.39 and icmp</code>表示只显示源主机 IP 或者目标主机 IP 为 <code>14.215.177.39</code> 且 ICMP 协议的数据包。</li>
+</ol>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104163323961.png" alt="image-20230104163323961"></p>
+<h3 id="3-2-界面介绍"><a href="#3-2-界面介绍" class="headerlink" title="3.2 界面介绍"></a>3.2 界面介绍</h3><p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104164142717.png" alt="image-20230104164142717"></p>
+<h4 id="3-2-1-捕获过滤器"><a href="#3-2-1-捕获过滤器" class="headerlink" title="3.2.1 捕获过滤器"></a>3.2.1 捕获过滤器</h4><h5 id="3-2-1-1-界面设置"><a href="#3-2-1-1-界面设置" class="headerlink" title="3.2.1.1 界面设置"></a>3.2.1.1 界面设置</h5><p>能够在<code>捕获-&gt;捕获过滤器</code>中进行设置，只抓取符合规则的数据包，能够在开始抓包前进行设置。</p>
+<img src="image-20230104170403368.png" alt="image-20230104170403368"  />
+
+<img src="image-20230104170503369.png" alt="image-20230104170503369"  />
+
+<h5 id="3-2-1-2-捕获过滤器规则"><a href="#3-2-1-2-捕获过滤器规则" class="headerlink" title="3.2.1.2 捕获过滤器规则"></a>3.2.1.2 捕获过滤器规则</h5><blockquote>
+<p>捕获过滤器规则设置规则跟 tcpdump 是一样的，只介绍简单的过滤规则，详情请翻阅<a href="https://www.wireshark.org/docs/wsug_html_chunked/ChCapCaptureFilterSection.html">官方文档</a></p>
+</blockquote>
+<p>捕获过滤器的设置主要包括：网络类型 Type(host、net、port)、方向 Dir(src、dst)、协议类型 Proto(ether、ip、tcp、udp、http、icmp、ftp等)、逻辑运算符(&amp;&amp;、||、! 或者 and、or、not)。</p>
+<p>以下显示一些使用示例：</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">host 172.18.5.4     # 只捕捉源地址或者目的地址为172.18.5.4的流量</span><br><span class="line">net 192.168.0.0/24  # 捕捉192.168.0.0/24网段中的流量</span><br><span class="line">src net 192.168.0.0/24 # 捕捉源地址IP在网段192.168.0.0/24中的流量</span><br><span class="line">not broadcast and not multicast # 仅捕捉单播流量，不捕捉广播和多播的流量</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="3-2-2-显示过滤器"><a href="#3-2-2-显示过滤器" class="headerlink" title="3.2.2 显示过滤器"></a>3.2.2 显示过滤器</h4><h5 id="3-2-2-1-界面设置"><a href="#3-2-2-1-界面设置" class="headerlink" title="3.2.2.1 界面设置"></a>3.2.2.1 界面设置</h5><p>对抓取到的数据再次过滤，只显示符合特定规则数据包。显示过滤器能够在<code>分析-&gt;显示过滤器</code>中进行设置。</p>
+<p>在主界面中右键选择<code>作为过滤器应用</code>有惊喜，可以将界面中的一些数据作为过滤规则。</p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104170955371.png" alt="image-20230104170955371"></p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104173929469.png" alt="image-20230104173929469"></p>
+<h5 id="3-2-2-2-显示过滤器规则"><a href="#3-2-2-2-显示过滤器规则" class="headerlink" title="3.2.2.2 显示过滤器规则"></a>3.2.2.2 显示过滤器规则</h5><blockquote>
+<p>详细设置规则请参阅<a href="https://www.wireshark.org/docs/wsug_html_chunked/ChWorkBuildDisplayFilterSection.html">官方文档</a></p>
+</blockquote>
+<p>设置规则基本上是<code>key 运算符 value</code>的格式，运算符可以取<code>==、!=、===、!==、&gt;、&lt;、&gt;=、&lt;=、~</code>。</p>
+<p>使用示例：</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">tcp # 只显示tcp协议的数据包列表</span><br><span class="line">http # 只显示http协议的数据包列表</span><br><span class="line">ip.src == 192.168.1.104 # 显示源地址为192.168.1.104的数据包列表</span><br><span class="line">ip.dst == 192.168.1.104 # 显示目标地址为192.168.1.104的数据包列表</span><br><span class="line">ip.addr == 192.168.1.104 # 显示源IP地址或目标IP地址为192.168.1.104的数据包列表</span><br><span class="line">tcp.port == 80 # 显示源主机或者目的主机端口为80的数据包列表</span><br><span class="line">tcp.srcport == 80 # 只显示TCP协议的源主机端口为80的数据包列表</span><br><span class="line">tcp.dstport == 80 # 只显示TCP协议的目的主机端口为80的数据包列表</span><br><span class="line">http.request.method == &quot;GET&quot; # 只显示HTTP GET方法的</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-2-3-数据包列表区"><a href="#3-2-3-数据包列表区" class="headerlink" title="3.2.3 数据包列表区"></a>3.2.3 数据包列表区</h4><p>显示捕获到的数据包，每一行代表一个数据包，每个数据包包含编号、时间戳、源地址、目的地址、协议、长度以及数据包信息。不同的协议数据包使用了不同的颜色显示进行区分，可以在<code>视图-&gt;着色规则</code>中查看详细的设定。</p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104175334347.png" alt="image-20230104175334347"></p>
+<img src="image-20230104165647707.png" alt="image-20230104165647707" style="zoom:50%;" />
+
+<h4 id="3-2-4-详细数据区"><a href="#3-2-4-详细数据区" class="headerlink" title="3.2.4 详细数据区"></a>3.2.4 详细数据区</h4><p>数据包详细信息面板是最重要的，包含了数据包的所有详细信息内容，从物理层到应用层的数据，用来查看协议中的每一个字段信息。</p>
+<p><strong>参照 OSI 七层模型， 每一行代表着每一层中的数据，根据不同层次的不同协议，显示可能会有所不同。</strong></p>
+<ul>
+<li>Frame：物理层的数据帧状况，即全部数据。</li>
+<li>Ethernet II：数据链路层以太网帧头部信息。</li>
+<li>Internet Protocol Version 4：IPv4 包的头部信息。</li>
+<li>Transmission Control Protocol：TCP 协议的头部信息。</li>
+<li>Hypertext Transfer Protocol：HTTP数据包的所有信息。</li>
+</ul>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104180450263.png" alt="image-20230104180450263"></p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105105346183.png" alt="image-20230105105346183"></p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105155339201.png" alt="image-20230105155339201"></p>
+<h4 id="3-2-5-数据包字节区"><a href="#3-2-5-数据包字节区" class="headerlink" title="3.2.5 数据包字节区"></a>3.2.5 数据包字节区</h4><p>显示原始接收到的数据包字节，通过点击数据包详情区对应的字段，会在数据包字节区显示所对应的数据。</p>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104181425789.png" alt="image-20230104181425789"></p>
+<h3 id="3-3-抓包-TCP-三次握手"><a href="#3-3-抓包-TCP-三次握手" class="headerlink" title="3.3 抓包 TCP 三次握手"></a>3.3 抓包 TCP 三次握手</h3><h4 id="3-3-1-TCP-三次握手过程"><a href="#3-3-1-TCP-三次握手过程" class="headerlink" title="3.3.1 TCP 三次握手过程"></a>3.3.1 TCP 三次握手过程</h4><blockquote>
+<p>要分析抓到数据包，首先需要了解其原理</p>
+</blockquote>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105165221418.png" alt="image-20230105165221418"></p>
+<ol>
+<li>TCP服务器进程先创建传输控制块TCB，时刻准备接受客户进程的连接请求，此时服务器就进入了LISTEN（监听）状态；</li>
+<li>TCP客户进程也是先创建传输控制块TCB，然后向服务器发出连接请求报文，这是报文首部中的同部位 SYN&#x3D;1，同时选择一个初始序列号 seq&#x3D;x ，此时，TCP客户端进程进入了 SYN-SENT（同步已发送状态）状态。<strong>TCP规定，SYN报文段（SYN&#x3D;1的报文段）不能携带数据，但需要消耗掉一个序号</strong>；</li>
+<li>TCP服务器收到请求报文后，如果同意连接，则发出确认报文。确认报文中应该 ACK&#x3D;1，SYN&#x3D;1，确认号是ack&#x3D;x+1，同时也要为自己初始化一个序列号 seq&#x3D;y，此时，TCP服务器进程进入了SYN-RCVD（同步收到）状态。<strong>这个报文也不能携带数据，但是同样要消耗一个序号</strong>；</li>
+<li>TCP客户进程收到确认后，还要向服务器给出确认。确认报文的ACK&#x3D;1，ack&#x3D;y+1，自己的序列号seq&#x3D;x+1，此时，TCP连接建立，客户端进入ESTABLISHED（已建立连接）状态。<strong>TCP规定，ACK报文段可以携带数据，但是如果不携带数据则不消耗序号</strong>；</li>
+<li>当服务器收到客户端的确认后也进入ESTABLISHED状态，此后双方就可以开始通信了；</li>
+</ol>
+<h4 id="3-3-2-抓取-TCP-数据包"><a href="#3-3-2-抓取-TCP-数据包" class="headerlink" title="3.3.2 抓取 TCP 数据包"></a>3.3.2 抓取 TCP 数据包</h4><ol>
+<li>在 cmd 使用 <code>ping jandan.net</code>获取域名 IP；</li>
+</ol>
+<img src="image-20230105114055220.png" alt="image-20230105114055220" style="zoom:50%;" />
+
+<ol start="2">
+<li>启动 Wireshark 开始抓包；</li>
+<li>设置显示过滤器<code>ip.addr == 59.37.142.220 </code>；</li>
+</ol>
+<img src="image-20230105114302324.png" alt="image-20230105114302324" style="zoom:50%;" />
+
+<ol start="4">
+<li>浏览器中访问 <code>http://jandan.net/</code>；</li>
+</ol>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105142256229.png" alt="image-20230105142256229"></p>
+<p>从图中可以看到，这次访问 TCP 握手的三个过程。注意的是因为我这不是第一次访问网站，所以会有关闭之前连接的请求。然后访问的时候发起了两个 TCP 请求，可以通过端口号的不同进行区分，我们关注的是本地 54418 端口到服务器 80 端口的 TCP 请求。</p>
+<h4 id="3-3-3-第一次握手数据包"><a href="#3-3-3-第一次握手数据包" class="headerlink" title="3.3.3 第一次握手数据包"></a>3.3.3 第一次握手数据包</h4><p>WireShark 中显示了两个<code>Sequence Number</code>一个为<code>0</code>，一个为<code>605892471</code>，是因为 WireShark 为了更加容易观察进行的处理，一个是相对 Seq，一个是实际请求的 Seq，如果分别点击会发现数据包字节区是对应的同一块区域。</p>
+<ul>
+<li>SYN 标志位置为 1，表示向服务器请求建立连接；</li>
+<li>Seq 序列号为 605892471，相对位置为 0，表示当前客户端当前还没有发送数据；</li>
+</ul>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105144046541.png" alt="image-20230105144046541"></p>
+<h4 id="3-3-4-第二次握手数据包"><a href="#3-3-4-第二次握手数据包" class="headerlink" title="3.3.4 第二次握手数据包"></a>3.3.4 第二次握手数据包</h4><p>第二次握手数据包是服务器返回给客户端的，可以看到是从 59.37.142.220 的 80 端口到本机IP 的 54418 端口。跟 Seq 序列号一样，Acknowledgement number 也有相对与实际的区别。</p>
+<ul>
+<li>服务器响应新生成了 Seq 序列号：483437807，相对位置为 0， 表示当前服务器还没有发送数据；</li>
+<li>ack 设置为请求的 Seq 序列号 + 1，即为 605892472，表示响应的是第一次握手的数据包；</li>
+<li>ACK 和 SYN 标志位都置为 1，表示服务器同意建立连接并返回响应；</li>
+</ul>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105145332078.png" alt="image-20230105145332078"></p>
+<h4 id="3-3-5-第三次握手数据包"><a href="#3-3-5-第三次握手数据包" class="headerlink" title="3.3.5 第三次握手数据包"></a>3.3.5 第三次握手数据包</h4><p>第三次握手就比较简单了，建立完成之后就能开始数据交互：</p>
+<ul>
+<li>Seq 序列号为服务器响应 ack 的值，相对位置为 1，表示已经发送一个数据；</li>
+<li>ack 为服务器响应 Seq 序列号的值 + 1，表示当前客户端成功接收到的数据位数，虽然服务端没有发送任何有效数据，确认号还是被加 1，因为包含 SYN 或 FIN 标志位（并不会对有效数据的计数产生影响，因为含有SYN或FIN标志位的包并不携带有效数据)；</li>
+<li>ACK 标志位置 1，表示已经接收到第二次握手数据包；</li>
+</ul>
+<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105150139918.png" alt="image-20230105150139918"></p>
+]]></content>
+      <categories>
+        <category>计算机网络</category>
+      </categories>
+  </entry>
+  <entry>
+    <title>记一次WSDL使用</title>
+    <url>/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/</url>
+    <content><![CDATA[<h3 id="1-起因"><a href="#1-起因" class="headerlink" title="1. 起因"></a>1. 起因</h3><p>突然要求对接公司集团的一个接口，给了一个 <code>http://192.168.1.1:7001/services/NotifyService?wsdl</code> 这种地址过来，然后还给了个说明文档，介绍用 XML 的格式发送报文。</p>
+<p>一开始觉得跟 restful 接口差不多，就没多大留意。然后按照说明文档构建了 XML 格式的报文，跟下面的例子差不多。觉得没啥问题了，用 Postman 一测试，哎，怎么返回失败呢？首先是网络，检查了一下是通的。哪说明是调用接口的方式出了问题。</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">ReqRoot</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">ReqTime</span>&gt;</span>2022-10-27 10:03:02<span class="tag">&lt;/<span class="name">ReqTime</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">BillNo</span>&gt;</span></span><br><span class="line">            000000</span><br><span class="line">        <span class="tag">&lt;/<span class="name">BillNo</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Content</span>&gt;</span>消息成功发送<span class="tag">&lt;/<span class="name">Content</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">SendUser</span>&gt;</span>user<span class="tag">&lt;/<span class="name">SendUser</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Address</span>&gt;</span>mobile<span class="tag">&lt;/<span class="name">Address</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">ReqRoot</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="2-经过"><a href="#2-经过" class="headerlink" title="2. 经过"></a>2. 经过</h3><p>既然调用失败，那就百度一下为什么调用失败。看到给的链接后面有个 <code>wsdl</code> 的东西，感觉不太对劲，于是乎搜索了一下 <code>wsdl</code>。问了一下同事，说这是历史久远的接口。</p>
+<h4 id="2-1-什么是WSDL？"><a href="#2-1-什么是WSDL？" class="headerlink" title="2.1 什么是WSDL？"></a>2.1 什么是WSDL？</h4><blockquote>
+<p>WSDL 是一种使用 XML 编写的文档。这种文档可描述某个 Web service。它可规定服务的位置，以及此服务提供的操作（或方法）。</p>
+</blockquote>
+<blockquote>
+<p>在 2001 年 3 月，WSDL 1.1 被 IBM、微软作为一个 W3C 记录（W3C note）提交到有关 XML 协议的 W3C XML 活动，用于描述网络服务。（W3C 记录仅供讨论。一项 W3C 记录的发布并不代表它已被 W3C 或 W3C 团队亦或任何 W3C 成员认可。）</p>
+</blockquote>
+<ul>
+<li>WSDL（Web Services Description Language）指网络服务描述语言</li>
+<li>WSDL 使用 XML 编写</li>
+<li>WSDL 是一种 XML 文档</li>
+<li>WSDL 用于描述网络服务</li>
+<li>WSDL 也可用于定位网络服务</li>
+<li>WSDL 还不是 W3C 标准</li>
+</ul>
+<h4 id="2-2-怎么使用"><a href="#2-2-怎么使用" class="headerlink" title="2.2 怎么使用"></a>2.2 怎么使用</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">可以用下面的这个链接进行测试，这是一个中国电视节目预告 Web 服务</span><br><span class="line">http://www.webxml.com.cn/webservices/ChinaTVprogramWebService.asmx?wsdl</span><br></pre></td></tr></table></figure>
+
+<p>我主要关注的是怎么用这个接口，起码能保证业务上的功能正常再去关注这是什么东西。于是乎开始搜索怎么才能让接口调用成功。</p>
+<p>突然发现这个接口是能够直接在浏览器上面打开的，不过其实打开了，也看不出什么东西，因为是一堆的 XML 文本。大概知道的就是这个文本里面定义了有哪些接口，还有接口的调用方式。</p>
+<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/wsdl%E7%BD%91%E9%A1%B5.png" alt="image-20221124152448072"></p>
+<p>然后在网上找啊找，都没怎么找到比较好的方式去调用，但是起码别人是能调通的。观察发现怎么有一个应用叫 SoapUI 能够生成请求的报文体呢（截图截全一点对大家都好）。于是乎自己下载了一个下来看一下。</p>
+<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/soapui.png" alt="image-20221124153100317"></p>
+<p>界面上就是上面的样子，填入 wsdl 的链接就能够比较直观的看到有哪些能够调用的方法，在对应的方法里面创建请求还会帮你填充好一些 SOAP 协议相关的东西（之前就是缺少了这一部分）。如果把请求部分填充完整，是能够使用 SoapUI 请求成功。</p>
+<h4 id="2-3-使用-Postman-调用"><a href="#2-3-使用-Postman-调用" class="headerlink" title="2.3 使用 Postman 调用"></a>2.3 使用 Postman 调用</h4><p>既然能够使用 SoapUI 请求成功，那么就要尝试一下怎样才能使用 Postman 请求成功了。简单分为以下三步：</p>
+<ul>
+<li>将请求的 Content-Type 设置为 text&#x2F;xml</li>
+<li>请求头部加上SOAPAction，值可以置为空</li>
+<li>将 SoapUI 中接口自动生成的部分填入到请求体的 Body 中，然后填充必要的内容。（接口中给定的文档是 XML 文本，因此需要使用<code>&lt;![CDATA[your_data]]&gt;</code>的格式，your_data替换为接口文档中的格式）（CDATA 代表字符数据，其中的数据可以包含 XML 标记，但是还是会被当做字符串）</li>
+</ul>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version=<span class="string">&quot;1.0&quot;</span> encoding=<span class="string">&quot;UTF-8&quot;</span>?&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">soapenv:Envelope</span> <span class="attr">xmlns:soapenv</span>=<span class="string">&quot;http://schemas.xmlsoap.org/soap/envelope/&quot;</span> <span class="attr">xmlns:dom</span>=<span class="string">&quot;http://domain.webservice.itsm.ffcs.com&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">soapenv:Header</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">soapenv:Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">dom:sendMsgNew</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">dom:request</span>&gt;</span></span><br><span class="line">                &lt;![CDATA[</span><br><span class="line">                &lt;ReqRoot&gt;</span><br><span class="line">                    &lt;Body&gt;</span><br><span class="line">                        &lt;ReqTime&gt;2022-10-27 10:03:02&lt;/ReqTime&gt;</span><br><span class="line">                        &lt;BillNo&gt;</span><br><span class="line">                            000000</span><br><span class="line">                        &lt;/BillNo&gt;</span><br><span class="line">                        &lt;Content&gt;消息成功发送&lt;/Content&gt;</span><br><span class="line">                        &lt;SendUser&gt;user&lt;/SendUser&gt;</span><br><span class="line">                        &lt;Address&gt;mobile&lt;/Address&gt;</span><br><span class="line">                    &lt;/Body&gt;</span><br><span class="line">                &lt;/ReqRoot&gt;</span><br><span class="line">               ]]&gt;</span><br><span class="line">            <span class="tag">&lt;/<span class="name">dom:request</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">dom:sendMsgNew</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">soapenv:Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">soapenv:Envelope</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="3-总结"><a href="#3-总结" class="headerlink" title="3. 总结"></a>3. 总结</h3><p>其实就是 WSDL 与 Soap 的相关知识，但是其实现在很少用，等什么时候有空了再详细看看吧。</p>
+]]></content>
+      <categories>
+        <category>日常踩坑</category>
+      </categories>
+      <tags>
+        <tag>日常</tag>
       </tags>
   </entry>
   <entry>
@@ -5594,241 +5849,5 @@
 <p>3.2.0版本后添加的特性，Chroot特性允许每个客户端为自己设置一个命名空间。如果一个客户端设置了Chroot，那么对Zookeeper集群的任何操作，都会被限制在自己的命名空间下。Chroot能够将客户端对应上Zookeeper的一颗子树，因此在多个应用公用一个Zookeeper集群的时候，有利于应用间的相互隔离。</p>
 </blockquote>
 <h3 id="ACL-访问控制"><a href="#ACL-访问控制" class="headerlink" title="ACL 访问控制"></a>ACL 访问控制</h3>]]></content>
-  </entry>
-  <entry>
-    <title>记一次WSDL使用</title>
-    <url>/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/</url>
-    <content><![CDATA[<h3 id="1-起因"><a href="#1-起因" class="headerlink" title="1. 起因"></a>1. 起因</h3><p>突然要求对接公司集团的一个接口，给了一个 <code>http://192.168.1.1:7001/services/NotifyService?wsdl</code> 这种地址过来，然后还给了个说明文档，介绍用 XML 的格式发送报文。</p>
-<p>一开始觉得跟 restful 接口差不多，就没多大留意。然后按照说明文档构建了 XML 格式的报文，跟下面的例子差不多。觉得没啥问题了，用 Postman 一测试，哎，怎么返回失败呢？首先是网络，检查了一下是通的。哪说明是调用接口的方式出了问题。</p>
-<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">ReqRoot</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">ReqTime</span>&gt;</span>2022-10-27 10:03:02<span class="tag">&lt;/<span class="name">ReqTime</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">BillNo</span>&gt;</span></span><br><span class="line">            000000</span><br><span class="line">        <span class="tag">&lt;/<span class="name">BillNo</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Content</span>&gt;</span>消息成功发送<span class="tag">&lt;/<span class="name">Content</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">SendUser</span>&gt;</span>user<span class="tag">&lt;/<span class="name">SendUser</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">Address</span>&gt;</span>mobile<span class="tag">&lt;/<span class="name">Address</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">ReqRoot</span>&gt;</span></span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="2-经过"><a href="#2-经过" class="headerlink" title="2. 经过"></a>2. 经过</h3><p>既然调用失败，那就百度一下为什么调用失败。看到给的链接后面有个 <code>wsdl</code> 的东西，感觉不太对劲，于是乎搜索了一下 <code>wsdl</code>。问了一下同事，说这是历史久远的接口。</p>
-<h4 id="2-1-什么是WSDL？"><a href="#2-1-什么是WSDL？" class="headerlink" title="2.1 什么是WSDL？"></a>2.1 什么是WSDL？</h4><blockquote>
-<p>WSDL 是一种使用 XML 编写的文档。这种文档可描述某个 Web service。它可规定服务的位置，以及此服务提供的操作（或方法）。</p>
-</blockquote>
-<blockquote>
-<p>在 2001 年 3 月，WSDL 1.1 被 IBM、微软作为一个 W3C 记录（W3C note）提交到有关 XML 协议的 W3C XML 活动，用于描述网络服务。（W3C 记录仅供讨论。一项 W3C 记录的发布并不代表它已被 W3C 或 W3C 团队亦或任何 W3C 成员认可。）</p>
-</blockquote>
-<ul>
-<li>WSDL（Web Services Description Language）指网络服务描述语言</li>
-<li>WSDL 使用 XML 编写</li>
-<li>WSDL 是一种 XML 文档</li>
-<li>WSDL 用于描述网络服务</li>
-<li>WSDL 也可用于定位网络服务</li>
-<li>WSDL 还不是 W3C 标准</li>
-</ul>
-<h4 id="2-2-怎么使用"><a href="#2-2-怎么使用" class="headerlink" title="2.2 怎么使用"></a>2.2 怎么使用</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">可以用下面的这个链接进行测试，这是一个中国电视节目预告 Web 服务</span><br><span class="line">http://www.webxml.com.cn/webservices/ChinaTVprogramWebService.asmx?wsdl</span><br></pre></td></tr></table></figure>
-
-<p>我主要关注的是怎么用这个接口，起码能保证业务上的功能正常再去关注这是什么东西。于是乎开始搜索怎么才能让接口调用成功。</p>
-<p>突然发现这个接口是能够直接在浏览器上面打开的，不过其实打开了，也看不出什么东西，因为是一堆的 XML 文本。大概知道的就是这个文本里面定义了有哪些接口，还有接口的调用方式。</p>
-<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/wsdl%E7%BD%91%E9%A1%B5.png" alt="image-20221124152448072"></p>
-<p>然后在网上找啊找，都没怎么找到比较好的方式去调用，但是起码别人是能调通的。观察发现怎么有一个应用叫 SoapUI 能够生成请求的报文体呢（截图截全一点对大家都好）。于是乎自己下载了一个下来看一下。</p>
-<p><img src="/2022/11/01/%E8%AE%B0%E4%B8%80%E6%AC%A1WSDL%E4%BD%BF%E7%94%A8/soapui.png" alt="image-20221124153100317"></p>
-<p>界面上就是上面的样子，填入 wsdl 的链接就能够比较直观的看到有哪些能够调用的方法，在对应的方法里面创建请求还会帮你填充好一些 SOAP 协议相关的东西（之前就是缺少了这一部分）。如果把请求部分填充完整，是能够使用 SoapUI 请求成功。</p>
-<h4 id="2-3-使用-Postman-调用"><a href="#2-3-使用-Postman-调用" class="headerlink" title="2.3 使用 Postman 调用"></a>2.3 使用 Postman 调用</h4><p>既然能够使用 SoapUI 请求成功，那么就要尝试一下怎样才能使用 Postman 请求成功了。简单分为以下三步：</p>
-<ul>
-<li>将请求的 Content-Type 设置为 text&#x2F;xml</li>
-<li>请求头部加上SOAPAction，值可以置为空</li>
-<li>将 SoapUI 中接口自动生成的部分填入到请求体的 Body 中，然后填充必要的内容。（接口中给定的文档是 XML 文本，因此需要使用<code>&lt;![CDATA[your_data]]&gt;</code>的格式，your_data替换为接口文档中的格式）（CDATA 代表字符数据，其中的数据可以包含 XML 标记，但是还是会被当做字符串）</li>
-</ul>
-<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version=<span class="string">&quot;1.0&quot;</span> encoding=<span class="string">&quot;UTF-8&quot;</span>?&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">soapenv:Envelope</span> <span class="attr">xmlns:soapenv</span>=<span class="string">&quot;http://schemas.xmlsoap.org/soap/envelope/&quot;</span> <span class="attr">xmlns:dom</span>=<span class="string">&quot;http://domain.webservice.itsm.ffcs.com&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">soapenv:Header</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">soapenv:Body</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">dom:sendMsgNew</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">dom:request</span>&gt;</span></span><br><span class="line">                &lt;![CDATA[</span><br><span class="line">                &lt;ReqRoot&gt;</span><br><span class="line">                    &lt;Body&gt;</span><br><span class="line">                        &lt;ReqTime&gt;2022-10-27 10:03:02&lt;/ReqTime&gt;</span><br><span class="line">                        &lt;BillNo&gt;</span><br><span class="line">                            000000</span><br><span class="line">                        &lt;/BillNo&gt;</span><br><span class="line">                        &lt;Content&gt;消息成功发送&lt;/Content&gt;</span><br><span class="line">                        &lt;SendUser&gt;user&lt;/SendUser&gt;</span><br><span class="line">                        &lt;Address&gt;mobile&lt;/Address&gt;</span><br><span class="line">                    &lt;/Body&gt;</span><br><span class="line">                &lt;/ReqRoot&gt;</span><br><span class="line">               ]]&gt;</span><br><span class="line">            <span class="tag">&lt;/<span class="name">dom:request</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">dom:sendMsgNew</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">soapenv:Body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">soapenv:Envelope</span>&gt;</span></span><br></pre></td></tr></table></figure>
-
-
-
-<h3 id="3-总结"><a href="#3-总结" class="headerlink" title="3. 总结"></a>3. 总结</h3><p>其实就是 WSDL 与 Soap 的相关知识，但是其实现在很少用，等什么时候有空了再详细看看吧。</p>
-]]></content>
-      <categories>
-        <category>日常踩坑</category>
-      </categories>
-      <tags>
-        <tag>日常</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>网络抓包工具使用</title>
-    <url>/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/</url>
-    <content><![CDATA[<h2 id="1-网络抓包原理"><a href="#1-网络抓包原理" class="headerlink" title="1. 网络抓包原理"></a>1. 网络抓包原理</h2><blockquote>
-<p>抓包实际上是分析网络协议的一种过程，只要网络数据流经过我们的节点，就能够对数据流进行抓包。</p>
-</blockquote>
-<h3 id="1-1-网卡或代理抓包"><a href="#1-1-网卡或代理抓包" class="headerlink" title="1.1 网卡或代理抓包"></a>1.1 网卡或代理抓包</h3><p>目前的抓包软件总体上可以分成两类：</p>
-<ul>
-<li>一种是设置代理抓取 http 包，比如Charles、mitmproxy这些软件。</li>
-<li>另一种是直接抓取经过本机网络的所有协议包，其中最出名的就是 wireshark 以及 Linux 自带的抓包软件命令 tcpdump。</li>
-</ul>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/15202375411791.jpg" alt="img"></p>
-<h3 id="1-2-http-与-https"><a href="#1-2-http-与-https" class="headerlink" title="1.2 http 与 https"></a>1.2 http 与 https</h3><p>http 与 https 最大的区别是 http 的数据包是不加密的， https 的数据包是加密的。因此对于 wireshark 这种在数据链路层进行抓包的工具，所获取到的 https 数据包是加密的，因此无法分析包的内容。而 Charles 等只要安装 Charles 的证书，就能够解密 https 数据包的内容。</p>
-<h2 id="2-tcpdump-使用"><a href="#2-tcpdump-使用" class="headerlink" title="2. tcpdump 使用"></a>2. tcpdump 使用</h2><blockquote>
-<p>tcpdump可以把抓取到的数据包导出为 wireshark 格式的文件。</p>
-</blockquote>
-<blockquote>
-<p>不重复造轮子，详情请看<a href="https://www.cnblogs.com/wongbingming/p/13212306.html">tcpdump使用指南</a>，或者参考 man 文档。</p>
-</blockquote>
-<h3 id="2-1-命令格式"><a href="#2-1-命令格式" class="headerlink" title="2.1 命令格式"></a>2.1 命令格式</h3><p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/20200628111325.png" alt="img"></p>
-<ul>
-<li><p><strong>option 可选参数</strong>：常用的有<code>-i 指定网卡名字</code>、<code>-w 保存抓包数据到文件</code>、<code>-r 从文件中读取抓包数据</code>、<code>-v\-vv\-vvv 输出更详细的内容</code>、<code>-n\-nn\-N 不解析域名\端口</code>。</p>
-</li>
-<li><p><strong>proto 类过滤器</strong>：根据协议进行过滤，可识别的关键词有： <code>tcp、udp、icmp、ip、ip6、arp、rarp、ether、wlan、fddi、tr、decnet</code>。</p>
-</li>
-<li><p><strong>direction 类过滤器</strong>：根据数据流向进行过滤，可识别的关键字有：<code>src、dst</code>，同时你可以使用逻辑运算符进行组合，比如 <code>src or dst</code>。</p>
-</li>
-<li><p><strong>type 类过滤器</strong>：可识别的关键词有：<code>host、net、port、portrange</code>，这些词后边需要再接参数。</p>
-</li>
-</ul>
-<h3 id="2-2-输出内容格式"><a href="#2-2-输出内容格式" class="headerlink" title="2.2 输出内容格式"></a>2.2 输出内容格式</h3><blockquote>
-<p>加入不同的可选参数，可能会使得输出的内容格式会有区别，但是能够触类旁通。</p>
-</blockquote>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo tcpdump -nn src host 172.25.122.140</span></span><br><span class="line">tcpdump: verbose output suppressed, use -v or -vv for full protocol decode</span><br><span class="line">listening on eth0, link-type EN10MB (Ethernet), capture size 262144 bytes</span><br><span class="line">11:21:04.200134 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [S], seq 3457030617, win 64240, options [mss 1460,sackOK,TS val 148049843 ecr 0,nop,wscale 7], length 0</span><br><span class="line">11:21:04.206621 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [.], ack 3549651488, win 502, length 0</span><br><span class="line">11:21:04.212251 IP 172.25.122.140.40236 &gt; 14.215.177.39.443: Flags [P.], seq 0:517, ack 1, win 502, length 517</span><br></pre></td></tr></table></figure>
-
-<p>以最后一条数据为例：</p>
-<ol>
-<li><strong>第一列，时分秒毫秒</strong> ：11:21:04.212251</li>
-<li><strong>第二列，网络协议</strong> ：IP</li>
-<li><strong>第三列，发送方 IP + 端口</strong>：IP - 172.25.122.140 | 端口 - 40236</li>
-<li><strong>第四列，数据流向 &gt;</strong> ：从 172.25.122.140.40236 流向 14.215.177.39.443</li>
-<li><strong>第五列，接收方 IP + 端口</strong>：IP - 14.215.177.39 | 端口 - 443</li>
-<li><strong>第六列，冒号</strong><code>：</code></li>
-<li><strong>第七列， 数据包内容</strong>：包括 Flags 标识符，seq 号，ack 号，win 窗口，数据长度 length</li>
-</ol>
-<p><strong>Flags 标识符</strong>：</p>
-<ul>
-<li><code>[S]</code> : SYN（开始连接）</li>
-<li><code>[P]</code> : PSH（推送数据）</li>
-<li><code>[F]</code> : FIN （结束连接）</li>
-<li><code>[R]</code> : RST（重置连接）</li>
-<li><code>[.]</code> : 没有 Flag （意思是除上面四种类型外的其他情况，有可能是 ACK 也有可能是 URG）</li>
-</ul>
-<h2 id="3-Wireshark-使用"><a href="#3-Wireshark-使用" class="headerlink" title="3. Wireshark 使用"></a>3. Wireshark 使用</h2><blockquote>
-<p>Wireshark 使用中最难的，其实就是过滤器的使用，如何从海量请求数据包过滤出自己需要分析的内容。</p>
-</blockquote>
-<blockquote>
-<p>Wireshark 包括两种过滤器：</p>
-<ul>
-<li><p>捕获过滤器：抓包的过滤规则，只抓取特定条件的数据包</p>
-</li>
-<li><p>显示过滤器：对抓取到的数据再次过滤，只显示符合特定规则数据包</p>
-</li>
-</ul>
-</blockquote>
-<h3 id="3-1-抓包示例"><a href="#3-1-抓包示例" class="headerlink" title="3.1 抓包示例"></a>3.1 抓包示例</h3><blockquote>
-<p>使用 Wireshark 抓取 ping <a href="http://www.baidu.com/">www.baidu.com</a> 的数据包</p>
-</blockquote>
-<ol>
-<li>打开 Wireshark 主界面。</li>
-</ol>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104161119826.png" alt="image-20230104161119826"></p>
-<ol start="2">
-<li>选择菜单栏上<code>捕获-&gt;选项-&gt;选择网卡-&gt;开始</code>，或者直接在主界面中选择需要抓包的网卡就能够开始抓包（网卡通常只会处理发送给它自身地址的流量，如果想要捕获所有经过网卡的流量就需要开启混杂模式）。</li>
-</ol>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104162023100.png" alt="image-20230104162023100"></p>
-<ol start="3">
-<li>启动之后，Wireshark 就处于抓包状态了。</li>
-</ol>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104162352660.png" alt="image-20230104162352660"></p>
-<ol start="4">
-<li>在 cmd 窗口执行<code>ping www.baidu.com</code>命令。</li>
-</ol>
-<img src="image-20230104162742232.png" alt="image-20230104162742232" style="zoom:60%;" />
-
-<ol start="5">
-<li>操作完成之后，就能在 Wireshark 中看到抓取的数据包了。为了避免其他不相关的数据包影响分析，可以在过滤栏设置显示过滤条件。<code>ip.addr == 14.215.177.39 and icmp</code>表示只显示源主机 IP 或者目标主机 IP 为 <code>14.215.177.39</code> 且 ICMP 协议的数据包。</li>
-</ol>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104163323961.png" alt="image-20230104163323961"></p>
-<h3 id="3-2-界面介绍"><a href="#3-2-界面介绍" class="headerlink" title="3.2 界面介绍"></a>3.2 界面介绍</h3><p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104164142717.png" alt="image-20230104164142717"></p>
-<h4 id="3-2-1-捕获过滤器"><a href="#3-2-1-捕获过滤器" class="headerlink" title="3.2.1 捕获过滤器"></a>3.2.1 捕获过滤器</h4><h5 id="3-2-1-1-界面设置"><a href="#3-2-1-1-界面设置" class="headerlink" title="3.2.1.1 界面设置"></a>3.2.1.1 界面设置</h5><p>能够在<code>捕获-&gt;捕获过滤器</code>中进行设置，只抓取符合规则的数据包，能够在开始抓包前进行设置。</p>
-<img src="image-20230104170403368.png" alt="image-20230104170403368"  />
-
-<img src="image-20230104170503369.png" alt="image-20230104170503369"  />
-
-<h5 id="3-2-1-2-捕获过滤器规则"><a href="#3-2-1-2-捕获过滤器规则" class="headerlink" title="3.2.1.2 捕获过滤器规则"></a>3.2.1.2 捕获过滤器规则</h5><blockquote>
-<p>捕获过滤器规则设置规则跟 tcpdump 是一样的，只介绍简单的过滤规则，详情请翻阅<a href="https://www.wireshark.org/docs/wsug_html_chunked/ChCapCaptureFilterSection.html">官方文档</a></p>
-</blockquote>
-<p>捕获过滤器的设置主要包括：网络类型 Type(host、net、port)、方向 Dir(src、dst)、协议类型 Proto(ether、ip、tcp、udp、http、icmp、ftp等)、逻辑运算符(&amp;&amp;、||、! 或者 and、or、not)。</p>
-<p>以下显示一些使用示例：</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">host 172.18.5.4     # 只捕捉源地址或者目的地址为172.18.5.4的流量</span><br><span class="line">net 192.168.0.0/24  # 捕捉192.168.0.0/24网段中的流量</span><br><span class="line">src net 192.168.0.0/24 # 捕捉源地址IP在网段192.168.0.0/24中的流量</span><br><span class="line">not broadcast and not multicast # 仅捕捉单播流量，不捕捉广播和多播的流量</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="3-2-2-显示过滤器"><a href="#3-2-2-显示过滤器" class="headerlink" title="3.2.2 显示过滤器"></a>3.2.2 显示过滤器</h4><h5 id="3-2-2-1-界面设置"><a href="#3-2-2-1-界面设置" class="headerlink" title="3.2.2.1 界面设置"></a>3.2.2.1 界面设置</h5><p>对抓取到的数据再次过滤，只显示符合特定规则数据包。显示过滤器能够在<code>分析-&gt;显示过滤器</code>中进行设置。</p>
-<p>在主界面中右键选择<code>作为过滤器应用</code>有惊喜，可以将界面中的一些数据作为过滤规则。</p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104170955371.png" alt="image-20230104170955371"></p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104173929469.png" alt="image-20230104173929469"></p>
-<h5 id="3-2-2-2-显示过滤器规则"><a href="#3-2-2-2-显示过滤器规则" class="headerlink" title="3.2.2.2 显示过滤器规则"></a>3.2.2.2 显示过滤器规则</h5><blockquote>
-<p>详细设置规则请参阅<a href="https://www.wireshark.org/docs/wsug_html_chunked/ChWorkBuildDisplayFilterSection.html">官方文档</a></p>
-</blockquote>
-<p>设置规则基本上是<code>key 运算符 value</code>的格式，运算符可以取<code>==、!=、===、!==、&gt;、&lt;、&gt;=、&lt;=、~</code>。</p>
-<p>使用示例：</p>
-<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">tcp # 只显示tcp协议的数据包列表</span><br><span class="line">http # 只显示http协议的数据包列表</span><br><span class="line">ip.src == 192.168.1.104 # 显示源地址为192.168.1.104的数据包列表</span><br><span class="line">ip.dst == 192.168.1.104 # 显示目标地址为192.168.1.104的数据包列表</span><br><span class="line">ip.addr == 192.168.1.104 # 显示源IP地址或目标IP地址为192.168.1.104的数据包列表</span><br><span class="line">tcp.port == 80 # 显示源主机或者目的主机端口为80的数据包列表</span><br><span class="line">tcp.srcport == 80 # 只显示TCP协议的源主机端口为80的数据包列表</span><br><span class="line">tcp.dstport == 80 # 只显示TCP协议的目的主机端口为80的数据包列表</span><br><span class="line">http.request.method == &quot;GET&quot; # 只显示HTTP GET方法的</span><br></pre></td></tr></table></figure>
-
-<h4 id="3-2-3-数据包列表区"><a href="#3-2-3-数据包列表区" class="headerlink" title="3.2.3 数据包列表区"></a>3.2.3 数据包列表区</h4><p>显示捕获到的数据包，每一行代表一个数据包，每个数据包包含编号、时间戳、源地址、目的地址、协议、长度以及数据包信息。不同的协议数据包使用了不同的颜色显示进行区分，可以在<code>视图-&gt;着色规则</code>中查看详细的设定。</p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104175334347.png" alt="image-20230104175334347"></p>
-<img src="image-20230104165647707.png" alt="image-20230104165647707" style="zoom:50%;" />
-
-<h4 id="3-2-4-详细数据区"><a href="#3-2-4-详细数据区" class="headerlink" title="3.2.4 详细数据区"></a>3.2.4 详细数据区</h4><p>数据包详细信息面板是最重要的，包含了数据包的所有详细信息内容，从物理层到应用层的数据，用来查看协议中的每一个字段信息。</p>
-<p><strong>参照 OSI 七层模型， 每一行代表着每一层中的数据，根据不同层次的不同协议，显示可能会有所不同。</strong></p>
-<ul>
-<li>Frame：物理层的数据帧状况，即全部数据。</li>
-<li>Ethernet II：数据链路层以太网帧头部信息。</li>
-<li>Internet Protocol Version 4：IPv4 包的头部信息。</li>
-<li>Transmission Control Protocol：TCP 协议的头部信息。</li>
-<li>Hypertext Transfer Protocol：HTTP数据包的所有信息。</li>
-</ul>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104180450263.png" alt="image-20230104180450263"></p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105105346183.png" alt="image-20230105105346183"></p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105155339201.png" alt="image-20230105155339201"></p>
-<h4 id="3-2-5-数据包字节区"><a href="#3-2-5-数据包字节区" class="headerlink" title="3.2.5 数据包字节区"></a>3.2.5 数据包字节区</h4><p>显示原始接收到的数据包字节，通过点击数据包详情区对应的字段，会在数据包字节区显示所对应的数据。</p>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230104181425789.png" alt="image-20230104181425789"></p>
-<h3 id="3-3-抓包-TCP-三次握手"><a href="#3-3-抓包-TCP-三次握手" class="headerlink" title="3.3 抓包 TCP 三次握手"></a>3.3 抓包 TCP 三次握手</h3><h4 id="3-3-1-TCP-三次握手过程"><a href="#3-3-1-TCP-三次握手过程" class="headerlink" title="3.3.1 TCP 三次握手过程"></a>3.3.1 TCP 三次握手过程</h4><blockquote>
-<p>要分析抓到数据包，首先需要了解其原理</p>
-</blockquote>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105165221418.png" alt="image-20230105165221418"></p>
-<ol>
-<li>TCP服务器进程先创建传输控制块TCB，时刻准备接受客户进程的连接请求，此时服务器就进入了LISTEN（监听）状态；</li>
-<li>TCP客户进程也是先创建传输控制块TCB，然后向服务器发出连接请求报文，这是报文首部中的同部位 SYN&#x3D;1，同时选择一个初始序列号 seq&#x3D;x ，此时，TCP客户端进程进入了 SYN-SENT（同步已发送状态）状态。<strong>TCP规定，SYN报文段（SYN&#x3D;1的报文段）不能携带数据，但需要消耗掉一个序号</strong>；</li>
-<li>TCP服务器收到请求报文后，如果同意连接，则发出确认报文。确认报文中应该 ACK&#x3D;1，SYN&#x3D;1，确认号是ack&#x3D;x+1，同时也要为自己初始化一个序列号 seq&#x3D;y，此时，TCP服务器进程进入了SYN-RCVD（同步收到）状态。<strong>这个报文也不能携带数据，但是同样要消耗一个序号</strong>；</li>
-<li>TCP客户进程收到确认后，还要向服务器给出确认。确认报文的ACK&#x3D;1，ack&#x3D;y+1，自己的序列号seq&#x3D;x+1，此时，TCP连接建立，客户端进入ESTABLISHED（已建立连接）状态。<strong>TCP规定，ACK报文段可以携带数据，但是如果不携带数据则不消耗序号</strong>；</li>
-<li>当服务器收到客户端的确认后也进入ESTABLISHED状态，此后双方就可以开始通信了；</li>
-</ol>
-<h4 id="3-3-2-抓取-TCP-数据包"><a href="#3-3-2-抓取-TCP-数据包" class="headerlink" title="3.3.2 抓取 TCP 数据包"></a>3.3.2 抓取 TCP 数据包</h4><ol>
-<li>在 cmd 使用 <code>ping jandan.net</code>获取域名 IP；</li>
-</ol>
-<img src="image-20230105114055220.png" alt="image-20230105114055220" style="zoom:50%;" />
-
-<ol start="2">
-<li>启动 Wireshark 开始抓包；</li>
-<li>设置显示过滤器<code>ip.addr == 59.37.142.220 </code>；</li>
-</ol>
-<img src="image-20230105114302324.png" alt="image-20230105114302324" style="zoom:50%;" />
-
-<ol start="4">
-<li>浏览器中访问 <code>http://jandan.net/</code>；</li>
-</ol>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105142256229.png" alt="image-20230105142256229"></p>
-<p>从图中可以看到，这次访问 TCP 握手的三个过程。注意的是因为我这不是第一次访问网站，所以会有关闭之前连接的请求。然后访问的时候发起了两个 TCP 请求，可以通过端口号的不同进行区分，我们关注的是本地 54418 端口到服务器 80 端口的 TCP 请求。</p>
-<h4 id="3-3-3-第一次握手数据包"><a href="#3-3-3-第一次握手数据包" class="headerlink" title="3.3.3 第一次握手数据包"></a>3.3.3 第一次握手数据包</h4><p>WireShark 中显示了两个<code>Sequence Number</code>一个为<code>0</code>，一个为<code>605892471</code>，是因为 WireShark 为了更加容易观察进行的处理，一个是相对 Seq，一个是实际请求的 Seq，如果分别点击会发现数据包字节区是对应的同一块区域。</p>
-<ul>
-<li>SYN 标志位置为 1，表示向服务器请求建立连接；</li>
-<li>Seq 序列号为 605892471，相对位置为 0，表示当前客户端当前还没有发送数据；</li>
-</ul>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105144046541.png" alt="image-20230105144046541"></p>
-<h4 id="3-3-4-第二次握手数据包"><a href="#3-3-4-第二次握手数据包" class="headerlink" title="3.3.4 第二次握手数据包"></a>3.3.4 第二次握手数据包</h4><p>第二次握手数据包是服务器返回给客户端的，可以看到是从 59.37.142.220 的 80 端口到本机IP 的 54418 端口。跟 Seq 序列号一样，Acknowledgement number 也有相对与实际的区别。</p>
-<ul>
-<li>服务器响应新生成了 Seq 序列号：483437807，相对位置为 0， 表示当前服务器还没有发送数据；</li>
-<li>ack 设置为请求的 Seq 序列号 + 1，即为 605892472，表示响应的是第一次握手的数据包；</li>
-<li>ACK 和 SYN 标志位都置为 1，表示服务器同意建立连接并返回响应；</li>
-</ul>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105145332078.png" alt="image-20230105145332078"></p>
-<h4 id="3-3-5-第三次握手数据包"><a href="#3-3-5-第三次握手数据包" class="headerlink" title="3.3.5 第三次握手数据包"></a>3.3.5 第三次握手数据包</h4><p>第三次握手就比较简单了，建立完成之后就能开始数据交互：</p>
-<ul>
-<li>Seq 序列号为服务器响应 ack 的值，相对位置为 1，表示已经发送一个数据；</li>
-<li>ack 为服务器响应 Seq 序列号的值 + 1，表示当前客户端成功接收到的数据位数，虽然服务端没有发送任何有效数据，确认号还是被加 1，因为包含 SYN 或 FIN 标志位（并不会对有效数据的计数产生影响，因为含有SYN或FIN标志位的包并不携带有效数据)；</li>
-<li>ACK 标志位置 1，表示已经接收到第二次握手数据包；</li>
-</ul>
-<p><img src="/2023/01/03/%E7%BD%91%E7%BB%9C%E6%8A%93%E5%8C%85%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/image-20230105150139918.png" alt="image-20230105150139918"></p>
-]]></content>
-      <categories>
-        <category>计算机网络</category>
-      </categories>
   </entry>
 </search>
