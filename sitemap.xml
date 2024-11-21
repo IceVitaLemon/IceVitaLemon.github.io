@@ -2,6 +2,28 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>http://example.com/2024/11/21/Git%E5%91%BD%E4%BB%A4%E7%BC%A9%E5%86%99%E9%85%8D%E7%BD%AE/</loc>
+    
+    <lastmod>2024-11-21T09:05:06.556Z</lastmod>
+    
+    <date>1732177720000</date>
+    <title>Git命令缩写配置 | IceVitalemon's Blog</title>
+    
+    <desc></desc>
+  </url>
+  
+  <url>
+    <loc>http://example.com/2023/08/17/%E6%B5%85%E6%9E%90NAT%E7%A9%BF%E9%80%8F/</loc>
+    
+    <lastmod>2023-12-18T12:34:10.404Z</lastmod>
+    
+    <date>1692238003000</date>
+    <title>浅析NAT穿透 | IceVitalemon's Blog</title>
+    
+    <desc>介绍两个局域网中的机器，如何穿透NAT网关的限制，实现直接端到端通信。</desc>
+  </url>
+  
+  <url>
     <loc>http://example.com/2023/08/03/WebRTC%E7%AE%80%E4%BB%8B/</loc>
     
     <lastmod>2023-08-17T01:44:10.479Z</lastmod>
