@@ -4,12 +4,23 @@
   <url>
     <loc>http://example.com/2024/11/21/Git%E5%91%BD%E4%BB%A4%E7%BC%A9%E5%86%99%E9%85%8D%E7%BD%AE/</loc>
     
-    <lastmod>2024-11-21T09:05:06.556Z</lastmod>
+    <lastmod>2024-11-21T11:30:16.389Z</lastmod>
     
     <date>1732177720000</date>
     <title>Git命令缩写配置 | IceVitalemon's Blog</title>
     
-    <desc></desc>
+    <desc>简要介绍Git配置文件，以及命令缩写的配置。</desc>
+  </url>
+  
+  <url>
+    <loc>http://example.com/2024/11/21/conntrack%E5%91%BD%E4%BB%A4%E4%BD%BF%E7%94%A8%E7%AE%80%E4%BB%8B/</loc>
+    
+    <lastmod>2024-11-21T10:08:49.225Z</lastmod>
+    
+    <date>1732182185000</date>
+    <title>conntrack命令使用简介 | IceVitalemon's Blog</title>
+    
+    <desc>conntrack 是一个用户空间工具，用于与 Linux 内核的连接跟踪系统（Connection Tracking）进行交互。可以用于跟踪或操作数据包流的状态和连接信息。</desc>
   </url>
   
   <url>
